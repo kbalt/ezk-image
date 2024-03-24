@@ -1,0 +1,29 @@
+[package]
+name = "ezk-image"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rayon = { version = "1.9", optional = true }
+
+[features]
+default = ["multi-thread"]
+
+# Enable multi threading for image conversion
+multi-thread = ["rayon"]
+
+# Use somewhat fast approximations for mathematical operations
+fastmath = []
+# Use very fast approximations for mathematical operations
+veryfastmath = []
+
+[dev-dependencies]
+image = { version = "0.25", default-features = false, features = ["png"] }
+nalgebra = "0.32"
+
+criterion = "0.5"
+
+
+[[bench]]
+name = "pixel_format"
+harness = false
