@@ -1,6 +1,6 @@
 use ezk_image::{
-    convert_multi_thread, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, Dst, PixelFormat,
-    Source,
+    convert_multi_thread, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, Destination,
+    PixelFormat, Source,
 };
 
 use image::{Rgb, Rgba};
@@ -43,7 +43,7 @@ fn make_i420_image(color: ColorInfo) -> (Vec<u8>, usize, usize) {
 
     convert_multi_thread(
         Source::new(PixelFormat::RGBA, color, &rgba, width, height),
-        Dst::new(PixelFormat::I420, color, &mut i420, width, height),
+        Destination::new(PixelFormat::I420, color, &mut i420, width, height),
     );
 
     (i420, width, height)
@@ -73,7 +73,7 @@ fn i420_to_rgba() {
         height,
     );
 
-    let dst = Dst::new(
+    let dst = Destination::new(
         PixelFormat::RGBA,
         ColorInfo {
             space: ColorSpace::BT2100HLG,
@@ -113,7 +113,7 @@ fn rgba_to_rgba() {
         height,
     );
 
-    let dst = Dst::new(
+    let dst = Destination::new(
         PixelFormat::RGBA,
         ColorInfo {
             space: ColorSpace::BT709,
@@ -154,7 +154,7 @@ fn rgba_to_rgb() {
         height,
     );
 
-    let dst = Dst::new(
+    let dst = Destination::new(
         PixelFormat::RGB,
         ColorInfo {
             space: ColorSpace::BT709,

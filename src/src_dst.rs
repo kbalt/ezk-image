@@ -1,6 +1,7 @@
 use crate::{ColorInfo, PixelFormat, Rect};
 use std::marker::PhantomData;
 
+/// Describes an immutable image buffer used as source for conversions
 #[derive(Debug, Clone, Copy)]
 pub struct Source<'a> {
     pub(crate) format: PixelFormat,
@@ -46,7 +47,8 @@ impl<'a> Source<'a> {
     }
 }
 
-pub struct Dst<'a> {
+/// Describes a mutable image buffer used as destination for conversions
+pub struct Destination<'a> {
     pub(crate) format: PixelFormat,
     pub(crate) color: ColorInfo,
 
@@ -57,7 +59,7 @@ pub struct Dst<'a> {
     pub(crate) window: Option<Rect>,
 }
 
-impl<'a> Dst<'a> {
+impl<'a> Destination<'a> {
     pub fn new(
         format: PixelFormat,
         color: ColorInfo,

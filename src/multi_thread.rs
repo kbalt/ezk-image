@@ -1,8 +1,8 @@
 use crate::verify_input;
-use crate::{convert, Dst, Rect, Source};
+use crate::{convert, Destination, Rect, Source};
 use rayon::iter::{ParallelBridge, ParallelIterator};
 
-pub fn convert_multi_thread<'a>(src: Source<'a>, dst: Dst<'a>) {
+pub fn convert_multi_thread<'a>(src: Source<'a>, dst: Destination<'a>) {
     let (src_window, dst_window) = verify_input(&src, &dst);
 
     let threads = 32;

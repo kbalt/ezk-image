@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use ezk_image::{
-    convert, convert_multi_thread, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, Dst,
-    PixelFormat, Source,
+    convert, convert_multi_thread, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer,
+    Destination, PixelFormat, Source,
 };
 use std::hint::black_box;
 
@@ -17,7 +17,7 @@ const NOOP_COLOR_INFO: ColorInfo = ColorInfo {
 
 fn do_convert(src_format: PixelFormat, src: &[u8], dst_format: PixelFormat, dst: &mut [u8]) {
     let src = Source::new(src_format, NOOP_COLOR_INFO, src, IMAGE_WIDTH, IMAGE_HEIGHT);
-    let dst = Dst::new(dst_format, NOOP_COLOR_INFO, dst, IMAGE_WIDTH, IMAGE_HEIGHT);
+    let dst = Destination::new(dst_format, NOOP_COLOR_INFO, dst, IMAGE_WIDTH, IMAGE_HEIGHT);
 
     convert(src, dst);
 }
@@ -29,7 +29,7 @@ fn do_convert_multi_thread(
     dst: &mut [u8],
 ) {
     let src = Source::new(src_format, NOOP_COLOR_INFO, src, IMAGE_WIDTH, IMAGE_HEIGHT);
-    let dst = Dst::new(dst_format, NOOP_COLOR_INFO, dst, IMAGE_WIDTH, IMAGE_HEIGHT);
+    let dst = Destination::new(dst_format, NOOP_COLOR_INFO, dst, IMAGE_WIDTH, IMAGE_HEIGHT);
 
     convert_multi_thread(src, dst);
 }

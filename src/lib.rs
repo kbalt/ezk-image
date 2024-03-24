@@ -6,7 +6,7 @@ use src_dst::RawMutSliceU8;
 pub use color::{ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer};
 #[cfg(feature = "multi-thread")]
 pub use multi_thread::convert_multi_thread;
-pub use src_dst::{Dst, Source};
+pub use src_dst::{Destination, Source};
 
 mod color;
 mod formats;
@@ -36,7 +36,7 @@ pub struct Rect {
 }
 
 /// Verify that the input values are all valid and safe to move on to
-fn verify_input(src: &Source<'_>, dst: &Dst<'_>) -> (Rect, Rect) {
+fn verify_input(src: &Source<'_>, dst: &Destination<'_>) -> (Rect, Rect) {
     let src_window = src.window.unwrap_or(Rect {
         x: 0,
         y: 0,
@@ -81,7 +81,7 @@ impl PixelFormat {
     }
 }
 
-pub fn convert<'a>(src: Source<'a>, dst: Dst<'a>) {
+pub fn convert<'a>(src: Source<'a>, dst: Destination<'a>) {
     verify_input(&src, &dst);
 
     match src.format {
@@ -93,7 +93,7 @@ pub fn convert<'a>(src: Source<'a>, dst: Dst<'a>) {
     }
 }
 
-fn convert_i420<'a>(src: Source<'a>, dst: Dst<'a>) {
+fn convert_i420<'a>(src: Source<'a>, dst: Destination<'a>) {
     match dst.format {
         PixelFormat::I420 => read_i420(
             src.width,
@@ -171,7 +171,7 @@ fn convert_i420<'a>(src: Source<'a>, dst: Dst<'a>) {
     }
 }
 
-fn convert_rgb<'a, const REVERSE: bool>(src: Source<'a>, dst: Dst<'a>) {
+fn convert_rgb<'a, const REVERSE: bool>(src: Source<'a>, dst: Destination<'a>) {
     match dst.format {
         PixelFormat::I420 => {
             read_rgb_4x::<REVERSE, _>(
@@ -236,7 +236,7 @@ fn convert_rgb<'a, const REVERSE: bool>(src: Source<'a>, dst: Dst<'a>) {
     }
 }
 
-fn convert_rgba<'a, const REVERSE: bool>(src: Source<'a>, dst: Dst<'a>) {
+fn convert_rgba<'a, const REVERSE: bool>(src: Source<'a>, dst: Destination<'a>) {
     match dst.format {
         PixelFormat::I420 => {
             read_rgba_4x::<REVERSE, _>(
