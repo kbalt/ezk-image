@@ -77,9 +77,17 @@ unsafe impl Vector for float32x4_t {
     }
 
     #[target_feature(enable = "neon")]
-    unsafe fn load(ptr: *const u8) -> Self {
+    unsafe fn load_u8(ptr: *const u8) -> Self {
         let v = ptr.cast::<[u8; 4]>().read_unaligned();
         let v = vmovl_u8(transmute([v, v]));
+        let v = vmovl_high_u16(v);
+
+        vcvtq_f32_u32(v)
+    }
+
+    #[target_feature(enable = "neon")]
+    unsafe fn load_u16(ptr: *const u8) -> Self {
+        let v = ptr.cast::<[u16; 4]>().read_unaligned();
         let v = vmovl_high_u16(v);
 
         vcvtq_f32_u32(v)

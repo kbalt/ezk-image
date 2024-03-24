@@ -1,6 +1,7 @@
 use super::Vector;
 use crate::arch::*;
 use crate::color::{ColorOps, ColorOpsPart};
+use crate::endian::Endian;
 use std::mem::transmute;
 
 unsafe impl Vector for __m256 {
@@ -93,7 +94,7 @@ unsafe impl Vector for __m256 {
     }
 
     #[target_feature(enable = "avx2")]
-    unsafe fn load(ptr: *const u8) -> Self {
+    unsafe fn load_u8(ptr: *const u8) -> Self {
         let v = ptr.cast::<i64>().read_unaligned();
 
         let v = _mm256_set1_epi64x(v);
@@ -103,6 +104,26 @@ unsafe impl Vector for __m256 {
 
         let hi = _mm256_unpackhi_epi8(v, _mm256_setzero_si256());
         let hi = _mm256_unpackhi_epi8(hi, _mm256_setzero_si256());
+
+        let v = _mm256_permute2x128_si256(lo, hi, 0b100000);
+
+        _mm256_cvtepi32_ps(v)
+    }
+
+    #[target_feature(enable = "avx2")]
+    unsafe fn load_u16<E: Endian>(ptr: *const u16) -> Self {
+        let v = ptr.cast::<__m128i>().read_unaligned();
+
+        let v = if E::IS_NATIVE {
+            v
+        } else {
+            util::swap_u16_bytes_x8(v)
+        };
+
+        let v = _mm256_set_m128i(v, v);
+
+        let lo = _mm256_unpacklo_epi16(v, _mm256_setzero_si256());
+        let hi = _mm256_unpackhi_epi16(v, _mm256_setzero_si256());
 
         let v = _mm256_permute2x128_si256(lo, hi, 0b100000);
 
@@ -358,6 +379,21 @@ pub(crate) mod util {
     }
 
     #[inline(always)]
+    pub(crate) unsafe fn float32x8x2_to_u16x16<E: Endian>(l: __m256, h: __m256) -> [u16; 16] {
+        let l = _mm256_cvtps_epi32(l);
+        let h = _mm256_cvtps_epi32(h);
+
+        let v = _mm256_packus_epi32(l, h);
+        let v = _mm256_permutevar8x32_epi32(v, _mm256_setr_epi32(0, 1, 4, 5, 2, 3, 6, 7));
+
+        if E::IS_NATIVE {
+            transmute(v)
+        } else {
+            transmute(swap_u16_bytes_x16(v))
+        }
+    }
+
+    #[inline(always)]
     pub(crate) unsafe fn float32x8_to_u8x8(v: __m256) -> [u8; 8] {
         let v = _mm256_cvtps_epi32(v);
         let v = _mm256_packus_epi32(v, v);
@@ -367,6 +403,23 @@ pub(crate) mod util {
         let b = _mm256_extract_epi32(v, 4);
 
         transmute([a, b])
+    }
+
+    #[inline(always)]
+    pub(crate) unsafe fn float32x8_to_u16x8<E: Endian>(v: __m256) -> [u16; 8] {
+        let v = _mm256_cvtps_epi32(v);
+        let v = _mm256_packus_epi32(v, v);
+
+        let a = _mm256_extract_epi64(v, 0);
+        let b = _mm256_extract_epi64(v, 2);
+
+        let v = _mm_set_epi64x(b, a);
+
+        if E::IS_NATIVE {
+            transmute(v)
+        } else {
+            transmute(swap_u16_bytes_x8(v))
+        }
     }
 
     #[inline(always)]
@@ -422,6 +475,21 @@ pub(crate) mod util {
 
         transmute([a0, b0, c0, a1, b1, c1])
     }
+
+    #[inline(always)]
+    pub(crate) unsafe fn swap_u16_bytes_x8(a: __m128i) -> __m128i {
+        let b = _mm_setr_epi8(1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14);
+        _mm_shuffle_epi8(a, b)
+    }
+
+    #[inline(always)]
+    pub(crate) unsafe fn swap_u16_bytes_x16(a: __m256i) -> __m256i {
+        let b = _mm256_setr_epi8(
+            1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14, 17, 16, 19, 18, 21, 20, 23, 22,
+            25, 24, 27, 26, 29, 28, 31, 30,
+        );
+        _mm256_shuffle_epi8(a, b)
+    }
 }
 
 #[cfg(test)]
@@ -442,8 +510,8 @@ mod tests {
             let expected_a = [100.0, 200.0, 101.0, 201.0, 102.0, 202.0, 103.0, 203.0];
             let expected_b = [104.0, 204.0, 105.0, 205.0, 106.0, 206.0, 107.0, 207.0];
 
-            let a = __m256::load(rgba.as_ptr());
-            let b = __m256::load(rgba.as_ptr().add(__m256::LEN));
+            let a = __m256::load_u8(rgba.as_ptr());
+            let b = __m256::load_u8(rgba.as_ptr().add(__m256::LEN));
 
             let (a, b) = a.zip(b);
 
@@ -475,10 +543,10 @@ mod tests {
             ]
             .map(|x| x as f32);
 
-            let r00 = __m256::load(red.as_ptr());
-            let r01 = __m256::load(red.as_ptr().add(__m256::LEN));
-            let r10 = __m256::load(red.as_ptr().add(__m256::LEN * 2));
-            let r11 = __m256::load(red.as_ptr().add(__m256::LEN * 3));
+            let r00 = __m256::load_u8(red.as_ptr());
+            let r01 = __m256::load_u8(red.as_ptr().add(__m256::LEN));
+            let r10 = __m256::load_u8(red.as_ptr().add(__m256::LEN * 2));
+            let r11 = __m256::load_u8(red.as_ptr().add(__m256::LEN * 3));
 
             let r0 = r00.vadd(r10);
             let r1 = r01.vadd(r11);

@@ -1,4 +1,5 @@
 use crate::color::{ColorOps, ColorOpsPart};
+use crate::endian::Endian;
 use std::fmt::Debug;
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -9,7 +10,7 @@ pub(crate) mod neon;
 
 /// Abstraction over float SIMD vector and common operations
 pub(crate) unsafe trait Vector: Debug + Copy + 'static {
-    /// Many pixels (f32) can this vector hold
+    /// How many pixels (f32) can this vector hold
     const LEN: usize;
     type Mask;
 
@@ -81,7 +82,15 @@ pub(crate) unsafe trait Vector: Debug + Copy + 'static {
     /// # Safety
     ///
     /// Pointer must be valid to read Self::LEN bytes
-    unsafe fn load(ptr: *const u8) -> Self;
+    unsafe fn load_u8(ptr: *const u8) -> Self;
+
+    /// Load LEN * 2 packed bytes and unpack them to f32 by scattering them to [b0, b1, 0, 0, b2, b3, 0, 0, b4, b5, 0, 0, ...]
+    /// and then converting to floats
+    ///
+    /// # Safety
+    ///
+    /// Pointer must be valid to read Self::LEN * 2 bytes
+    unsafe fn load_u16<E: Endian>(ptr: *const u16) -> Self;
 
     fn color_ops(c: &ColorOps) -> &ColorOpsPart<Self>;
 }
@@ -157,8 +166,17 @@ unsafe impl Vector for f32 {
         (self, other)
     }
 
-    unsafe fn load(ptr: *const u8) -> Self {
+    unsafe fn load_u8(ptr: *const u8) -> Self {
         Self::from(ptr.read_unaligned())
+    }
+    unsafe fn load_u16<E: Endian>(ptr: *const u16) -> Self {
+        let v = ptr.read_unaligned();
+
+        if E::IS_NATIVE {
+            Self::from(v)
+        } else {
+            Self::from(v.swap_bytes())
+        }
     }
 
     #[inline(always)]

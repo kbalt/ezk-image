@@ -5,7 +5,7 @@ use crate::RawMutSliceU8;
 use crate::Rect;
 use std::marker::PhantomData;
 
-pub struct I420Writer<'a> {
+pub struct I420U8Writer<'a> {
     window: Rect,
 
     dst_width: usize,
@@ -15,7 +15,7 @@ pub struct I420Writer<'a> {
     _m: PhantomData<&'a mut [u8]>,
 }
 
-impl<'a> I420Writer<'a> {
+impl<'a> I420U8Writer<'a> {
     pub(crate) fn new(
         dst_width: usize,
         dst_height: usize,
@@ -43,7 +43,7 @@ impl<'a> I420Writer<'a> {
     }
 }
 
-impl<'a> I420VisitorImpl<f32> for I420Writer<'a> {
+impl<'a> I420VisitorImpl<f32> for I420U8Writer<'a> {
     #[inline(always)]
     unsafe fn visit(&mut self, x: usize, y: usize, block: I420Block<f32>) {
         let x = self.window.x + x;
@@ -97,7 +97,7 @@ impl<'a> I420VisitorImpl<f32> for I420Writer<'a> {
 }
 
 #[cfg(target_arch = "aarch64")]
-impl<'a> I420VisitorImpl<float32x4_t> for I420Writer<'a> {
+impl<'a> I420VisitorImpl<float32x4_t> for I420U8Writer<'a> {
     #[inline(always)]
     unsafe fn visit(&mut self, x: usize, y: usize, block: I420Block<float32x4_t>) {
         use crate::vector::neon::util::{float32x4_to_u8x4, float32x4x2_to_uint8x8_t};
@@ -153,7 +153,7 @@ impl<'a> I420VisitorImpl<float32x4_t> for I420Writer<'a> {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-impl<'a> I420VisitorImpl<__m256> for I420Writer<'a> {
+impl<'a> I420VisitorImpl<__m256> for I420U8Writer<'a> {
     #[inline(always)]
     unsafe fn visit(&mut self, x: usize, y: usize, block: I420Block<__m256>) {
         use crate::vector::avx2::util::{float32x8_to_u8x8, float32x8x2_to_u8x16};

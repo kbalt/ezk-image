@@ -96,10 +96,10 @@ mod avx2 {
 
     #[target_feature(enable = "avx2")]
     pub(super) unsafe fn load_rgba(ptr: *const u8) -> (__m256, __m256, __m256, __m256) {
-        let m1 = __m256::load(ptr);
-        let m2 = __m256::load(ptr.add(__m256::LEN));
-        let m3 = __m256::load(ptr.add(__m256::LEN * 2));
-        let m4 = __m256::load(ptr.add(__m256::LEN * 3));
+        let m1 = __m256::load_u8(ptr);
+        let m2 = __m256::load_u8(ptr.add(__m256::LEN));
+        let m3 = __m256::load_u8(ptr.add(__m256::LEN * 2));
+        let m4 = __m256::load_u8(ptr.add(__m256::LEN * 3));
 
         let v1 = _mm256_unpacklo_ps(m1, m2);
         let v2 = _mm256_unpacklo_ps(m3, m4);
