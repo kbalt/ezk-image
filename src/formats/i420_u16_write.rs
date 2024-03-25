@@ -121,7 +121,7 @@ impl<'a, const BIT_DEPTH: usize, E: Endian> I420VisitorImpl<float32x4_t>
 {
     #[inline(always)]
     unsafe fn visit(&mut self, x: usize, y: usize, block: I420Block<float32x4_t>) {
-        use crate::vector::neon::util::{float32x4_to_u8x4, float32x4x2_to_uint8x8_t};
+        use crate::vector::neon::util::{float32x4_to_u16x4, float32x4x2_to_uint16x8_t};
 
         let x = self.window.x + x;
         let y = self.window.y + y;
@@ -135,24 +135,26 @@ impl<'a, const BIT_DEPTH: usize, E: Endian> I420VisitorImpl<float32x4_t>
             v,
         } = block;
 
-        let y00 = y00.vmulf(255.0);
-        let y01 = y01.vmulf(255.0);
-        let y10 = y10.vmulf(255.0);
-        let y11 = y11.vmulf(255.0);
-        let u = u.vmulf(255.0);
-        let v = v.vmulf(255.0);
+        let scale = scale(BIT_DEPTH);
 
-        let y0 = float32x4x2_to_uint8x8_t(y00, y01);
-        let y1 = float32x4x2_to_uint8x8_t(y10, y11);
+        let y00 = y00.vmulf(scale);
+        let y01 = y01.vmulf(scale);
+        let y10 = y10.vmulf(scale);
+        let y11 = y11.vmulf(scale);
+        let u = u.vmulf(scale);
+        let v = v.vmulf(scale);
+
+        let y0 = float32x4x2_to_uint16x8_t::<BIT_DEPTH, E>(y00, y01);
+        let y1 = float32x4x2_to_uint16x8_t::<BIT_DEPTH, E>(y10, y11);
 
         let offset0 = y * self.dst_width + x;
         let offset1 = (y + 1) * self.dst_width + x;
 
-        self.dst.add(offset0).cast::<uint8x8_t>().write(y0);
-        self.dst.add(offset1).cast::<uint8x8_t>().write(y1);
+        self.dst.add(offset0).cast::<uint16x8_t>().write(y0);
+        self.dst.add(offset1).cast::<uint16x8_t>().write(y1);
 
-        let u = float32x4_to_u8x4(u);
-        let v = float32x4_to_u8x4(v);
+        let u = float32x4_to_u16x4::<BIT_DEPTH, E>(u);
+        let v = float32x4_to_u16x4::<BIT_DEPTH, E>(v);
 
         let u_plane_offset = self.dst_width * self.dst_height;
         let v_plane_offset = u_plane_offset + (u_plane_offset / 4);
@@ -164,11 +166,11 @@ impl<'a, const BIT_DEPTH: usize, E: Endian> I420VisitorImpl<float32x4_t>
         let uv_offset = (hy * hw) + hx;
         self.dst
             .add(u_plane_offset + uv_offset)
-            .cast::<[u8; 4]>()
+            .cast::<uint16x4_t>()
             .write_unaligned(u);
         self.dst
             .add(v_plane_offset + uv_offset)
-            .cast::<[u8; 4]>()
+            .cast::<uint16x4_t>()
             .write_unaligned(v);
     }
 }

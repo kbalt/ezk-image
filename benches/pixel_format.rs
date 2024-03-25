@@ -43,22 +43,31 @@ fn run_benchmarks(
 
     let mut rgb = black_box(vec![0u8; RGB.buffer_size(IMAGE_WIDTH, IMAGE_HEIGHT)]);
     let mut rgba = black_box(vec![0u8; RGBA.buffer_size(IMAGE_WIDTH, IMAGE_HEIGHT)]);
-    let mut i420 = black_box(vec![0u8; I420.buffer_size(IMAGE_WIDTH, IMAGE_HEIGHT)]);
+    let mut i420_u8 = black_box(vec![0u8; I420.buffer_size(IMAGE_WIDTH, IMAGE_HEIGHT)]);
+    let mut i420_u16 = black_box(vec![0u8; I420P10LE.buffer_size(IMAGE_WIDTH, IMAGE_HEIGHT)]);
 
     c.bench_function(&format!("RGB to I420 {s}"), |b| {
-        b.iter(|| do_convert(RGB, &rgb, I420, &mut i420))
+        b.iter(|| do_convert(RGB, &rgb, I420, &mut i420_u8))
     });
 
     c.bench_function(&format!("I420 to RGB {s}"), |b| {
-        b.iter(|| do_convert(I420, &i420, RGB, &mut rgb))
+        b.iter(|| do_convert(I420, &i420_u8, RGB, &mut rgb))
     });
 
     c.bench_function(&format!("RGBA to I420 {s}"), |b| {
-        b.iter(|| do_convert(RGBA, &rgba, I420, &mut i420))
+        b.iter(|| do_convert(RGBA, &rgba, I420, &mut i420_u8))
     });
 
     c.bench_function(&format!("I420 to RGBA {s}"), |b| {
-        b.iter(|| do_convert(I420, &i420, RGBA, &mut rgba))
+        b.iter(|| do_convert(I420, &i420_u8, RGBA, &mut rgba))
+    });
+
+    c.bench_function(&format!("RGBA to I420P10LE {s}"), |b| {
+        b.iter(|| do_convert(RGBA, &rgba, I420P10LE, &mut i420_u16))
+    });
+
+    c.bench_function(&format!("I420P10LE to RGBA {s}"), |b| {
+        b.iter(|| do_convert(I420P10LE, &i420_u16, RGBA, &mut rgba))
     });
 }
 

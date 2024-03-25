@@ -52,7 +52,9 @@ unsafe fn read_i420_u16_neon<const BIT_DEPTH: usize, E, Vis>(
     E: Endian,
     Vis: I420Visitor,
 {
-    read_i420_16_impl::<BIT_DEPTH, E, float32x4_t, Vis>(src_width, src_height, src, window, visitor)
+    read_i420_u16_impl::<BIT_DEPTH, E, float32x4_t, Vis>(
+        src_width, src_height, src, window, visitor,
+    )
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -190,7 +192,7 @@ unsafe fn load_and_visit_block<const BIT_DEPTH: usize, E, V, Vis>(
     let u = V::load_u16::<E>(u_ptr.add(uv_offset));
     let v = V::load_u16::<E>(v_ptr.add(uv_offset));
 
-    // Convert 8 bit to analog 0..=1.0
+    // Convert to analog 0..=1.0
     let y00 = y00.vdivf(divisor);
     let y01 = y01.vdivf(divisor);
     let y10 = y10.vdivf(divisor);

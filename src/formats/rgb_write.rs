@@ -303,13 +303,13 @@ impl<const REVERSE: bool> RgbBlockVisitorImpl<float32x4_t> for RGBWriter<'_, REV
         let x = self.window.x + x;
         let y = self.window.y + y;
 
-        let r0 = float32x4x2_to_uint8x8_t(block.rgb00.r.vmulf(255), block.rgb01.r.vmulf(255));
-        let g0 = float32x4x2_to_uint8x8_t(block.rgb00.g.vmulf(255), block.rgb01.g.vmulf(255));
-        let b0 = float32x4x2_to_uint8x8_t(block.rgb00.b.vmulf(255), block.rgb01.b.vmulf(255));
+        let r0 = float32x4x2_to_uint8x8_t(block.rgb00.r.vmulf(255.0), block.rgb01.r.vmulf(255.0));
+        let g0 = float32x4x2_to_uint8x8_t(block.rgb00.g.vmulf(255.0), block.rgb01.g.vmulf(255.0));
+        let b0 = float32x4x2_to_uint8x8_t(block.rgb00.b.vmulf(255.0), block.rgb01.b.vmulf(255.0));
 
-        let r1 = float32x4x2_to_uint8x8_t(block.rgb10.r.vmulf(255), block.rgb11.r.vmulf(255));
-        let g1 = float32x4x2_to_uint8x8_t(block.rgb10.g.vmulf(255), block.rgb11.g.vmulf(255));
-        let b1 = float32x4x2_to_uint8x8_t(block.rgb10.b.vmulf(255), block.rgb11.b.vmulf(255));
+        let r1 = float32x4x2_to_uint8x8_t(block.rgb10.r.vmulf(255.0), block.rgb11.r.vmulf(255.0));
+        let g1 = float32x4x2_to_uint8x8_t(block.rgb10.g.vmulf(255.0), block.rgb11.g.vmulf(255.0));
+        let b1 = float32x4x2_to_uint8x8_t(block.rgb10.b.vmulf(255.0), block.rgb11.b.vmulf(255.0));
 
         let rgb0 = transmute::<[uint8x8_t; 3], uint8x8x3_t>([r0, g0, b0]);
         let rgb1 = transmute::<[uint8x8_t; 3], uint8x8x3_t>([r1, g1, b1]);

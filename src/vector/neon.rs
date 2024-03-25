@@ -1,6 +1,7 @@
 use super::Vector;
 use crate::arch::*;
 use crate::color::{ColorOps, ColorOpsPart};
+use crate::endian::Endian;
 use std::mem::transmute;
 
 unsafe impl Vector for float32x4_t {
@@ -86,9 +87,10 @@ unsafe impl Vector for float32x4_t {
     }
 
     #[target_feature(enable = "neon")]
-    unsafe fn load_u16(ptr: *const u8) -> Self {
-        let v = ptr.cast::<[u16; 4]>().read_unaligned();
-        let v = vmovl_high_u16(v);
+    unsafe fn load_u16<E: Endian>(ptr: *const u16) -> Self {
+        let v = ptr.cast::<uint16x4_t>().read_unaligned();
+        let v = if E::IS_NATIVE { v } else { vrev32_u16(v) };
+        let v = vmovl_u16(v);
 
         vcvtq_f32_u32(v)
     }
@@ -101,7 +103,7 @@ unsafe impl Vector for float32x4_t {
 
 mod math {
     use crate::arch::*;
-    use std::f32::consts::{LN_2, LOG2_E};
+    use std::f32::consts::LOG2_E;
     use std::mem::transmute;
 
     const ONE: float32x4_t = splat(1.0);
@@ -117,7 +119,6 @@ mod math {
         const EXP_HI: float32x4_t = splat(88.376_26);
         const EXP_LO: float32x4_t = splat(-88.376_26);
         const CEPHES_LOG2EF: float32x4_t = splat(LOG2_E);
-        const INV_LOG2EF: float32x4_t = splat(LN_2);
         const C_CEPHES_EXP_C1: float32x4_t = splat(0.693_359_4);
         const C_CEPHES_EXP_C2: float32x4_t = splat(-2.121_944_4e-4);
 
@@ -177,7 +178,6 @@ mod math {
     // Function copied from http://gruntthepeon.free.fr/ssemath/neon_mathfun.h
     #[target_feature(enable = "neon")]
     pub(super) unsafe fn log(x: float32x4_t) -> float32x4_t {
-        const MIN_NORM_POS: float32x4_t = splat(0.0);
         const INV_MANT_MASK: i32 = !0x7f800000;
         const CEPHES_SQRT_HF: f32 = 0.707_106_77;
         const CEPHES_LOG_P0: float32x4_t = splat(7.037_683_6E-2);
@@ -268,6 +268,7 @@ mod math {
 
 pub(crate) mod util {
     use crate::arch::*;
+    use crate::endian::Endian;
     use std::mem::transmute;
 
     #[inline(always)]
@@ -286,6 +287,31 @@ pub(crate) mod util {
     }
 
     #[inline(always)]
+    pub(crate) unsafe fn float32x4x2_to_uint16x8_t<const BIT_DEPTH: usize, E>(
+        l: float32x4_t,
+        h: float32x4_t,
+    ) -> uint16x8_t
+    where
+        E: Endian,
+    {
+        let l = vcvtq_u32_f32(l);
+        let l = vminq_u32(l, vdupq_n_u32((1 << BIT_DEPTH) - 1));
+        let l = vmovn_u32(l);
+
+        let h = vcvtq_u32_f32(h);
+        let h = vminq_u32(h, vdupq_n_u32((1 << BIT_DEPTH) - 1));
+        let h = vmovn_u32(h);
+
+        let (l, h) = if E::IS_NATIVE {
+            (l, h)
+        } else {
+            (vrev32_u16(l), (vrev32_u16(h)))
+        };
+
+        transmute([l, h])
+    }
+
+    #[inline(always)]
     pub(crate) unsafe fn float32x4_to_u8x4(i: float32x4_t) -> [u8; 4] {
         let i = vcvtq_u32_f32(i);
         let i = vminq_u32(i, vdupq_n_u32(255));
@@ -296,6 +322,22 @@ pub(crate) mod util {
         let [a, b, c, d, ..] = transmute::<uint8x8_t, [u8; 8]>(vmovn_u16(v));
 
         [a, b, c, d]
+    }
+
+    #[inline(always)]
+    pub(crate) unsafe fn float32x4_to_u16x4<const BIT_DEPTH: usize, E>(i: float32x4_t) -> uint16x4_t
+    where
+        E: Endian,
+    {
+        let i = vcvtq_u32_f32(i);
+        let i = vminq_u32(i, vdupq_n_u32((1 << BIT_DEPTH) - 1));
+        let i = vmovn_u32(i);
+
+        if E::IS_NATIVE {
+            i
+        } else {
+            vrev32_u16(i)
+        }
     }
 }
 

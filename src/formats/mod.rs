@@ -43,7 +43,6 @@ pub(crate) use self::{
     i420_to_rgb::I420ToRgbVisitor,
     i420_u16_write::I420U16Writer,
     i420_u8_write::I420U8Writer,
-    rgb::RgbBlockVisitor,
     rgb_read::read_rgb_4x,
     rgb_to_i420::RgbToI420Visitor,
     rgb_transfer_and_primaries_convert::RgbTransferAndPrimariesConvert,
