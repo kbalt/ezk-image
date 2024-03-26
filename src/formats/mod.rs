@@ -24,8 +24,7 @@ macro_rules! platform_trait {
 }
 
 mod i420;
-mod i420_read_u16;
-mod i420_read_u8;
+mod i420_read;
 mod i420_to_rgb;
 mod i420_u16_write;
 mod i420_u8_write;
@@ -38,8 +37,8 @@ mod rgba;
 mod rgba_read;
 
 pub(crate) use self::{
-    i420_read_u16::read_i420_u16,
-    i420_read_u8::read_i420,
+    // i420_read_u16::read_i420_u16,
+    i420_read::read_i420,
     i420_to_rgb::I420ToRgbVisitor,
     i420_u16_write::I420U16Writer,
     i420_u8_write::I420U8Writer,
