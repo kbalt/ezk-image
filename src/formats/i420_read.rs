@@ -3,6 +3,7 @@ use crate::arch::*;
 use crate::bits::Bits;
 use crate::vector::Vector;
 use crate::Rect;
+use std::mem::size_of;
 
 pub(crate) fn read_i420<B, Vis>(
     src_width: usize,
@@ -24,7 +25,7 @@ pub(crate) fn read_i420<B, Vis>(
     #[cfg(target_arch = "aarch64")]
     if is_aarch64_feature_detected!("neon") {
         unsafe {
-            return read_i420_neon::<Vis, B>(src_width, src_height, src, window, visitor);
+            return read_i420_neon::<B, Vis>(src_width, src_height, src, window, visitor);
         }
     }
 
@@ -45,7 +46,7 @@ unsafe fn read_i420_neon<B, Vis>(
     B: Bits,
     Vis: I420Visitor,
 {
-    read_i420_impl::<float32x4_t, Vis, B>(src_width, src_height, src, window, visitor)
+    read_i420_impl::<float32x4_t, B, Vis>(src_width, src_height, src, window, visitor)
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -76,7 +77,7 @@ unsafe fn read_i420_impl<V, B, Vis>(
     B: Bits,
     Vis: I420Visitor + I420VisitorImpl<V>,
 {
-    assert!(src.len() >= ((src_width * src_height * 12).div_ceil(8)));
+    assert!(src.len() >= ((src_width * src_height * 12 * size_of::<B::Primitive>()).div_ceil(8)));
 
     let window = window.unwrap_or(Rect {
         x: 0,

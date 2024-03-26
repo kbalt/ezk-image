@@ -1,7 +1,6 @@
 #![allow(clippy::missing_safety_doc)]
 
 use bits::{B10BigEndian, B10LittleEndian, B12BigEndian, B12LittleEndian, Bits, B8};
-use endian::{BigEndian, LittleEndian};
 use formats::*;
 use src_dst::RawMutSliceU8;
 
@@ -29,12 +28,6 @@ mod arch {
     pub use std::arch::aarch64::*;
     #[cfg(target_arch = "aarch64")]
     pub use std::arch::is_aarch64_feature_detected;
-}
-
-mod util {
-    pub(crate) fn scale(depth: usize) -> f32 {
-        ((1 << depth) - 1) as f32
-    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -100,24 +93,10 @@ impl PixelFormat {
 }
 
 macro_rules! write_i420 {
-    ($dst:ident) => {
+    ($dst:ident, $bits:ident) => {
         RgbToI420Visitor::new(
             &$dst.color,
-            I420U8Writer::new($dst.width, $dst.height, $dst.buf, $dst.window),
-        )
-    };
-}
-
-macro_rules! write_i420_u16 {
-    ($dst:ident, $bit_depth:expr, $endian:ident) => {
-        RgbToI420Visitor::new(
-            &$dst.color,
-            I420U16Writer::<$bit_depth, $endian>::new(
-                $dst.width,
-                $dst.height,
-                $dst.buf,
-                $dst.window,
-            ),
+            I420Writer::<$bits>::new($dst.width, $dst.height, $dst.buf, $dst.window),
         )
     };
 }
@@ -179,18 +158,18 @@ fn convert_i420<'a, B: Bits>(src: Source<'a>, dst: Destination<'a>) {
     }
 
     match dst.format {
-        PixelFormat::I420 => read_i420_to_rgb!(src, dst, write_i420!(dst)),
+        PixelFormat::I420 => read_i420_to_rgb!(src, dst, write_i420!(dst, B8)),
         PixelFormat::I420P10LE => {
-            read_i420_to_rgb!(src, dst, write_i420_u16!(dst, 10, LittleEndian))
+            read_i420_to_rgb!(src, dst, write_i420!(dst, B10LittleEndian))
         }
         PixelFormat::I420P10BE => {
-            read_i420_to_rgb!(src, dst, write_i420_u16!(dst, 10, BigEndian))
+            read_i420_to_rgb!(src, dst, write_i420!(dst, B10BigEndian))
         }
         PixelFormat::I420P12LE => {
-            read_i420_to_rgb!(src, dst, write_i420_u16!(dst, 12, LittleEndian))
+            read_i420_to_rgb!(src, dst, write_i420!(dst, B12LittleEndian))
         }
         PixelFormat::I420P12BE => {
-            read_i420_to_rgb!(src, dst, write_i420_u16!(dst, 12, BigEndian))
+            read_i420_to_rgb!(src, dst, write_i420!(dst, B12BigEndian))
         }
         PixelFormat::RGB => read_i420_to_rgb!(src, dst, write_rgb!(dst)),
         PixelFormat::RGBA => read_i420_to_rgb!(src, dst, write_rgba!(dst)),
@@ -213,18 +192,18 @@ fn convert_rgb<'a, const REVERSE: bool>(src: Source<'a>, dst: Destination<'a>) {
     }
 
     match dst.format {
-        PixelFormat::I420 => read_rgb_to_rgb!(src, dst, write_i420!(dst)),
+        PixelFormat::I420 => read_rgb_to_rgb!(src, dst, write_i420!(dst, B8)),
         PixelFormat::I420P10LE => {
-            read_rgb_to_rgb!(src, dst, write_i420_u16!(dst, 10, LittleEndian))
+            read_rgb_to_rgb!(src, dst, write_i420!(dst, B10LittleEndian))
         }
         PixelFormat::I420P10BE => {
-            read_rgb_to_rgb!(src, dst, write_i420_u16!(dst, 10, BigEndian))
+            read_rgb_to_rgb!(src, dst, write_i420!(dst, B10BigEndian))
         }
         PixelFormat::I420P12LE => {
-            read_rgb_to_rgb!(src, dst, write_i420_u16!(dst, 12, LittleEndian))
+            read_rgb_to_rgb!(src, dst, write_i420!(dst, B12LittleEndian))
         }
         PixelFormat::I420P12BE => {
-            read_rgb_to_rgb!(src, dst, write_i420_u16!(dst, 12, BigEndian))
+            read_rgb_to_rgb!(src, dst, write_i420!(dst, B12BigEndian))
         }
         PixelFormat::RGB => read_rgb_to_rgb!(src, dst, write_rgb!(dst)),
         PixelFormat::RGBA => read_rgb_to_rgb!(src, dst, write_rgba!(dst)),
@@ -247,18 +226,18 @@ fn convert_rgba<'a, const REVERSE: bool>(src: Source<'a>, dst: Destination<'a>) 
     }
 
     match dst.format {
-        PixelFormat::I420 => read_rgba_to_rgb!(src, dst, write_i420!(dst)),
+        PixelFormat::I420 => read_rgba_to_rgb!(src, dst, write_i420!(dst, B8)),
         PixelFormat::I420P10LE => {
-            read_rgba_to_rgb!(src, dst, write_i420_u16!(dst, 10, LittleEndian))
+            read_rgba_to_rgb!(src, dst, write_i420!(dst, B10LittleEndian))
         }
         PixelFormat::I420P10BE => {
-            read_rgba_to_rgb!(src, dst, write_i420_u16!(dst, 10, BigEndian))
+            read_rgba_to_rgb!(src, dst, write_i420!(dst, B10BigEndian))
         }
         PixelFormat::I420P12LE => {
-            read_rgba_to_rgb!(src, dst, write_i420_u16!(dst, 12, LittleEndian))
+            read_rgba_to_rgb!(src, dst, write_i420!(dst, B12LittleEndian))
         }
         PixelFormat::I420P12BE => {
-            read_rgba_to_rgb!(src, dst, write_i420_u16!(dst, 12, BigEndian))
+            read_rgba_to_rgb!(src, dst, write_i420!(dst, B12BigEndian))
         }
         PixelFormat::RGB => read_rgba_to_rgb!(src, dst, write_rgb!(dst)),
         PixelFormat::RGBA => read_rgba_to_rgb!(src, dst, write_rgba!(dst)),

@@ -2,6 +2,7 @@ use super::Vector;
 use crate::arch::*;
 use crate::color::{ColorOps, ColorOpsPart};
 use crate::endian::Endian;
+use crate::Bits;
 use std::mem::transmute;
 
 unsafe impl Vector for float32x4_t {
@@ -269,6 +270,7 @@ mod math {
 pub(crate) mod util {
     use crate::arch::*;
     use crate::endian::Endian;
+    use crate::Bits;
     use std::mem::transmute;
 
     #[inline(always)]
@@ -287,22 +289,19 @@ pub(crate) mod util {
     }
 
     #[inline(always)]
-    pub(crate) unsafe fn float32x4x2_to_uint16x8_t<const BIT_DEPTH: usize, E>(
+    pub(crate) unsafe fn float32x4x2_to_uint16x8_t<B: Bits>(
         l: float32x4_t,
         h: float32x4_t,
-    ) -> uint16x8_t
-    where
-        E: Endian,
-    {
+    ) -> uint16x8_t {
         let l = vcvtq_u32_f32(l);
-        let l = vminq_u32(l, vdupq_n_u32((1 << BIT_DEPTH) - 1));
+        let l = vminq_u32(l, vdupq_n_u32(B::MAX_VALUE as u32));
         let l = vmovn_u32(l);
 
         let h = vcvtq_u32_f32(h);
-        let h = vminq_u32(h, vdupq_n_u32((1 << BIT_DEPTH) - 1));
+        let h = vminq_u32(h, vdupq_n_u32(B::MAX_VALUE as u32));
         let h = vmovn_u32(h);
 
-        let (l, h) = if E::IS_NATIVE {
+        let (l, h) = if B::Endian::IS_NATIVE {
             (l, h)
         } else {
             (vrev32_u16(l), (vrev32_u16(h)))
@@ -325,15 +324,12 @@ pub(crate) mod util {
     }
 
     #[inline(always)]
-    pub(crate) unsafe fn float32x4_to_u16x4<const BIT_DEPTH: usize, E>(i: float32x4_t) -> uint16x4_t
-    where
-        E: Endian,
-    {
+    pub(crate) unsafe fn float32x4_to_u16x4<B: Bits>(i: float32x4_t) -> uint16x4_t {
         let i = vcvtq_u32_f32(i);
-        let i = vminq_u32(i, vdupq_n_u32((1 << BIT_DEPTH) - 1));
+        let i = vminq_u32(i, vdupq_n_u32(B::MAX_VALUE as u32));
         let i = vmovn_u32(i);
 
-        if E::IS_NATIVE {
+        if B::Endian::IS_NATIVE {
             i
         } else {
             vrev32_u16(i)
