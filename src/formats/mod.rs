@@ -34,14 +34,11 @@ mod rgb_transfer_and_primaries_convert;
 mod rgb_write;
 mod rgba;
 mod rgba_read;
+mod rgba_write;
 
 pub(crate) use self::{
-    i420_read::read_i420,
-    i420_to_rgb::I420ToRgbVisitor,
-    i420_write::I420Writer,
-    rgb_read::read_rgb_4x,
-    rgb_to_i420::RgbToI420Visitor,
-    rgb_transfer_and_primaries_convert::RgbTransferAndPrimariesConvert,
-    rgb_write::{RGBAWriter, RGBWriter},
-    rgba_read::read_rgba_4x,
+    i420_read::read_i420, i420_to_rgb::I420ToRgbVisitor, i420_write::I420Writer,
+    rgb_read::read_rgb_4x, rgb_to_i420::RgbToI420Visitor,
+    rgb_transfer_and_primaries_convert::RgbTransferAndPrimariesConvert, rgb_write::RGBWriter,
+    rgba_read::read_rgba_4x, rgba_write::RGBAWriter,
 };
