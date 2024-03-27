@@ -1,6 +1,6 @@
 use super::rgb::{RgbBlock, RgbBlockVisitorImpl, RgbPixel};
 use super::rgba::{RgbaBlock, RgbaBlockVisitorImpl, RgbaPixel};
-use crate::bits::{Bits, B8};
+use crate::bits::{Bits, U8};
 use crate::endian::Endian;
 use crate::vector::Vector;
 use crate::{arch::*, RawMutSliceU8, Rect};
@@ -12,6 +12,7 @@ pub(crate) struct RGBWriter<'a, const REVERSE: bool, B> {
 
     dst_width: usize,
     dst: *mut u8,
+    max_value: f32,
 
     _m: PhantomData<&'a mut [u8]>,
     _b: PhantomData<fn() -> B>,
@@ -22,6 +23,7 @@ impl<'a, const REVERSE: bool, B: Bits> RGBWriter<'a, REVERSE, B> {
         dst_width: usize,
         dst_height: usize,
         dst: RawMutSliceU8<'a>,
+        bits_per_channel: usize,
         window: Option<Rect>,
     ) -> Self {
         let window = window.unwrap_or(Rect {
@@ -39,6 +41,7 @@ impl<'a, const REVERSE: bool, B: Bits> RGBWriter<'a, REVERSE, B> {
             window,
             dst_width,
             dst: dst.ptr(),
+            max_value: crate::max_value_for_bits(bits_per_channel),
             _m: PhantomData,
             _b: PhantomData,
         }
@@ -78,20 +81,31 @@ impl<const REVERSE: bool, B: Bits> RgbBlockVisitorImpl<f32> for RGBWriter<'_, RE
     #[inline(always)]
     unsafe fn visit(&mut self, x: usize, y: usize, block: RgbBlock<f32>) {
         #[inline(always)]
-        unsafe fn write(x: usize, y: usize, width: usize, dst: *mut u8, px: RgbPixel<f32>) {
+        unsafe fn write<B: Bits>(
+            x: usize,
+            y: usize,
+            width: usize,
+            dst: *mut B::Primitive,
+            px: RgbPixel<f32>,
+        ) {
             let offset = y * width + x;
             let dst = dst.add(offset * 3);
-            dst.cast::<[u8; 3]>()
-                .write_unaligned([px.r as u8, px.g as u8, px.b as u8]);
+            dst.cast::<[B::Primitive; 3]>().write_unaligned([
+                B::primitive_from_f32(px.r),
+                B::primitive_from_f32(px.g),
+                B::primitive_from_f32(px.b),
+            ]);
         }
 
         let x = self.window.x + x;
         let y = self.window.y + y;
 
-        write(x, y, self.dst_width, self.dst, block.rgb00);
-        write(x + 1, y, self.dst_width, self.dst, block.rgb01);
-        write(x, y + 1, self.dst_width, self.dst, block.rgb10);
-        write(x + 1, y + 1, self.dst_width, self.dst, block.rgb11);
+        let dst = self.dst.cast::<B::Primitive>();
+
+        write::<B>(x, y, self.dst_width, dst, block.rgb00);
+        write::<B>(x + 1, y, self.dst_width, dst, block.rgb01);
+        write::<B>(x, y + 1, self.dst_width, dst, block.rgb10);
+        write::<B>(x + 1, y + 1, self.dst_width, dst, block.rgb11);
     }
 }
 
@@ -131,7 +145,7 @@ impl<const REVERSE: bool> RgbBlockVisitorImpl<float32x4_t> for RGBWriter<'_, REV
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-impl<const REVERSE: bool> RgbBlockVisitorImpl<__m256> for RGBWriter<'_, REVERSE, B8> {
+impl<const REVERSE: bool> RgbBlockVisitorImpl<__m256> for RGBWriter<'_, REVERSE, U8> {
     #[inline(always)]
     unsafe fn visit(&mut self, x: usize, y: usize, block: RgbBlock<__m256>) {
         use crate::vector::avx2::util::packf32x8_rgb_u8x24;
@@ -154,24 +168,24 @@ impl<const REVERSE: bool> RgbBlockVisitorImpl<__m256> for RGBWriter<'_, REVERSE,
         let offset11 = offset10 + 8;
 
         let rgb00 = pack_rgb::<REVERSE>(
-            block.rgb00.r.vmulf(255.0),
-            block.rgb00.g.vmulf(255.0),
-            block.rgb00.b.vmulf(255.0),
+            block.rgb00.r.vmulf(self.max_value),
+            block.rgb00.g.vmulf(self.max_value),
+            block.rgb00.b.vmulf(self.max_value),
         );
         let rgb01 = pack_rgb::<REVERSE>(
-            block.rgb01.r.vmulf(255.0),
-            block.rgb01.g.vmulf(255.0),
-            block.rgb01.b.vmulf(255.0),
+            block.rgb01.r.vmulf(self.max_value),
+            block.rgb01.g.vmulf(self.max_value),
+            block.rgb01.b.vmulf(self.max_value),
         );
         let rgb10 = pack_rgb::<REVERSE>(
-            block.rgb10.r.vmulf(255.0),
-            block.rgb10.g.vmulf(255.0),
-            block.rgb10.b.vmulf(255.0),
+            block.rgb10.r.vmulf(self.max_value),
+            block.rgb10.g.vmulf(self.max_value),
+            block.rgb10.b.vmulf(self.max_value),
         );
         let rgb11 = pack_rgb::<REVERSE>(
-            block.rgb11.r.vmulf(255.0),
-            block.rgb11.g.vmulf(255.0),
-            block.rgb11.b.vmulf(255.0),
+            block.rgb11.r.vmulf(self.max_value),
+            block.rgb11.g.vmulf(self.max_value),
+            block.rgb11.b.vmulf(self.max_value),
         );
 
         self.dst
@@ -226,24 +240,24 @@ impl<const REVERSE: bool, B: Bits<Primitive = u16>> RgbBlockVisitorImpl<__m256>
         let offset11 = offset10 + 8;
 
         let rgb00 = pack_rgb::<REVERSE, B::Endian>(
-            block.rgb00.r.vmulf(255.0),
-            block.rgb00.g.vmulf(255.0),
-            block.rgb00.b.vmulf(255.0),
+            block.rgb00.r.vmulf(self.max_value),
+            block.rgb00.g.vmulf(self.max_value),
+            block.rgb00.b.vmulf(self.max_value),
         );
         let rgb01 = pack_rgb::<REVERSE, B::Endian>(
-            block.rgb01.r.vmulf(255.0),
-            block.rgb01.g.vmulf(255.0),
-            block.rgb01.b.vmulf(255.0),
+            block.rgb01.r.vmulf(self.max_value),
+            block.rgb01.g.vmulf(self.max_value),
+            block.rgb01.b.vmulf(self.max_value),
         );
         let rgb10 = pack_rgb::<REVERSE, B::Endian>(
-            block.rgb10.r.vmulf(255.0),
-            block.rgb10.g.vmulf(255.0),
-            block.rgb10.b.vmulf(255.0),
+            block.rgb10.r.vmulf(self.max_value),
+            block.rgb10.g.vmulf(self.max_value),
+            block.rgb10.b.vmulf(self.max_value),
         );
         let rgb11 = pack_rgb::<REVERSE, B::Endian>(
-            block.rgb11.r.vmulf(255.0),
-            block.rgb11.g.vmulf(255.0),
-            block.rgb11.b.vmulf(255.0),
+            block.rgb11.r.vmulf(self.max_value),
+            block.rgb11.g.vmulf(self.max_value),
+            block.rgb11.b.vmulf(self.max_value),
         );
 
         self.dst

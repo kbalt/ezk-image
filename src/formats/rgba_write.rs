@@ -1,6 +1,6 @@
 use super::rgb::{RgbBlock, RgbBlockVisitorImpl, RgbPixel};
 use super::rgba::{RgbaBlock, RgbaBlockVisitorImpl, RgbaPixel};
-use crate::bits::{Bits, B8};
+use crate::bits::{Bits, U8};
 use crate::endian::Endian;
 use crate::vector::Vector;
 use crate::{arch::*, RawMutSliceU8, Rect};
@@ -12,6 +12,7 @@ pub(crate) struct RGBAWriter<'a, const REVERSE: bool, B: Bits> {
 
     dst_width: usize,
     dst: *mut u8,
+    max_value: f32,
 
     _m: PhantomData<&'a mut [u8]>,
     _b: PhantomData<fn() -> B>,
@@ -22,6 +23,7 @@ impl<'a, const REVERSE: bool, B: Bits> RGBAWriter<'a, REVERSE, B> {
         dst_width: usize,
         dst_height: usize,
         dst: RawMutSliceU8<'a>,
+        bits_per_channel: usize,
         window: Option<Rect>,
     ) -> Self {
         let window = window.unwrap_or(Rect {
@@ -39,6 +41,7 @@ impl<'a, const REVERSE: bool, B: Bits> RGBAWriter<'a, REVERSE, B> {
             window,
             dst_width,
             dst: dst.ptr(),
+            max_value: crate::max_value_for_bits(bits_per_channel),
             _m: PhantomData,
             _b: PhantomData,
         }
@@ -85,17 +88,18 @@ impl<const REVERSE: bool, B: Bits> RgbaBlockVisitorImpl<f32> for RGBAWriter<'_, 
             y: usize,
             width: usize,
             dst: *mut B::Primitive,
+            max_value: f32,
             px: RgbaPixel<f32>,
         ) {
             let offset = y * width + x;
             let dst = dst.add(offset * 4);
 
             dst.cast::<[B::Primitive; 4]>().write_unaligned([
-                B::primitive_from_f32(px.r * B::MAX_VALUE),
-                B::primitive_from_f32(px.g * B::MAX_VALUE),
-                B::primitive_from_f32(px.b * B::MAX_VALUE),
-                B::primitive_from_f32(px.a * B::MAX_VALUE),
-            ]);
+                B::primitive_from_f32(px.r * max_value),
+                B::primitive_from_f32(px.g * max_value),
+                B::primitive_from_f32(px.b * max_value),
+                B::primitive_from_f32(px.a * max_value),
+            ])
         }
 
         let x = self.window.x + x;
@@ -103,10 +107,17 @@ impl<const REVERSE: bool, B: Bits> RgbaBlockVisitorImpl<f32> for RGBAWriter<'_, 
 
         let dst = self.dst.cast::<B::Primitive>();
 
-        write::<B>(x, y, self.dst_width, dst, block.rgba00);
-        write::<B>(x + 1, y, self.dst_width, dst, block.rgba01);
-        write::<B>(x, y + 1, self.dst_width, dst, block.rgba10);
-        write::<B>(x + 1, y + 1, self.dst_width, dst, block.rgba11);
+        write::<B>(x, y, self.dst_width, dst, self.max_value, block.rgba00);
+        write::<B>(x + 1, y, self.dst_width, dst, self.max_value, block.rgba01);
+        write::<B>(x, y + 1, self.dst_width, dst, self.max_value, block.rgba10);
+        write::<B>(
+            x + 1,
+            y + 1,
+            self.dst_width,
+            dst,
+            self.max_value,
+            block.rgba11,
+        );
     }
 }
 
@@ -148,7 +159,7 @@ impl<const REVERSE: bool> RgbaBlockVisitorImpl<float32x4_t> for RGBAWriter<'_, R
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-impl<const REVERSE: bool> RgbaBlockVisitorImpl<__m256> for RGBAWriter<'_, REVERSE, B8> {
+impl<const REVERSE: bool> RgbaBlockVisitorImpl<__m256> for RGBAWriter<'_, REVERSE, U8> {
     #[target_feature(enable = "avx2")]
     unsafe fn visit(&mut self, x: usize, y: usize, block: RgbaBlock<__m256>) {
         use crate::vector::avx2::util::pack_f32x8_rgba_u8x32;
@@ -176,28 +187,28 @@ impl<const REVERSE: bool> RgbaBlockVisitorImpl<__m256> for RGBAWriter<'_, REVERS
         }
 
         let rgba00 = pack_rgba::<REVERSE>(
-            block.rgba00.r.vmulf(255.0),
-            block.rgba00.g.vmulf(255.0),
-            block.rgba00.b.vmulf(255.0),
-            block.rgba00.a.vmulf(255.0),
+            block.rgba00.r.vmulf(self.max_value),
+            block.rgba00.g.vmulf(self.max_value),
+            block.rgba00.b.vmulf(self.max_value),
+            block.rgba00.a.vmulf(self.max_value),
         );
         let rgba01 = pack_rgba::<REVERSE>(
-            block.rgba01.r.vmulf(255.0),
-            block.rgba01.g.vmulf(255.0),
-            block.rgba01.b.vmulf(255.0),
-            block.rgba01.a.vmulf(255.0),
+            block.rgba01.r.vmulf(self.max_value),
+            block.rgba01.g.vmulf(self.max_value),
+            block.rgba01.b.vmulf(self.max_value),
+            block.rgba01.a.vmulf(self.max_value),
         );
         let rgba10 = pack_rgba::<REVERSE>(
-            block.rgba10.r.vmulf(255.0),
-            block.rgba10.g.vmulf(255.0),
-            block.rgba10.b.vmulf(255.0),
-            block.rgba10.a.vmulf(255.0),
+            block.rgba10.r.vmulf(self.max_value),
+            block.rgba10.g.vmulf(self.max_value),
+            block.rgba10.b.vmulf(self.max_value),
+            block.rgba10.a.vmulf(self.max_value),
         );
         let rgba11 = pack_rgba::<REVERSE>(
-            block.rgba11.r.vmulf(255.0),
-            block.rgba11.g.vmulf(255.0),
-            block.rgba11.b.vmulf(255.0),
-            block.rgba11.a.vmulf(255.0),
+            block.rgba11.r.vmulf(self.max_value),
+            block.rgba11.g.vmulf(self.max_value),
+            block.rgba11.b.vmulf(self.max_value),
+            block.rgba11.a.vmulf(self.max_value),
         );
 
         self.dst
@@ -250,28 +261,28 @@ impl<const REVERSE: bool, B: Bits<Primitive = u16>> RgbaBlockVisitorImpl<__m256>
         }
 
         let rgba00 = pack_rgba::<REVERSE, B::Endian>(
-            block.rgba00.r.vmulf(255.0),
-            block.rgba00.g.vmulf(255.0),
-            block.rgba00.b.vmulf(255.0),
-            block.rgba00.a.vmulf(255.0),
+            block.rgba00.r.vmulf(self.max_value),
+            block.rgba00.g.vmulf(self.max_value),
+            block.rgba00.b.vmulf(self.max_value),
+            block.rgba00.a.vmulf(self.max_value),
         );
         let rgba01 = pack_rgba::<REVERSE, B::Endian>(
-            block.rgba01.r.vmulf(255.0),
-            block.rgba01.g.vmulf(255.0),
-            block.rgba01.b.vmulf(255.0),
-            block.rgba01.a.vmulf(255.0),
+            block.rgba01.r.vmulf(self.max_value),
+            block.rgba01.g.vmulf(self.max_value),
+            block.rgba01.b.vmulf(self.max_value),
+            block.rgba01.a.vmulf(self.max_value),
         );
         let rgba10 = pack_rgba::<REVERSE, B::Endian>(
-            block.rgba10.r.vmulf(255.0),
-            block.rgba10.g.vmulf(255.0),
-            block.rgba10.b.vmulf(255.0),
-            block.rgba10.a.vmulf(255.0),
+            block.rgba10.r.vmulf(self.max_value),
+            block.rgba10.g.vmulf(self.max_value),
+            block.rgba10.b.vmulf(self.max_value),
+            block.rgba10.a.vmulf(self.max_value),
         );
         let rgba11 = pack_rgba::<REVERSE, B::Endian>(
-            block.rgba11.r.vmulf(255.0),
-            block.rgba11.g.vmulf(255.0),
-            block.rgba11.b.vmulf(255.0),
-            block.rgba11.a.vmulf(255.0),
+            block.rgba11.r.vmulf(self.max_value),
+            block.rgba11.g.vmulf(self.max_value),
+            block.rgba11.b.vmulf(self.max_value),
+            block.rgba11.a.vmulf(self.max_value),
         );
 
         let dst = self.dst.cast::<u16>();

@@ -1,14 +1,15 @@
 use super::i420::{I420Block, I420Visitor, I420VisitorImpl};
-use crate::arch::*;
 use crate::bits::Bits;
 use crate::vector::Vector;
 use crate::Rect;
+use crate::{arch::*, max_value_for_bits};
 use std::mem::size_of;
 
 pub(crate) fn read_i420<B, Vis>(
     src_width: usize,
     src_height: usize,
     src: &[u8],
+    bits_per_channel: usize,
     window: Option<Rect>,
     visitor: Vis,
 ) where
@@ -18,7 +19,14 @@ pub(crate) fn read_i420<B, Vis>(
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     if is_x86_feature_detected!("avx2") && is_x86_feature_detected!("fma") {
         unsafe {
-            return read_i420_avx2::<B, Vis>(src_width, src_height, src, window, visitor);
+            return read_i420_avx2::<B, Vis>(
+                src_width,
+                src_height,
+                src,
+                bits_per_channel,
+                window,
+                visitor,
+            );
         }
     }
 
@@ -30,7 +38,16 @@ pub(crate) fn read_i420<B, Vis>(
     }
 
     // Fallback to naive
-    unsafe { read_i420_impl::<f32, B, Vis>(src_width, src_height, src, window, visitor) }
+    unsafe {
+        read_i420_impl::<f32, B, Vis>(
+            src_width,
+            src_height,
+            src,
+            bits_per_channel,
+            window,
+            visitor,
+        )
+    }
 }
 
 #[cfg(target_arch = "aarch64")]
@@ -40,13 +57,21 @@ unsafe fn read_i420_neon<B, Vis>(
     src_width: usize,
     src_height: usize,
     src: &[u8],
+    bits_per_channel: usize,
     window: Option<Rect>,
     visitor: Vis,
 ) where
     B: Bits,
     Vis: I420Visitor,
 {
-    read_i420_impl::<float32x4_t, B, Vis>(src_width, src_height, src, window, visitor)
+    read_i420_impl::<float32x4_t, B, Vis>(
+        src_width,
+        src_height,
+        src,
+        bits_per_channel,
+        window,
+        visitor,
+    )
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -56,13 +81,21 @@ unsafe fn read_i420_avx2<B, Vis>(
     src_width: usize,
     src_height: usize,
     src: &[u8],
+    bits_per_channel: usize,
     window: Option<Rect>,
     visitor: Vis,
 ) where
     B: Bits,
     Vis: I420Visitor,
 {
-    read_i420_impl::<__m256, B, Vis>(src_width, src_height, src, window, visitor)
+    read_i420_impl::<__m256, B, Vis>(
+        src_width,
+        src_height,
+        src,
+        bits_per_channel,
+        window,
+        visitor,
+    )
 }
 
 #[inline(always)]
@@ -70,6 +103,7 @@ unsafe fn read_i420_impl<V, B, Vis>(
     src_width: usize,
     src_height: usize,
     src: &[u8],
+    bits_per_channel: usize,
     window: Option<Rect>,
     mut visitor: Vis,
 ) where
@@ -78,6 +112,8 @@ unsafe fn read_i420_impl<V, B, Vis>(
     Vis: I420Visitor + I420VisitorImpl<V>,
 {
     assert!(src.len() >= ((src_width * src_height * 12 * size_of::<B::Primitive>()).div_ceil(8)));
+
+    let max_value = max_value_for_bits(bits_per_channel);
 
     let window = window.unwrap_or(Rect {
         x: 0,
@@ -128,6 +164,7 @@ unsafe fn read_i420_impl<V, B, Vis>(
                 y00_offset,
                 y10_offset,
                 uv_offset,
+                max_value,
             );
         }
 
@@ -150,6 +187,7 @@ unsafe fn read_i420_impl<V, B, Vis>(
                 y00_offset,
                 y10_offset,
                 uv_offset,
+                max_value,
             );
         }
     }
@@ -167,6 +205,7 @@ unsafe fn load_and_visit_block<V, B, Vis>(
     y00_offset: usize,
     y10_offset: usize,
     uv_offset: usize,
+    max_value: f32,
 ) where
     V: Vector,
     Vis: I420VisitorImpl<V>,
@@ -183,13 +222,13 @@ unsafe fn load_and_visit_block<V, B, Vis>(
     let v = B::load::<V>(v_ptr.add(uv_offset));
 
     // Convert to analog 0..=1.0
-    let y00 = y00.vdivf(B::MAX_VALUE);
-    let y01 = y01.vdivf(B::MAX_VALUE);
-    let y10 = y10.vdivf(B::MAX_VALUE);
-    let y11 = y11.vdivf(B::MAX_VALUE);
+    let y00 = y00.vdivf(max_value);
+    let y01 = y01.vdivf(max_value);
+    let y10 = y10.vdivf(max_value);
+    let y11 = y11.vdivf(max_value);
 
-    let u = u.vdivf(B::MAX_VALUE);
-    let v = v.vdivf(B::MAX_VALUE);
+    let u = u.vdivf(max_value);
+    let v = v.vdivf(max_value);
 
     visitor.visit(
         x,

@@ -8,11 +8,7 @@ pub(crate) struct RgbPixel<V> {
 }
 
 impl<V: Vector> RgbPixel<V> {
-    pub(crate) unsafe fn from_loaded8<const REVERSE: bool>(r: V, g: V, b: V) -> Self {
-        let r = r.vdivf(255.0);
-        let g = g.vdivf(255.0);
-        let b = b.vdivf(255.0);
-
+    pub(crate) unsafe fn from_loaded<const REVERSE: bool>(r: V, g: V, b: V) -> Self {
         if REVERSE {
             Self { r: b, g, b: r }
         } else {

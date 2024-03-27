@@ -7,6 +7,7 @@ pub(crate) fn read_rgb_4x<const REVERSE: bool, Vis>(
     src_width: usize,
     src_height: usize,
     src: &[u8],
+    bits_per_channel: usize,
     window: Option<Rect>,
     mut visitor: Vis,
 ) where
@@ -15,6 +16,8 @@ pub(crate) fn read_rgb_4x<const REVERSE: bool, Vis>(
     assert!((src_width * src_height * 3) <= src.len());
     assert_eq!(src_width % 2, 0);
     assert_eq!(src_height % 2, 0);
+
+    let max_value = crate::max_value_for_bits(bits_per_channel);
 
     let window = window.unwrap_or(Rect {
         x: 0,
@@ -41,10 +44,10 @@ pub(crate) fn read_rgb_4x<const REVERSE: bool, Vis>(
             let rgb11 = rgb10 + 1;
 
             let block = RgbBlock {
-                rgb00: read_pixel::<REVERSE>(src, rgb00),
-                rgb01: read_pixel::<REVERSE>(src, rgb01),
-                rgb10: read_pixel::<REVERSE>(src, rgb10),
-                rgb11: read_pixel::<REVERSE>(src, rgb11),
+                rgb00: read_pixel::<REVERSE>(src, rgb00, max_value),
+                rgb01: read_pixel::<REVERSE>(src, rgb01, max_value),
+                rgb10: read_pixel::<REVERSE>(src, rgb10, max_value),
+                rgb11: read_pixel::<REVERSE>(src, rgb11, max_value),
             };
 
             // Safety: f32 is a safe vector type, no checks needed
@@ -55,15 +58,15 @@ pub(crate) fn read_rgb_4x<const REVERSE: bool, Vis>(
     }
 }
 
-fn read_pixel<const REVERSE: bool>(rgb: &[u8], idx: usize) -> RgbPixel<f32> {
+fn read_pixel<const REVERSE: bool>(rgb: &[u8], idx: usize, max_value: f32) -> RgbPixel<f32> {
     let idx = idx * 3;
 
     // Safety f32 is a safe vector type
     unsafe {
-        RgbPixel::from_loaded8::<REVERSE>(
-            f32::from(rgb[idx]),
-            f32::from(rgb[idx + 1]),
-            f32::from(rgb[idx + 2]),
+        RgbPixel::from_loaded::<REVERSE>(
+            f32::from(rgb[idx]) / max_value,
+            f32::from(rgb[idx + 1]) / max_value,
+            f32::from(rgb[idx + 2]) / max_value,
         )
     }
 }

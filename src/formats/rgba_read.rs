@@ -11,6 +11,7 @@ pub(crate) fn read_rgba_4x<const REVERSE: bool, B, Vis>(
     src_width: usize,
     src_height: usize,
     src: &[u8],
+    bits_per_channel: usize,
     window: Option<Rect>,
     visitor: Vis,
 ) where
@@ -35,18 +36,26 @@ pub(crate) fn read_rgba_4x<const REVERSE: bool, B, Vis>(
         unsafe fn call<const REVERSE: bool, B, Vis>(
             src_width: usize,
             src: &[u8],
+            bits_per_channel: usize,
+
             window: Rect,
             visitor: Vis,
         ) where
             B: Bits,
             Vis: RgbaBlockVisitor,
         {
-            read_rgba_4x_impl::<REVERSE, B, __m256, _>(src_width, src, window, visitor);
+            read_rgba_4x_impl::<REVERSE, B, __m256, _>(
+                src_width,
+                src,
+                bits_per_channel,
+                window,
+                visitor,
+            );
         }
 
         // Safety: Did a feature check
         unsafe {
-            return call::<REVERSE, B, _>(src_width, src, window, visitor);
+            return call::<REVERSE, B, _>(src_width, src, bits_per_channel, window, visitor);
         }
     }
 
@@ -56,30 +65,40 @@ pub(crate) fn read_rgba_4x<const REVERSE: bool, B, Vis>(
         unsafe fn call<const REVERSE: bool, B, Vis>(
             src_width: usize,
             src: &[u8],
+            bits_per_channel: usize,
             window: Rect,
             visitor: Vis,
         ) where
             B: Bits,
             Vis: RgbaBlockVisitor,
         {
-            read_rgba_4x_impl::<REVERSE, B, float32x4_t, _>(src_width, src, window, visitor);
+            read_rgba_4x_impl::<REVERSE, B, float32x4_t, _>(
+                src_width,
+                src,
+                bits_per_channel,
+                window,
+                visitor,
+            );
         }
 
         // Safety: Did a feature check
         unsafe {
-            return call::<REVERSE, B, _>(src_width, src, window, visitor);
+            return call::<REVERSE, B, _>(src_width, src, bits_per_channel, window, visitor);
         }
     }
 
     // Fallback to naive
     // Safety: Inputs have been checked
-    unsafe { read_rgba_4x_impl::<REVERSE, B, f32, _>(src_width, src, window, visitor) }
+    unsafe {
+        read_rgba_4x_impl::<REVERSE, B, f32, _>(src_width, src, bits_per_channel, window, visitor)
+    }
 }
 
 #[inline(always)]
 unsafe fn read_rgba_4x_impl<const REVERSE: bool, B, V, Vis>(
     src_width: usize,
     src: &[u8],
+    bits_per_channel: usize,
     window: Rect,
     mut visitor: Vis,
 ) where
@@ -88,6 +107,7 @@ unsafe fn read_rgba_4x_impl<const REVERSE: bool, B, V, Vis>(
     Vis: RgbaBlockVisitor + RgbaBlockVisitorImpl<V>,
 {
     let src_ptr = src.as_ptr().cast::<B::Primitive>();
+    let max_value = crate::max_value_for_bits(bits_per_channel);
 
     let non_vectored_pixels_per_row = window.width % (V::LEN * 2);
     let vectorized_pixels_per_row = window.width - non_vectored_pixels_per_row;
@@ -106,25 +126,25 @@ unsafe fn read_rgba_4x_impl<const REVERSE: bool, B, V, Vis>(
             let [[r10, g10, b10, a10], [r11, g11, b11, a11]] =
                 B::load_4x_interleaved_2x::<V>(src_ptr.add(rgba10offset));
 
-            let r00 = r00.vdivf(B::MAX_VALUE);
-            let g00 = g00.vdivf(B::MAX_VALUE);
-            let b00 = b00.vdivf(B::MAX_VALUE);
-            let a00 = a00.vdivf(B::MAX_VALUE);
+            let r00 = r00.vdivf(max_value);
+            let g00 = g00.vdivf(max_value);
+            let b00 = b00.vdivf(max_value);
+            let a00 = a00.vdivf(max_value);
 
-            let r01 = r01.vdivf(B::MAX_VALUE);
-            let g01 = g01.vdivf(B::MAX_VALUE);
-            let b01 = b01.vdivf(B::MAX_VALUE);
-            let a01 = a01.vdivf(B::MAX_VALUE);
+            let r01 = r01.vdivf(max_value);
+            let g01 = g01.vdivf(max_value);
+            let b01 = b01.vdivf(max_value);
+            let a01 = a01.vdivf(max_value);
 
-            let r10 = r10.vdivf(B::MAX_VALUE);
-            let g10 = g10.vdivf(B::MAX_VALUE);
-            let b10 = b10.vdivf(B::MAX_VALUE);
-            let a10 = a10.vdivf(B::MAX_VALUE);
+            let r10 = r10.vdivf(max_value);
+            let g10 = g10.vdivf(max_value);
+            let b10 = b10.vdivf(max_value);
+            let a10 = a10.vdivf(max_value);
 
-            let r11 = r11.vdivf(B::MAX_VALUE);
-            let g11 = g11.vdivf(B::MAX_VALUE);
-            let b11 = b11.vdivf(B::MAX_VALUE);
-            let a11 = a11.vdivf(B::MAX_VALUE);
+            let r11 = r11.vdivf(max_value);
+            let g11 = g11.vdivf(max_value);
+            let b11 = b11.vdivf(max_value);
+            let a11 = a11.vdivf(max_value);
 
             let px00 = RgbaPixel::from_loaded::<REVERSE>(r00, g00, b00, a00);
             let px01 = RgbaPixel::from_loaded::<REVERSE>(r01, g01, b01, a01);
@@ -147,6 +167,7 @@ unsafe fn read_rgba_4x_impl<const REVERSE: bool, B, V, Vis>(
         read_rgba_4x_impl::<REVERSE, B, f32, Vis>(
             src_width,
             src,
+            bits_per_channel,
             Rect {
                 x: window.x + vectorized_pixels_per_row,
                 y: window.y,
