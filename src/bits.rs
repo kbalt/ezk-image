@@ -1,26 +1,12 @@
 use crate::endian::{BigEndian, Endian, LittleEndian, NativeEndian};
 use crate::vector::Vector;
 
-pub(crate) trait BitsPrimitive {
-    fn from_f32(f: f32) -> Self;
-}
-
-impl BitsPrimitive for u8 {
-    fn from_f32(f: f32) -> Self {
-        f as u8
-    }
-}
-
-impl BitsPrimitive for u16 {
-    fn from_f32(f: f32) -> Self {
-        f as u16
-    }
-}
-
 pub(crate) trait Bits {
-    type Primitive: BitsPrimitive;
+    type Primitive;
     type Endian: Endian;
     const MAX_VALUE: f32;
+
+    fn primitive_from_f32(v: f32) -> Self::Primitive;
 
     unsafe fn load<V: Vector>(ptr: *const Self::Primitive) -> V;
     unsafe fn load_4x_interleaved_2x<V: Vector>(ptr: *const Self::Primitive) -> [[V; 4]; 2];
@@ -33,6 +19,10 @@ impl Bits for B8 {
     // Value doesn't matter
     type Endian = NativeEndian;
     const MAX_VALUE: f32 = 255.0;
+
+    fn primitive_from_f32(v: f32) -> Self::Primitive {
+        v as u8
+    }
 
     #[inline(always)]
     unsafe fn load<V: Vector>(ptr: *const Self::Primitive) -> V {
@@ -52,6 +42,10 @@ impl Bits for B10LittleEndian {
     type Endian = LittleEndian;
     const MAX_VALUE: f32 = 1023.0;
 
+    fn primitive_from_f32(v: f32) -> Self::Primitive {
+        (v as u16).to_le()
+    }
+
     #[inline(always)]
     unsafe fn load<V: Vector>(ptr: *const Self::Primitive) -> V {
         V::load_u16::<LittleEndian>(ptr)
@@ -69,6 +63,10 @@ impl Bits for B12LittleEndian {
     type Primitive = u16;
     type Endian = LittleEndian;
     const MAX_VALUE: f32 = 4095.0;
+
+    fn primitive_from_f32(v: f32) -> Self::Primitive {
+        (v as u16).to_le()
+    }
 
     #[inline(always)]
     unsafe fn load<V: Vector>(ptr: *const Self::Primitive) -> V {
@@ -88,6 +86,10 @@ impl Bits for B10BigEndian {
     type Endian = BigEndian;
     const MAX_VALUE: f32 = 1023.0;
 
+    fn primitive_from_f32(v: f32) -> Self::Primitive {
+        (v as u16).to_be()
+    }
+
     #[inline(always)]
     unsafe fn load<V: Vector>(ptr: *const Self::Primitive) -> V {
         V::load_u16::<BigEndian>(ptr)
@@ -105,6 +107,10 @@ impl Bits for B12BigEndian {
     type Primitive = u16;
     type Endian = BigEndian;
     const MAX_VALUE: f32 = 4095.0;
+
+    fn primitive_from_f32(v: f32) -> Self::Primitive {
+        (v as u16).to_be()
+    }
 
     #[inline(always)]
     unsafe fn load<V: Vector>(ptr: *const Self::Primitive) -> V {

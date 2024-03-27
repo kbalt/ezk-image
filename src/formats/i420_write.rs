@@ -1,6 +1,6 @@
 use super::i420::{I420Block, I420VisitorImpl};
 use crate::arch::*;
-use crate::bits::{Bits, BitsPrimitive, B8};
+use crate::bits::{Bits, B8};
 use crate::vector::Vector;
 use crate::RawMutSliceU8;
 use crate::Rect;
@@ -69,10 +69,10 @@ impl<'a, B: Bits> I420VisitorImpl<f32> for I420Writer<'a, B> {
         let u = u.vmulf(B::MAX_VALUE);
         let v = v.vmulf(B::MAX_VALUE);
 
-        let y00 = B::Primitive::from_f32(y00);
-        let y01 = B::Primitive::from_f32(y01);
-        let y10 = B::Primitive::from_f32(y10);
-        let y11 = B::Primitive::from_f32(y11);
+        let y00 = B::primitive_from_f32(y00);
+        let y01 = B::primitive_from_f32(y01);
+        let y10 = B::primitive_from_f32(y10);
+        let y11 = B::primitive_from_f32(y11);
 
         let offset00 = y * self.dst_width + x;
         let offset01 = y * self.dst_width + x + 1;
@@ -86,8 +86,8 @@ impl<'a, B: Bits> I420VisitorImpl<f32> for I420Writer<'a, B> {
         dst.add(offset10).write(y10);
         dst.add(offset11).write(y11);
 
-        let u = B::Primitive::from_f32(u);
-        let v = B::Primitive::from_f32(v);
+        let u = B::primitive_from_f32(u);
+        let v = B::primitive_from_f32(v);
 
         let u_plane_offset = self.dst_width * self.dst_width;
         let v_plane_offset = u_plane_offset + (u_plane_offset / 4);

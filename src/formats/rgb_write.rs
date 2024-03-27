@@ -1,20 +1,23 @@
 use super::rgb::{RgbBlock, RgbBlockVisitorImpl, RgbPixel};
 use super::rgba::{RgbaBlock, RgbaBlockVisitorImpl, RgbaPixel};
+use crate::bits::{Bits, B8};
+use crate::endian::Endian;
 use crate::vector::Vector;
 use crate::{arch::*, RawMutSliceU8, Rect};
 use std::marker::PhantomData;
 
 /// Writes 3 Bytes for every visited pixel in R G B order
-pub(crate) struct RGBWriter<'a, const REVERSE: bool = false> {
+pub(crate) struct RGBWriter<'a, const REVERSE: bool, B> {
     window: Rect,
 
     dst_width: usize,
     dst: *mut u8,
 
     _m: PhantomData<&'a mut [u8]>,
+    _b: PhantomData<fn() -> B>,
 }
 
-impl<'a, const REVERSE: bool> RGBWriter<'a, REVERSE> {
+impl<'a, const REVERSE: bool, B: Bits> RGBWriter<'a, REVERSE, B> {
     pub(crate) fn new(
         dst_width: usize,
         dst_height: usize,
@@ -37,13 +40,16 @@ impl<'a, const REVERSE: bool> RGBWriter<'a, REVERSE> {
             dst_width,
             dst: dst.ptr(),
             _m: PhantomData,
+            _b: PhantomData,
         }
     }
 }
 
-impl<const REVERSE: bool, V: Vector> RgbaBlockVisitorImpl<V> for RGBWriter<'_, REVERSE>
+impl<const REVERSE: bool, V, B> RgbaBlockVisitorImpl<V> for RGBWriter<'_, REVERSE, B>
 where
     Self: RgbBlockVisitorImpl<V>,
+    V: Vector,
+    B: Bits,
 {
     #[inline(always)]
     unsafe fn visit(&mut self, x: usize, y: usize, block: RgbaBlock<V>) {
@@ -68,7 +74,7 @@ where
         );
     }
 }
-impl<const REVERSE: bool> RgbBlockVisitorImpl<f32> for RGBWriter<'_, REVERSE> {
+impl<const REVERSE: bool, B: Bits> RgbBlockVisitorImpl<f32> for RGBWriter<'_, REVERSE, B> {
     #[inline(always)]
     unsafe fn visit(&mut self, x: usize, y: usize, block: RgbBlock<f32>) {
         #[inline(always)]
@@ -125,7 +131,7 @@ impl<const REVERSE: bool> RgbBlockVisitorImpl<float32x4_t> for RGBWriter<'_, REV
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-impl<const REVERSE: bool> RgbBlockVisitorImpl<__m256> for RGBWriter<'_, REVERSE> {
+impl<const REVERSE: bool> RgbBlockVisitorImpl<__m256> for RGBWriter<'_, REVERSE, B8> {
     #[inline(always)]
     unsafe fn visit(&mut self, x: usize, y: usize, block: RgbBlock<__m256>) {
         use crate::vector::avx2::util::packf32x8_rgb_u8x24;
@@ -186,6 +192,78 @@ impl<const REVERSE: bool> RgbBlockVisitorImpl<__m256> for RGBWriter<'_, REVERSE>
         self.dst
             .add(offset11 * 3)
             .cast::<[u8; 24]>()
+            .write_unaligned(rgb11);
+    }
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+impl<const REVERSE: bool, B: Bits<Primitive = u16>> RgbBlockVisitorImpl<__m256>
+    for RGBWriter<'_, REVERSE, B>
+{
+    #[inline(always)]
+    unsafe fn visit(&mut self, x: usize, y: usize, block: RgbBlock<__m256>) {
+        use crate::vector::avx2::util::packf32x8_rgb_u16x24;
+
+        #[inline(always)]
+        unsafe fn pack_rgb<const REVERSE: bool, E: Endian>(
+            r: __m256,
+            g: __m256,
+            b: __m256,
+        ) -> [u16; 24] {
+            if REVERSE {
+                packf32x8_rgb_u16x24::<E>(b, g, r)
+            } else {
+                packf32x8_rgb_u16x24::<E>(r, g, b)
+            }
+        }
+
+        let x = self.window.x + x;
+        let y = self.window.y + y;
+
+        let offset00 = y * self.dst_width + x;
+        let offset01 = offset00 + 8;
+        let offset10 = (y + 1) * self.dst_width + x;
+        let offset11 = offset10 + 8;
+
+        let rgb00 = pack_rgb::<REVERSE, B::Endian>(
+            block.rgb00.r.vmulf(255.0),
+            block.rgb00.g.vmulf(255.0),
+            block.rgb00.b.vmulf(255.0),
+        );
+        let rgb01 = pack_rgb::<REVERSE, B::Endian>(
+            block.rgb01.r.vmulf(255.0),
+            block.rgb01.g.vmulf(255.0),
+            block.rgb01.b.vmulf(255.0),
+        );
+        let rgb10 = pack_rgb::<REVERSE, B::Endian>(
+            block.rgb10.r.vmulf(255.0),
+            block.rgb10.g.vmulf(255.0),
+            block.rgb10.b.vmulf(255.0),
+        );
+        let rgb11 = pack_rgb::<REVERSE, B::Endian>(
+            block.rgb11.r.vmulf(255.0),
+            block.rgb11.g.vmulf(255.0),
+            block.rgb11.b.vmulf(255.0),
+        );
+
+        self.dst
+            .add(offset00 * 3)
+            .cast::<[u16; 24]>()
+            .write_unaligned(rgb00);
+
+        self.dst
+            .add(offset01 * 3)
+            .cast::<[u16; 24]>()
+            .write_unaligned(rgb01);
+
+        self.dst
+            .add(offset10 * 3)
+            .cast::<[u16; 24]>()
+            .write_unaligned(rgb10);
+
+        self.dst
+            .add(offset11 * 3)
+            .cast::<[u16; 24]>()
             .write_unaligned(rgb11);
     }
 }

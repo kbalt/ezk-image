@@ -568,6 +568,35 @@ pub(crate) mod util {
     }
 
     #[inline(always)]
+    pub(crate) unsafe fn packf32x8_rgb_u16x24<E: Endian>(
+        r: __m256,
+        g: __m256,
+        b: __m256,
+    ) -> [u16; 24] {
+        let rgba = pack_f32x8_rgba_u16x32::<E>(r, g, b, _mm256_setzero_ps());
+
+        let [rgba_lo, rgba_hi] = transmute::<[u16; 32], [__m256i; 2]>(rgba);
+
+        #[rustfmt::skip]
+        let idx = _mm256_setr_epi8(
+            0, 1, 2, 3, 4, 5,
+            8, 9, 10, 11, 12, 13,
+            16, 17, 18, 19, 20, 21,
+            24, 25, 26, 27, 28, 29,
+            -128,-128,-128,-128,-128,-128,-128,-128,
+        );
+
+        let rgba_lo = _mm256_shuffle_epi8(rgba_lo, idx);
+        let rgba_hi = _mm256_shuffle_epi8(rgba_hi, idx);
+
+        // This gets optimized to use avx2 by the compiler
+        let [a0, b0, c0, a1, b1, c1, _, _]: [i32; 8] = transmute(rgba_lo);
+        let [a2, b2, c2, a3, b3, c3, _, _]: [i32; 8] = transmute(rgba_hi);
+
+        transmute([a0, b0, c0, a1, b1, c1, a2, b2, c2, a3, b3, c3])
+    }
+
+    #[inline(always)]
     pub(crate) unsafe fn swap_u16_bytes_x8(a: __m128i) -> __m128i {
         let b = _mm_setr_epi8(1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14);
         _mm_shuffle_epi8(a, b)

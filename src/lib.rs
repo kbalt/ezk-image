@@ -81,12 +81,21 @@ pub enum PixelFormat {
     BGRAP12LE,
     BGRAP12BE,
 
+    RGB,
+    RGBP10LE,
+    RGBP10BE,
+    RGBP12LE,
+    RGBP12BE,
+
+    BGR,
+    BGRP10LE,
+    BGRP10BE,
+    BGRP12LE,
+    BGRP12BE,
     // I420A,
     // I422,
     // I444,
     // NV12,
-    RGB,
-    BGR,
 }
 
 impl PixelFormat {
@@ -100,6 +109,8 @@ impl PixelFormat {
             RGBAP10LE | RGBAP10BE | RGBAP12LE | RGBAP12BE | BGRAP10LE | BGRAP10BE | BGRAP12LE
             | BGRAP12BE => width * height * 8,
             RGB | BGR => width * height * 3,
+            RGBP10LE | RGBP10BE | RGBP12LE | RGBP12BE | BGRP10LE | BGRP10BE | BGRP12LE
+            | BGRP12BE => width * height * 6,
         }
     }
 }
@@ -114,26 +125,62 @@ macro_rules! write_i420 {
 }
 
 macro_rules! write_rgb {
-    ($dst:ident) => {
-        RGBWriter::<false>::new($dst.width, $dst.height, $dst.buf, $dst.window)
-    };
-}
-
-macro_rules! write_rgba {
-    ($dst:ident) => {
-        RGBAWriter::<false>::new($dst.width, $dst.height, $dst.buf, $dst.window)
+    ($dst:ident, $bits:ident) => {
+        RGBWriter::<false, $bits>::new($dst.width, $dst.height, $dst.buf, $dst.window)
     };
 }
 
 macro_rules! write_bgr {
-    ($dst:ident) => {
-        RGBWriter::<true>::new($dst.width, $dst.height, $dst.buf, $dst.window)
+    ($dst:ident, $bits:ident) => {
+        RGBWriter::<true, $bits>::new($dst.width, $dst.height, $dst.buf, $dst.window)
+    };
+}
+
+macro_rules! write_rgba {
+    ($dst:ident, $bits:ident) => {
+        RGBAWriter::<false, $bits>::new($dst.width, $dst.height, $dst.buf, $dst.window)
     };
 }
 
 macro_rules! write_bgra {
-    ($dst:ident) => {
-        RGBAWriter::<true>::new($dst.width, $dst.height, $dst.buf, $dst.window)
+    ($dst:ident, $bits:ident) => {
+        RGBAWriter::<true, $bits>::new($dst.width, $dst.height, $dst.buf, $dst.window)
+    };
+}
+
+macro_rules! ____xdd_no_clue {
+    ($src:ident, $dst:ident, $read_to_rgb:ident) => {
+        match $dst.format {
+            PixelFormat::I420 => $read_to_rgb!($src, $dst, write_i420!($dst, B8)),
+            PixelFormat::I420P10LE => $read_to_rgb!($src, $dst, write_i420!($dst, B10LittleEndian)),
+            PixelFormat::I420P10BE => $read_to_rgb!($src, $dst, write_i420!($dst, B10BigEndian)),
+            PixelFormat::I420P12LE => $read_to_rgb!($src, $dst, write_i420!($dst, B12LittleEndian)),
+            PixelFormat::I420P12BE => $read_to_rgb!($src, $dst, write_i420!($dst, B12BigEndian)),
+
+            PixelFormat::RGBA => $read_to_rgb!($src, $dst, write_rgba!($dst, B8)),
+            PixelFormat::RGBAP10LE => $read_to_rgb!($src, $dst, write_rgba!($dst, B10LittleEndian)),
+            PixelFormat::RGBAP10BE => $read_to_rgb!($src, $dst, write_rgba!($dst, B10BigEndian)),
+            PixelFormat::RGBAP12LE => $read_to_rgb!($src, $dst, write_rgba!($dst, B12LittleEndian)),
+            PixelFormat::RGBAP12BE => $read_to_rgb!($src, $dst, write_rgba!($dst, B12BigEndian)),
+
+            PixelFormat::BGRA => $read_to_rgb!($src, $dst, write_bgra!($dst, B8)),
+            PixelFormat::BGRAP10LE => $read_to_rgb!($src, $dst, write_bgra!($dst, B10LittleEndian)),
+            PixelFormat::BGRAP10BE => $read_to_rgb!($src, $dst, write_bgra!($dst, B10BigEndian)),
+            PixelFormat::BGRAP12LE => $read_to_rgb!($src, $dst, write_bgra!($dst, B12LittleEndian)),
+            PixelFormat::BGRAP12BE => $read_to_rgb!($src, $dst, write_bgra!($dst, B12BigEndian)),
+
+            PixelFormat::RGB => $read_to_rgb!($src, $dst, write_rgb!($dst, B8)),
+            PixelFormat::RGBP10LE => $read_to_rgb!($src, $dst, write_rgb!($dst, B10LittleEndian)),
+            PixelFormat::RGBP10BE => $read_to_rgb!($src, $dst, write_rgb!($dst, B10BigEndian)),
+            PixelFormat::RGBP12LE => $read_to_rgb!($src, $dst, write_rgb!($dst, B12LittleEndian)),
+            PixelFormat::RGBP12BE => $read_to_rgb!($src, $dst, write_rgb!($dst, B12BigEndian)),
+
+            PixelFormat::BGR => $read_to_rgb!($src, $dst, write_bgr!($dst, B8)),
+            PixelFormat::BGRP10LE => $read_to_rgb!($src, $dst, write_bgr!($dst, B10LittleEndian)),
+            PixelFormat::BGRP10BE => $read_to_rgb!($src, $dst, write_bgr!($dst, B10BigEndian)),
+            PixelFormat::BGRP12LE => $read_to_rgb!($src, $dst, write_bgr!($dst, B12LittleEndian)),
+            PixelFormat::BGRP12BE => $read_to_rgb!($src, $dst, write_bgr!($dst, B12BigEndian)),
+        }
     };
 }
 
@@ -159,8 +206,17 @@ pub fn convert<'a>(src: Source<'a>, dst: Destination<'a>) {
         PixelFormat::BGRAP12LE => convert_rgba::<true, B12LittleEndian>(src, dst),
         PixelFormat::BGRAP12BE => convert_rgba::<true, B12BigEndian>(src, dst),
 
-        PixelFormat::RGB => convert_rgb::<false>(src, dst),
-        PixelFormat::BGR => convert_rgb::<true>(src, dst),
+        PixelFormat::RGB => convert_rgb::<false, B8>(src, dst),
+        PixelFormat::RGBP10LE => convert_rgb::<false, B10LittleEndian>(src, dst),
+        PixelFormat::RGBP10BE => convert_rgb::<false, B10BigEndian>(src, dst),
+        PixelFormat::RGBP12LE => convert_rgb::<false, B12LittleEndian>(src, dst),
+        PixelFormat::RGBP12BE => convert_rgb::<false, B12BigEndian>(src, dst),
+
+        PixelFormat::BGR => convert_rgb::<true, B8>(src, dst),
+        PixelFormat::BGRP10LE => convert_rgb::<true, B10LittleEndian>(src, dst),
+        PixelFormat::BGRP10BE => convert_rgb::<true, B10BigEndian>(src, dst),
+        PixelFormat::BGRP12LE => convert_rgb::<true, B12LittleEndian>(src, dst),
+        PixelFormat::BGRP12BE => convert_rgb::<true, B12BigEndian>(src, dst),
     }
 }
 
@@ -179,30 +235,10 @@ fn convert_i420<'a, B: Bits>(src: Source<'a>, dst: Destination<'a>) {
             )
         };
     }
-
-    match dst.format {
-        PixelFormat::I420 => read_i420_to_rgb!(src, dst, write_i420!(dst, B8)),
-        PixelFormat::I420P10LE => {
-            read_i420_to_rgb!(src, dst, write_i420!(dst, B10LittleEndian))
-        }
-        PixelFormat::I420P10BE => {
-            read_i420_to_rgb!(src, dst, write_i420!(dst, B10BigEndian))
-        }
-        PixelFormat::I420P12LE => {
-            read_i420_to_rgb!(src, dst, write_i420!(dst, B12LittleEndian))
-        }
-        PixelFormat::I420P12BE => {
-            read_i420_to_rgb!(src, dst, write_i420!(dst, B12BigEndian))
-        }
-        PixelFormat::RGB => read_i420_to_rgb!(src, dst, write_rgb!(dst)),
-        PixelFormat::RGBA => read_i420_to_rgb!(src, dst, write_rgba!(dst)),
-        PixelFormat::BGR => read_i420_to_rgb!(src, dst, write_bgr!(dst)),
-        PixelFormat::BGRA => read_i420_to_rgb!(src, dst, write_bgra!(dst)),
-        _ => todo!(),
-    }
+    ____xdd_no_clue!(src, dst, read_i420_to_rgb);
 }
 
-fn convert_rgb<'a, const REVERSE: bool>(src: Source<'a>, dst: Destination<'a>) {
+fn convert_rgb<'a, const REVERSE: bool, B: Bits>(src: Source<'a>, dst: Destination<'a>) {
     macro_rules! read_rgb_to_rgb {
         ($src:ident, $dst:ident, $writer:expr $(,)?) => {
             read_rgb_4x::<REVERSE, _>(
@@ -215,28 +251,7 @@ fn convert_rgb<'a, const REVERSE: bool>(src: Source<'a>, dst: Destination<'a>) {
         };
     }
 
-    match dst.format {
-        PixelFormat::I420 => read_rgb_to_rgb!(src, dst, write_i420!(dst, B8)),
-        PixelFormat::I420P10LE => {
-            read_rgb_to_rgb!(src, dst, write_i420!(dst, B10LittleEndian))
-        }
-        PixelFormat::I420P10BE => {
-            read_rgb_to_rgb!(src, dst, write_i420!(dst, B10BigEndian))
-        }
-        PixelFormat::I420P12LE => {
-            read_rgb_to_rgb!(src, dst, write_i420!(dst, B12LittleEndian))
-        }
-        PixelFormat::I420P12BE => {
-            read_rgb_to_rgb!(src, dst, write_i420!(dst, B12BigEndian))
-        }
-
-        PixelFormat::RGBA => read_rgb_to_rgb!(src, dst, write_rgba!(dst)),
-
-        PixelFormat::BGRA => read_rgb_to_rgb!(src, dst, write_bgra!(dst)),
-        PixelFormat::RGB => read_rgb_to_rgb!(src, dst, write_rgb!(dst)),
-        PixelFormat::BGR => read_rgb_to_rgb!(src, dst, write_bgr!(dst)),
-        _ => todo!(),
-    }
+    ____xdd_no_clue!(src, dst, read_rgb_to_rgb);
 }
 
 fn convert_rgba<'a, const REVERSE: bool, B: Bits>(src: Source<'a>, dst: Destination<'a>) {
@@ -252,24 +267,5 @@ fn convert_rgba<'a, const REVERSE: bool, B: Bits>(src: Source<'a>, dst: Destinat
         };
     }
 
-    match dst.format {
-        PixelFormat::I420 => read_rgba_to_rgb!(src, dst, write_i420!(dst, B8)),
-        PixelFormat::I420P10LE => {
-            read_rgba_to_rgb!(src, dst, write_i420!(dst, B10LittleEndian))
-        }
-        PixelFormat::I420P10BE => {
-            read_rgba_to_rgb!(src, dst, write_i420!(dst, B10BigEndian))
-        }
-        PixelFormat::I420P12LE => {
-            read_rgba_to_rgb!(src, dst, write_i420!(dst, B12LittleEndian))
-        }
-        PixelFormat::I420P12BE => {
-            read_rgba_to_rgb!(src, dst, write_i420!(dst, B12BigEndian))
-        }
-        PixelFormat::RGBA => read_rgba_to_rgb!(src, dst, write_rgba!(dst)),
-        PixelFormat::RGB => read_rgba_to_rgb!(src, dst, write_rgb!(dst)),
-        PixelFormat::BGR => read_rgba_to_rgb!(src, dst, write_bgr!(dst)),
-        PixelFormat::BGRA => read_rgba_to_rgb!(src, dst, write_bgra!(dst)),
-        _ => todo!(),
-    }
+    ____xdd_no_clue!(src, dst, read_rgba_to_rgb);
 }
