@@ -130,10 +130,77 @@ unsafe impl Vector for __m256 {
         _mm256_cvtepi32_ps(v)
     }
 
+    #[target_feature(enable = "avx2")]
+    unsafe fn load_u8_4x_interleaved_2x(ptr: *const u8) -> [[Self; 4]; 2] {
+        #[target_feature(enable = "avx2")]
+        pub(super) unsafe fn inner(ptr: *const u8) -> (__m256, __m256, __m256, __m256) {
+            let m1 = __m256::load_u8(ptr);
+            let m2 = __m256::load_u8(ptr.add(__m256::LEN));
+            let m3 = __m256::load_u8(ptr.add(__m256::LEN * 2));
+            let m4 = __m256::load_u8(ptr.add(__m256::LEN * 3));
+
+            deinterleave_4x(m1, m2, m3, m4)
+        }
+
+        let (al, bl, cl, dl) = inner(ptr);
+        let (ah, bh, ch, dh) = inner(ptr.add(Self::LEN * 4));
+
+        [[al, bl, cl, dl], [ah, bh, ch, dh]]
+    }
+
+    #[target_feature(enable = "avx2")]
+    unsafe fn load_u16_4x_interleaved_2x<E: Endian>(ptr: *const u16) -> [[Self; 4]; 2] {
+        #[target_feature(enable = "avx2")]
+        pub(super) unsafe fn inner<E: Endian>(ptr: *const u16) -> (__m256, __m256, __m256, __m256) {
+            let m1 = __m256::load_u16::<E>(ptr);
+            let m2 = __m256::load_u16::<E>(ptr.add(__m256::LEN));
+            let m3 = __m256::load_u16::<E>(ptr.add(__m256::LEN * 2));
+            let m4 = __m256::load_u16::<E>(ptr.add(__m256::LEN * 3));
+
+            deinterleave_4x(m1, m2, m3, m4)
+        }
+
+        let (al, bl, cl, dl) = inner::<E>(ptr);
+        let (ah, bh, ch, dh) = inner::<E>(ptr.add(Self::LEN * 4));
+
+        [[al, bl, cl, dl], [ah, bh, ch, dh]]
+    }
+
     #[inline(always)]
     fn color_ops(c: &ColorOps) -> &ColorOpsPart<Self> {
         &c.avx2
     }
+}
+
+#[inline(always)]
+unsafe fn deinterleave_4x(
+    m1: __m256,
+    m2: __m256,
+    m3: __m256,
+    m4: __m256,
+) -> (__m256, __m256, __m256, __m256) {
+    let v1 = _mm256_unpacklo_ps(m1, m2);
+    let v2 = _mm256_unpacklo_ps(m3, m4);
+    let v3 = _mm256_unpackhi_ps(m1, m2);
+    let v4 = _mm256_unpackhi_ps(m3, m4);
+
+    // A B C D vectors, but their order is scrambled
+    let a = _mm256_unpacklo_ps(v1, v2);
+    let b = _mm256_unpackhi_ps(v1, v2);
+    let c = _mm256_unpacklo_ps(v3, v4);
+    let d = _mm256_unpackhi_ps(v3, v4);
+
+    // This vector sorts them into the right order. These operations look expensive,
+    // but the compiler will take care of this and remove the permutevar for something
+    // much more efficient
+    let idx = _mm256_set_epi32(7, 3, 5, 1, 6, 2, 4, 0);
+
+    let a = _mm256_permutevar8x32_ps(a, idx);
+    let b = _mm256_permutevar8x32_ps(b, idx);
+    let c = _mm256_permutevar8x32_ps(c, idx);
+    let d = _mm256_permutevar8x32_ps(d, idx);
+
+    (a, b, c, d)
 }
 
 mod math {
@@ -364,6 +431,7 @@ pub(crate) mod veryfastmath {
 
 pub(crate) mod util {
     use super::*;
+    use crate::endian::NativeEndian;
 
     #[inline(always)]
     pub(crate) unsafe fn float32x8x2_to_u8x16(l: __m256, h: __m256) -> [u8; 16] {
@@ -423,12 +491,28 @@ pub(crate) mod util {
     }
 
     #[inline(always)]
-    pub(crate) unsafe fn packf32x8_rgba_u8x32(
+    pub(crate) unsafe fn pack_f32x8_rgba_u8x32(
         r: __m256,
         g: __m256,
         b: __m256,
         a: __m256,
     ) -> [u8; 32] {
+        let [rgba_lo, rgba_hi] = transmute::<[u16; 32], [__m256i; 2]>(pack_f32x8_rgba_u16x32::<
+            NativeEndian,
+        >(r, g, b, a));
+
+        let rgba = _mm256_packus_epi16(rgba_lo, rgba_hi);
+
+        transmute::<__m256i, [u8; 32]>(rgba)
+    }
+
+    #[inline(always)]
+    pub(crate) unsafe fn pack_f32x8_rgba_u16x32<E: Endian>(
+        r: __m256,
+        g: __m256,
+        b: __m256,
+        a: __m256,
+    ) -> [u16; 32] {
         let r = _mm256_cvtps_epi32(r);
         let g = _mm256_cvtps_epi32(g);
         let b = _mm256_cvtps_epi32(b);
@@ -445,14 +529,21 @@ pub(crate) mod util {
             _mm256_unpackhi_epi32(rgba_lo, rgba_hi),
         );
 
-        let rgba = _mm256_packus_epi16(rgba_lo, rgba_hi);
+        let (rgba_lo, rgba_hi) = if E::IS_NATIVE {
+            (rgba_lo, rgba_hi)
+        } else {
+            (
+                util::swap_u16_bytes_x16(rgba_lo),
+                util::swap_u16_bytes_x16(rgba_hi),
+            )
+        };
 
-        transmute(rgba)
+        transmute::<[__m256i; 2], [u16; 32]>([rgba_lo, rgba_hi])
     }
 
     #[inline(always)]
     pub(crate) unsafe fn packf32x8_rgb_u8x24(r: __m256, g: __m256, b: __m256) -> [u8; 24] {
-        let rgba = packf32x8_rgba_u8x32(r, g, b, _mm256_setzero_ps());
+        let rgba = pack_f32x8_rgba_u8x32(r, g, b, _mm256_setzero_ps());
 
         #[rustfmt::skip]
         let idx = _mm256_setr_epi8(

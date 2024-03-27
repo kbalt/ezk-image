@@ -92,6 +92,9 @@ pub(crate) unsafe trait Vector: Debug + Copy + 'static {
     /// Pointer must be valid to read Self::LEN * 2 bytes
     unsafe fn load_u16<E: Endian>(ptr: *const u16) -> Self;
 
+    unsafe fn load_u8_4x_interleaved_2x(ptr: *const u8) -> [[Self; 4]; 2];
+    unsafe fn load_u16_4x_interleaved_2x<E: Endian>(ptr: *const u16) -> [[Self; 4]; 2];
+
     fn color_ops(c: &ColorOps) -> &ColorOpsPart<Self>;
 }
 
@@ -176,6 +179,56 @@ unsafe impl Vector for f32 {
             Self::from(v)
         } else {
             Self::from(v.swap_bytes())
+        }
+    }
+
+    unsafe fn load_u8_4x_interleaved_2x(ptr: *const u8) -> [[Self; 4]; 2] {
+        [
+            [
+                Self::from(ptr.read()),
+                Self::from(ptr.add(1).read()),
+                Self::from(ptr.add(2).read()),
+                Self::from(ptr.add(3).read()),
+            ],
+            [
+                Self::from(ptr.add(4).read()),
+                Self::from(ptr.add(5).read()),
+                Self::from(ptr.add(6).read()),
+                Self::from(ptr.add(7).read()),
+            ],
+        ]
+    }
+    unsafe fn load_u16_4x_interleaved_2x<E: Endian>(ptr: *const u16) -> [[Self; 4]; 2] {
+        if E::IS_NATIVE {
+            [
+                [
+                    Self::from(ptr.read()),
+                    Self::from(ptr.add(1).read()),
+                    Self::from(ptr.add(2).read()),
+                    Self::from(ptr.add(3).read()),
+                ],
+                [
+                    Self::from(ptr.add(4).read()),
+                    Self::from(ptr.add(5).read()),
+                    Self::from(ptr.add(6).read()),
+                    Self::from(ptr.add(7).read()),
+                ],
+            ]
+        } else {
+            [
+                [
+                    Self::from(ptr.read().swap_bytes()),
+                    Self::from(ptr.add(1).read().swap_bytes()),
+                    Self::from(ptr.add(2).read().swap_bytes()),
+                    Self::from(ptr.add(3).read().swap_bytes()),
+                ],
+                [
+                    Self::from(ptr.add(4).read().swap_bytes()),
+                    Self::from(ptr.add(5).read().swap_bytes()),
+                    Self::from(ptr.add(6).read().swap_bytes()),
+                    Self::from(ptr.add(7).read().swap_bytes()),
+                ],
+            ]
         }
     }
 

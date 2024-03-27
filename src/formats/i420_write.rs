@@ -301,7 +301,7 @@ impl<'a, B: Bits<Primitive = u16>> I420VisitorImpl<__m256> for I420Writer<'a, B>
         let y0 = float32x8x2_to_u16x16::<B::Endian>(y00, y01);
         let y1 = float32x8x2_to_u16x16::<B::Endian>(y10, y11);
 
-        let dst = self.dst.cast::<B::Primitive>();
+        let dst = self.dst.cast::<u16>();
 
         dst.add(offset0).cast::<[u16; 16]>().write(y0);
         dst.add(offset1).cast::<[u16; 16]>().write(y1);

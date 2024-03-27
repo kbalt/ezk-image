@@ -69,14 +69,24 @@ pub enum PixelFormat {
     I420P12LE,
     I420P12BE,
 
+    RGBA,
+    RGBAP10LE,
+    RGBAP10BE,
+    RGBAP12LE,
+    RGBAP12BE,
+
+    BGRA,
+    BGRAP10LE,
+    BGRAP10BE,
+    BGRAP12LE,
+    BGRAP12BE,
+
     // I420A,
     // I422,
     // I444,
     // NV12,
     RGB,
-    RGBA,
     BGR,
-    BGRA,
 }
 
 impl PixelFormat {
@@ -86,8 +96,10 @@ impl PixelFormat {
         match self {
             I420 => (width * height * 12).div_ceil(8),
             I420P10LE | I420P10BE | I420P12LE | I420P12BE => (width * height * 24).div_ceil(8),
-            RGB | BGR => width * height * 3,
             RGBA | BGRA => width * height * 4,
+            RGBAP10LE | RGBAP10BE | RGBAP12LE | RGBAP12BE | BGRAP10LE | BGRAP10BE | BGRAP12LE
+            | BGRAP12BE => width * height * 8,
+            RGB | BGR => width * height * 3,
         }
     }
 }
@@ -134,10 +146,21 @@ pub fn convert<'a>(src: Source<'a>, dst: Destination<'a>) {
         PixelFormat::I420P10BE => convert_i420::<B10BigEndian>(src, dst),
         PixelFormat::I420P12LE => convert_i420::<B12LittleEndian>(src, dst),
         PixelFormat::I420P12BE => convert_i420::<B12BigEndian>(src, dst),
+
+        PixelFormat::RGBA => convert_rgba::<false, B8>(src, dst),
+        PixelFormat::RGBAP10LE => convert_rgba::<false, B10LittleEndian>(src, dst),
+        PixelFormat::RGBAP10BE => convert_rgba::<false, B10BigEndian>(src, dst),
+        PixelFormat::RGBAP12LE => convert_rgba::<false, B12LittleEndian>(src, dst),
+        PixelFormat::RGBAP12BE => convert_rgba::<false, B12BigEndian>(src, dst),
+
+        PixelFormat::BGRA => convert_rgba::<true, B8>(src, dst),
+        PixelFormat::BGRAP10LE => convert_rgba::<true, B10LittleEndian>(src, dst),
+        PixelFormat::BGRAP10BE => convert_rgba::<true, B10BigEndian>(src, dst),
+        PixelFormat::BGRAP12LE => convert_rgba::<true, B12LittleEndian>(src, dst),
+        PixelFormat::BGRAP12BE => convert_rgba::<true, B12BigEndian>(src, dst),
+
         PixelFormat::RGB => convert_rgb::<false>(src, dst),
-        PixelFormat::RGBA => convert_rgba::<false>(src, dst),
         PixelFormat::BGR => convert_rgb::<true>(src, dst),
-        PixelFormat::BGRA => convert_rgba::<true>(src, dst),
     }
 }
 
@@ -175,6 +198,7 @@ fn convert_i420<'a, B: Bits>(src: Source<'a>, dst: Destination<'a>) {
         PixelFormat::RGBA => read_i420_to_rgb!(src, dst, write_rgba!(dst)),
         PixelFormat::BGR => read_i420_to_rgb!(src, dst, write_bgr!(dst)),
         PixelFormat::BGRA => read_i420_to_rgb!(src, dst, write_bgra!(dst)),
+        _ => todo!(),
     }
 }
 
@@ -205,17 +229,20 @@ fn convert_rgb<'a, const REVERSE: bool>(src: Source<'a>, dst: Destination<'a>) {
         PixelFormat::I420P12BE => {
             read_rgb_to_rgb!(src, dst, write_i420!(dst, B12BigEndian))
         }
-        PixelFormat::RGB => read_rgb_to_rgb!(src, dst, write_rgb!(dst)),
+
         PixelFormat::RGBA => read_rgb_to_rgb!(src, dst, write_rgba!(dst)),
-        PixelFormat::BGR => read_rgb_to_rgb!(src, dst, write_bgr!(dst)),
+
         PixelFormat::BGRA => read_rgb_to_rgb!(src, dst, write_bgra!(dst)),
+        PixelFormat::RGB => read_rgb_to_rgb!(src, dst, write_rgb!(dst)),
+        PixelFormat::BGR => read_rgb_to_rgb!(src, dst, write_bgr!(dst)),
+        _ => todo!(),
     }
 }
 
-fn convert_rgba<'a, const REVERSE: bool>(src: Source<'a>, dst: Destination<'a>) {
+fn convert_rgba<'a, const REVERSE: bool, B: Bits>(src: Source<'a>, dst: Destination<'a>) {
     macro_rules! read_rgba_to_rgb {
         ($src:ident, $dst:ident, $writer:expr $(,)?) => {
-            read_rgba_4x::<REVERSE, _>(
+            read_rgba_4x::<REVERSE, B, _>(
                 $src.width,
                 $src.height,
                 $src.buf,
@@ -239,9 +266,10 @@ fn convert_rgba<'a, const REVERSE: bool>(src: Source<'a>, dst: Destination<'a>) 
         PixelFormat::I420P12BE => {
             read_rgba_to_rgb!(src, dst, write_i420!(dst, B12BigEndian))
         }
-        PixelFormat::RGB => read_rgba_to_rgb!(src, dst, write_rgb!(dst)),
         PixelFormat::RGBA => read_rgba_to_rgb!(src, dst, write_rgba!(dst)),
+        PixelFormat::RGB => read_rgba_to_rgb!(src, dst, write_rgb!(dst)),
         PixelFormat::BGR => read_rgba_to_rgb!(src, dst, write_bgr!(dst)),
         PixelFormat::BGRA => read_rgba_to_rgb!(src, dst, write_bgra!(dst)),
+        _ => todo!(),
     }
 }

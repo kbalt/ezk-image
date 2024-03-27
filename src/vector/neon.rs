@@ -96,6 +96,63 @@ unsafe impl Vector for float32x4_t {
         vcvtq_f32_u32(v)
     }
 
+    #[target_feature(enable = "neon")]
+    unsafe fn load_u8_4x_interleaved_2x(ptr: *const u8) -> [[Self; 4]; 2] {
+        let rgba_lanes = vld4_u8(ptr);
+
+        let [r_lane, g_lane, b_lane, a_lane]: [uint8x8_t; 4] = transmute(rgba_lanes);
+
+        let r = vmovl_u8(r_lane);
+        let rl = vcvtq_f32_u32(vmovl_u16(vget_low_u16(r)));
+        let rh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(r)));
+
+        let g = vmovl_u8(g_lane);
+        let gl = vcvtq_f32_u32(vmovl_u16(vget_low_u16(g)));
+        let gh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(g)));
+
+        let b = vmovl_u8(b_lane);
+        let bl = vcvtq_f32_u32(vmovl_u16(vget_low_u16(b)));
+        let bh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(b)));
+
+        let a = vmovl_u8(a_lane);
+        let al = vcvtq_f32_u32(vmovl_u16(vget_low_u16(a)));
+        let ah = vcvtq_f32_u32(vmovl_u16(vget_high_u16(a)));
+
+        [[rl, gl, bl, al], [rh, gh, bh, ah]]
+    }
+
+    #[target_feature(enable = "neon")]
+    unsafe fn load_u16_4x_interleaved_2x<E: Endian>(ptr: *const u16) -> [[Self; 4]; 2] {
+        let rgba_lanes = vld4q_u16(ptr);
+
+        let [r, g, b, a]: [uint16x8_t; 4] = transmute(rgba_lanes);
+
+        let (r, g, b, a) = if E::IS_NATIVE {
+            (r, g, b, a)
+        } else {
+            (
+                vrev32q_u16(r),
+                vrev32q_u16(g),
+                vrev32q_u16(b),
+                vrev32q_u16(a),
+            )
+        };
+
+        let rl = vcvtq_f32_u32(vmovl_u16(vget_low_u16(r)));
+        let rh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(r)));
+
+        let gl = vcvtq_f32_u32(vmovl_u16(vget_low_u16(g)));
+        let gh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(g)));
+
+        let bl = vcvtq_f32_u32(vmovl_u16(vget_low_u16(b)));
+        let bh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(b)));
+
+        let al = vcvtq_f32_u32(vmovl_u16(vget_low_u16(a)));
+        let ah = vcvtq_f32_u32(vmovl_u16(vget_high_u16(a)));
+
+        [[rl, gl, bl, al], [rh, gh, bh, ah]]
+    }
+
     #[inline(always)]
     fn color_ops(c: &ColorOps) -> &ColorOpsPart<Self> {
         &c.neon

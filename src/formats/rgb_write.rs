@@ -175,7 +175,7 @@ impl<const REVERSE: bool> RgbaBlockVisitorImpl<float32x4_t> for RGBAWriter<'_, R
 impl<const REVERSE: bool> RgbaBlockVisitorImpl<__m256> for RGBAWriter<'_, REVERSE> {
     #[target_feature(enable = "avx2")]
     unsafe fn visit(&mut self, x: usize, y: usize, block: RgbaBlock<__m256>) {
-        use crate::vector::avx2::util::packf32x8_rgba_u8x32;
+        use crate::vector::avx2::util::pack_f32x8_rgba_u8x32;
 
         let x = self.window.x + x;
         let y = self.window.y + y;
@@ -193,9 +193,9 @@ impl<const REVERSE: bool> RgbaBlockVisitorImpl<__m256> for RGBAWriter<'_, REVERS
             a: __m256,
         ) -> [u8; 32] {
             if REVERSE {
-                packf32x8_rgba_u8x32(b, g, r, a)
+                pack_f32x8_rgba_u8x32(b, g, r, a)
             } else {
-                packf32x8_rgba_u8x32(r, g, b, a)
+                pack_f32x8_rgba_u8x32(r, g, b, a)
             }
         }
 
