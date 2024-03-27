@@ -326,10 +326,10 @@ fn rgb_to_rgba() {
 }
 
 #[test]
-fn rgba_to_rgba12() {
-    let (rgba, width, height) = make_rgba8_image(ColorPrimaries::SRGB, ColorTransfer::Linear);
+fn rgba8_to_rgba16() {
+    let (rgba8, width, height) = make_rgba8_image(ColorPrimaries::SRGB, ColorTransfer::Linear);
 
-    let mut rgb16_dst = vec![0u8; PixelFormat::RGB16LE.buffer_size(width, height)];
+    let mut rgba16 = vec![0u8; PixelFormat::RGB16LE.buffer_size(width, height)];
 
     let src = Source::new(
         PixelFormat::RGBA8,
@@ -339,7 +339,7 @@ fn rgba_to_rgba12() {
             primaries: ColorPrimaries::SRGB,
             full_range: false,
         },
-        &rgba,
+        &rgba8,
         width,
         height,
         8,
@@ -353,7 +353,7 @@ fn rgba_to_rgba12() {
             primaries: ColorPrimaries::SRGB,
             full_range: false,
         },
-        &mut rgb16_dst,
+        &mut rgba16,
         width,
         height,
         16,
@@ -361,14 +361,92 @@ fn rgba_to_rgba12() {
 
     convert_multi_thread(src, dst);
 
-    let rgb_dst: Vec<u16> = rgb16_dst
+    let rgba16: Vec<u16> = rgba16
         .chunks_exact(2)
         .map(|b| u16::from_be_bytes([b[0], b[1]]))
         .collect();
 
     let buffer =
-        image::ImageBuffer::<Rgb<u16>, Vec<u16>>::from_vec(width as _, height as _, rgb_dst)
+        image::ImageBuffer::<Rgb<u16>, Vec<u16>>::from_vec(width as _, height as _, rgba16)
             .unwrap();
 
-    buffer.save("tests/RGB_TO_RGBA.png").unwrap();
+    buffer.save("tests/RGBA8_TO_RGB16.png").unwrap();
+}
+
+#[test]
+fn rgba16_to_rgba8() {
+    let (mut rgba8, width, height) = make_rgba8_image(ColorPrimaries::SRGB, ColorTransfer::Linear);
+
+    let mut rgba16 = vec![0u8; PixelFormat::RGBA16LE.buffer_size(width, height)];
+
+    let src = Source::new(
+        PixelFormat::RGBA8,
+        ColorInfo {
+            space: ColorSpace::BT709,
+            transfer: ColorTransfer::Linear,
+            primaries: ColorPrimaries::SRGB,
+            full_range: false,
+        },
+        &rgba8,
+        width,
+        height,
+        8,
+    );
+
+    let dst = Destination::new(
+        PixelFormat::RGBA16LE,
+        ColorInfo {
+            space: ColorSpace::BT709,
+            transfer: ColorTransfer::Linear,
+            primaries: ColorPrimaries::SRGB,
+            full_range: false,
+        },
+        &mut rgba16,
+        width,
+        height,
+        16,
+    );
+
+    convert_multi_thread(src, dst);
+
+    let src = Source::new(
+        PixelFormat::RGBA16LE,
+        ColorInfo {
+            space: ColorSpace::BT709,
+            transfer: ColorTransfer::Linear,
+            primaries: ColorPrimaries::SRGB,
+            full_range: false,
+        },
+        &rgba16,
+        width,
+        height,
+        16,
+    );
+
+    let dst = Destination::new(
+        PixelFormat::RGBA8,
+        ColorInfo {
+            space: ColorSpace::BT709,
+            transfer: ColorTransfer::Linear,
+            primaries: ColorPrimaries::SRGB,
+            full_range: false,
+        },
+        &mut rgba8,
+        width,
+        height,
+        8,
+    );
+
+    convert_multi_thread(src, dst);
+
+    let rgb_dst: Vec<u16> = rgba16
+        .chunks_exact(2)
+        .map(|b| u16::from_be_bytes([b[0], b[1]]))
+        .collect();
+
+    let buffer =
+        image::ImageBuffer::<Rgba<u16>, Vec<u16>>::from_vec(width as _, height as _, rgb_dst)
+            .unwrap();
+
+    buffer.save("tests/RGBA16_TO_RGBA8.png").unwrap();
 }
