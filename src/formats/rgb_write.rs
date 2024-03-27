@@ -260,23 +260,21 @@ impl<const REVERSE: bool, B: Bits<Primitive = u16>> RgbBlockVisitorImpl<__m256>
             block.rgb11.b.vmulf(self.max_value),
         );
 
-        self.dst
-            .add(offset00 * 3)
+        let dst = self.dst.cast::<u16>();
+
+        dst.add(offset00 * 3)
             .cast::<[u16; 24]>()
             .write_unaligned(rgb00);
 
-        self.dst
-            .add(offset01 * 3)
+        dst.add(offset01 * 3)
             .cast::<[u16; 24]>()
             .write_unaligned(rgb01);
 
-        self.dst
-            .add(offset10 * 3)
+        dst.add(offset10 * 3)
             .cast::<[u16; 24]>()
             .write_unaligned(rgb10);
 
-        self.dst
-            .add(offset11 * 3)
+        dst.add(offset11 * 3)
             .cast::<[u16; 24]>()
             .write_unaligned(rgb11);
     }

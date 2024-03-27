@@ -10,6 +10,7 @@ pub struct Source<'a> {
     pub(crate) buf: &'a [u8],
     pub(crate) width: usize,
     pub(crate) height: usize,
+    pub(crate) bits_per_channel: usize,
 
     pub(crate) window: Option<Rect>,
 }
@@ -21,6 +22,7 @@ impl<'a> Source<'a> {
         buf: &'a [u8],
         width: usize,
         height: usize,
+        bits_per_channel: usize,
     ) -> Self {
         assert!(format.buffer_size(width, height) <= buf.len());
 
@@ -30,6 +32,7 @@ impl<'a> Source<'a> {
             buf,
             width,
             height,
+            bits_per_channel,
             window: None,
         }
     }
@@ -55,6 +58,7 @@ pub struct Destination<'a> {
     pub(crate) buf: RawMutSliceU8<'a>,
     pub(crate) width: usize,
     pub(crate) height: usize,
+    pub(crate) bits_per_channel: usize,
 
     pub(crate) window: Option<Rect>,
 }
@@ -66,6 +70,7 @@ impl<'a> Destination<'a> {
         buf: &'a mut [u8],
         width: usize,
         height: usize,
+        bits_per_channel: usize,
     ) -> Self {
         assert!(format.buffer_size(width, height) <= buf.len());
 
@@ -73,6 +78,7 @@ impl<'a> Destination<'a> {
             format,
             color,
             buf: RawMutSliceU8::from(buf),
+            bits_per_channel,
             width,
             height,
             window: None,
@@ -99,6 +105,7 @@ impl<'a> Destination<'a> {
             buf: self.buf.unsafe_explicit_copy(),
             width: self.width,
             height: self.height,
+            bits_per_channel: self.bits_per_channel,
             window: self.window,
         }
     }

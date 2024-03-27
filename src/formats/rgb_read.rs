@@ -1,9 +1,10 @@
 use super::rgb::RgbBlockVisitor;
+use crate::bits::Bits;
 use crate::formats::rgb::{RgbBlock, RgbPixel};
 use crate::Rect;
 
 /// Visit all pixels in an rgb image, reverse=true if its an bgr image
-pub(crate) fn read_rgb_4x<const REVERSE: bool, Vis>(
+pub(crate) fn read_rgb_4x<const REVERSE: bool, B: Bits, Vis>(
     src_width: usize,
     src_height: usize,
     src: &[u8],
@@ -29,6 +30,8 @@ pub(crate) fn read_rgb_4x<const REVERSE: bool, Vis>(
     assert!((window.x + window.width) <= src_width);
     assert!((window.y + window.height) <= src_height);
 
+    let src = src.as_ptr().cast::<B::Primitive>();
+
     // TODO: use vectors, everything is hardcoded to f32
 
     for y in (0..window.height).step_by(2) {
@@ -44,10 +47,10 @@ pub(crate) fn read_rgb_4x<const REVERSE: bool, Vis>(
             let rgb11 = rgb10 + 1;
 
             let block = RgbBlock {
-                rgb00: read_pixel::<REVERSE>(src, rgb00, max_value),
-                rgb01: read_pixel::<REVERSE>(src, rgb01, max_value),
-                rgb10: read_pixel::<REVERSE>(src, rgb10, max_value),
-                rgb11: read_pixel::<REVERSE>(src, rgb11, max_value),
+                rgb00: read_pixel::<REVERSE, B>(src, rgb00, max_value),
+                rgb01: read_pixel::<REVERSE, B>(src, rgb01, max_value),
+                rgb10: read_pixel::<REVERSE, B>(src, rgb10, max_value),
+                rgb11: read_pixel::<REVERSE, B>(src, rgb11, max_value),
             };
 
             // Safety: f32 is a safe vector type, no checks needed
@@ -58,15 +61,19 @@ pub(crate) fn read_rgb_4x<const REVERSE: bool, Vis>(
     }
 }
 
-fn read_pixel<const REVERSE: bool>(rgb: &[u8], idx: usize, max_value: f32) -> RgbPixel<f32> {
+fn read_pixel<const REVERSE: bool, B: Bits>(
+    rgb: *const B::Primitive,
+    idx: usize,
+    max_value: f32,
+) -> RgbPixel<f32> {
     let idx = idx * 3;
 
     // Safety f32 is a safe vector type
     unsafe {
         RgbPixel::from_loaded::<REVERSE>(
-            f32::from(rgb[idx]) / max_value,
-            f32::from(rgb[idx + 1]) / max_value,
-            f32::from(rgb[idx + 2]) / max_value,
+            B::load::<f32>(rgb.add(idx)) / max_value,
+            B::load::<f32>(rgb.add(idx + 1)) / max_value,
+            B::load::<f32>(rgb.add(idx + 2)) / max_value,
         )
     }
 }
