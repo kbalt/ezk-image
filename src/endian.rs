@@ -1,8 +1,8 @@
-pub(crate) struct NativeEndian;
-pub(crate) struct BigEndian;
-pub(crate) struct LittleEndian;
+pub struct NativeEndian;
+pub struct BigEndian;
+pub struct LittleEndian;
 
-pub(crate) trait Endian {
+pub trait Endian {
     const IS_NATIVE: bool;
 }
 

@@ -1,12 +1,13 @@
 #![allow(clippy::missing_safety_doc)]
 
-use bits::{Bits, U16BE, U16LE, U8};
+use bits::BitsInternal;
 use formats::*;
-use src_dst::RawMutSliceU8;
 
+pub use bits::{Bits, U16BE, U16LE, U8};
 pub use color::{ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer};
 #[cfg(feature = "multi-thread")]
 pub use multi_thread::convert_multi_thread;
+pub use planes::PixelFormatPlanes;
 pub use src_dst::{Destination, Source};
 
 mod bits;
@@ -15,6 +16,7 @@ mod endian;
 mod formats;
 #[cfg(feature = "multi-thread")]
 mod multi_thread;
+mod planes;
 mod src_dst;
 mod vector;
 
@@ -43,7 +45,10 @@ pub struct Rect {
 }
 
 /// Verify that the input values are all valid and safe to move on to
-fn verify_input(src: &Source<'_>, dst: &Destination<'_>) -> (Rect, Rect) {
+fn verify_input_windows_same_size<SB: Bits, DB: Bits>(
+    src: &Source<'_, SB>,
+    dst: &Destination<'_, DB>,
+) -> (Rect, Rect) {
     let src_window = src.window.unwrap_or(Rect {
         x: 0,
         y: 0,
@@ -67,25 +72,37 @@ fn verify_input(src: &Source<'_>, dst: &Destination<'_>) -> (Rect, Rect) {
 
 #[derive(Debug, Clone, Copy)]
 pub enum PixelFormat {
-    I4208,
-    I42016LE,
-    I42016BE,
+    /// 3 Planes, Y, U, V
+    /// 4x Y, 1x U, 1X V
+    I420,
 
-    RGBA8,
-    RGBA16LE,
-    RGBA16BE,
+    // /// 4 Planes, Y, U, V, A
+    // /// 4x Y, 1x U, 1x V, 4x A
+    // I420A,
 
-    BGRA8,
-    BGRA16LE,
-    BGRA16BE,
+    // /// 3 Planes, Y, U, V
+    // /// 4x Y, 2x U, 2x V
+    // I422
 
-    RGB8,
-    RGB16LE,
-    RGB16BE,
+    // /// 4 Planes, Y, U, V, A
+    // /// 4x Y, 2x U, 2x V, 4x A
+    // I422A
 
-    BGR8,
-    BGR16LE,
-    BGR16BE,
+    // /// 3 Planes, Y, U, V
+    // /// 1x Y, 1x U, 1x V
+    // I444,
+
+    // /// 2 Planes, Y, U & V interleaved
+    // /// 4x Y, 1x U & V
+    // NV12,
+    /// 1 Plane 4 primitives R, G, B, A
+    RGBA,
+    /// 1 Plane 4 primitives B, G, R, A
+    BGRA,
+    /// 1 Plane 3 primitives R, G, B
+    RGB,
+    /// 1 Plane 3 primitives B, G, R
+    BGR,
     // I420A,
     // I422,
     // I444,
@@ -97,24 +114,21 @@ impl PixelFormat {
         use PixelFormat::*;
 
         match self {
-            I4208 => (width * height * 12).div_ceil(8),
-            I42016LE | I42016BE => (width * height * 24).div_ceil(8),
-            RGBA8 | BGRA8 => width * height * 4,
-            RGBA16LE | RGBA16BE | BGRA16LE | BGRA16BE => width * height * 8,
-            RGB8 | BGR8 => width * height * 3,
-            RGB16LE | RGB16BE | BGR16LE | BGR16BE => width * height * 6,
+            I420 => (width * height * 12).div_ceil(8),
+            RGBA | BGRA => width * height * 4,
+            RGB | BGR => width * height * 3,
         }
     }
 }
 
 macro_rules! write_i420 {
-    ($dst:ident, $primitive:ident) => {
+    ($dst:ident) => {
         RgbToI420Visitor::new(
             &$dst.color,
-            I420Writer::<$primitive>::new(
+            I420Writer::<DB>::new(
                 $dst.width,
                 $dst.height,
-                $dst.buf,
+                $dst.planes,
                 $dst.bits_per_channel,
                 $dst.window,
             ),
@@ -123,11 +137,11 @@ macro_rules! write_i420 {
 }
 
 macro_rules! write_rgb {
-    ($dst:ident, $primitive:ident) => {
-        RGBWriter::<false, $primitive>::new(
+    ($dst:ident) => {
+        RGBWriter::<false, DB>::new(
             $dst.width,
             $dst.height,
-            $dst.buf,
+            $dst.planes,
             $dst.bits_per_channel,
             $dst.window,
         )
@@ -135,11 +149,11 @@ macro_rules! write_rgb {
 }
 
 macro_rules! write_bgr {
-    ($dst:ident, $primitive:ident) => {
-        RGBWriter::<true, $primitive>::new(
+    ($dst:ident) => {
+        RGBWriter::<true, DB>::new(
             $dst.width,
             $dst.height,
-            $dst.buf,
+            $dst.planes,
             $dst.bits_per_channel,
             $dst.window,
         )
@@ -147,11 +161,11 @@ macro_rules! write_bgr {
 }
 
 macro_rules! write_rgba {
-    ($dst:ident, $primitive:ident) => {
-        RGBAWriter::<false, $primitive>::new(
+    ($dst:ident) => {
+        RGBAWriter::<false, DB>::new(
             $dst.width,
             $dst.height,
-            $dst.buf,
+            $dst.planes,
             $dst.bits_per_channel,
             $dst.window,
         )
@@ -159,11 +173,11 @@ macro_rules! write_rgba {
 }
 
 macro_rules! write_bgra {
-    ($dst:ident, $primitive:ident) => {
-        RGBAWriter::<true, $primitive>::new(
+    ($dst:ident) => {
+        RGBAWriter::<true, DB>::new(
             $dst.width,
             $dst.height,
-            $dst.buf,
+            $dst.planes,
             $dst.bits_per_channel,
             $dst.window,
         )
@@ -173,62 +187,43 @@ macro_rules! write_bgra {
 macro_rules! match_dst_format {
     ($src:ident, $dst:ident, $read_to_rgb:ident) => {
         match $dst.format {
-            PixelFormat::I4208 => $read_to_rgb!($src, $dst, write_i420!($dst, U8)),
-            PixelFormat::I42016LE => $read_to_rgb!($src, $dst, write_i420!($dst, U16LE)),
-            PixelFormat::I42016BE => $read_to_rgb!($src, $dst, write_i420!($dst, U16BE)),
-
-            PixelFormat::RGBA8 => $read_to_rgb!($src, $dst, write_rgba!($dst, U8)),
-            PixelFormat::RGBA16LE => $read_to_rgb!($src, $dst, write_rgba!($dst, U16LE)),
-            PixelFormat::RGBA16BE => $read_to_rgb!($src, $dst, write_rgba!($dst, U16BE)),
-
-            PixelFormat::BGRA8 => $read_to_rgb!($src, $dst, write_bgra!($dst, U8)),
-            PixelFormat::BGRA16LE => $read_to_rgb!($src, $dst, write_bgra!($dst, U16LE)),
-            PixelFormat::BGRA16BE => $read_to_rgb!($src, $dst, write_bgra!($dst, U16BE)),
-
-            PixelFormat::RGB8 => $read_to_rgb!($src, $dst, write_rgb!($dst, U8)),
-            PixelFormat::RGB16LE => $read_to_rgb!($src, $dst, write_rgb!($dst, U16LE)),
-            PixelFormat::RGB16BE => $read_to_rgb!($src, $dst, write_rgb!($dst, U16BE)),
-
-            PixelFormat::BGR8 => $read_to_rgb!($src, $dst, write_bgr!($dst, U8)),
-            PixelFormat::BGR16LE => $read_to_rgb!($src, $dst, write_bgr!($dst, U16LE)),
-            PixelFormat::BGR16BE => $read_to_rgb!($src, $dst, write_bgr!($dst, U16BE)),
+            PixelFormat::I420 => $read_to_rgb!($src, $dst, write_i420!($dst)),
+            PixelFormat::RGBA => $read_to_rgb!($src, $dst, write_rgba!($dst)),
+            PixelFormat::BGRA => $read_to_rgb!($src, $dst, write_bgra!($dst)),
+            PixelFormat::RGB => $read_to_rgb!($src, $dst, write_rgb!($dst)),
+            PixelFormat::BGR => $read_to_rgb!($src, $dst, write_bgr!($dst)),
         }
     };
 }
 
-pub fn convert<'a>(src: Source<'a>, dst: Destination<'a>) {
-    verify_input(&src, &dst);
+#[allow(private_bounds)]
+pub fn convert<SB, DB>(src: Source<'_, SB>, dst: Destination<'_, DB>)
+where
+    SB: BitsInternal,
+    DB: BitsInternal,
+{
+    verify_input_windows_same_size(&src, &dst);
 
     match src.format {
-        PixelFormat::I4208 => convert_i420::<U8>(src, dst),
-        PixelFormat::I42016LE => convert_i420::<U16LE>(src, dst),
-        PixelFormat::I42016BE => convert_i420::<U16BE>(src, dst),
-
-        PixelFormat::RGBA8 => convert_rgba::<false, U8>(src, dst),
-        PixelFormat::RGBA16LE => convert_rgba::<false, U16LE>(src, dst),
-        PixelFormat::RGBA16BE => convert_rgba::<false, U16BE>(src, dst),
-
-        PixelFormat::BGRA8 => convert_rgba::<true, U8>(src, dst),
-        PixelFormat::BGRA16LE => convert_rgba::<true, U16LE>(src, dst),
-        PixelFormat::BGRA16BE => convert_rgba::<true, U16BE>(src, dst),
-
-        PixelFormat::RGB8 => convert_rgb::<false, U8>(src, dst),
-        PixelFormat::RGB16LE => convert_rgb::<false, U16LE>(src, dst),
-        PixelFormat::RGB16BE => convert_rgb::<false, U16BE>(src, dst),
-
-        PixelFormat::BGR8 => convert_rgb::<true, U8>(src, dst),
-        PixelFormat::BGR16LE => convert_rgb::<true, U16LE>(src, dst),
-        PixelFormat::BGR16BE => convert_rgb::<true, U16BE>(src, dst),
+        PixelFormat::I420 => convert_i420::<SB, DB>(src, dst),
+        PixelFormat::RGBA => convert_rgba::<false, SB, DB>(src, dst),
+        PixelFormat::BGRA => convert_rgba::<true, SB, DB>(src, dst),
+        PixelFormat::RGB => convert_rgb::<false, SB, DB>(src, dst),
+        PixelFormat::BGR => convert_rgb::<true, SB, DB>(src, dst),
     }
 }
 
-fn convert_i420<'a, B: Bits>(src: Source<'a>, dst: Destination<'a>) {
+fn convert_i420<SB, DB>(src: Source<'_, SB>, dst: Destination<'_, DB>)
+where
+    SB: BitsInternal,
+    DB: BitsInternal,
+{
     macro_rules! read_i420_to_rgb {
         ($src:ident, $dst:ident, $writer:expr $(,)?) => {
-            read_i420::<B, _>(
+            read_i420::<SB, _>(
                 $src.width,
                 $src.height,
-                $src.buf,
+                $src.planes,
                 $src.bits_per_channel,
                 $src.window,
                 I420ToRgbVisitor::new(
@@ -241,13 +236,17 @@ fn convert_i420<'a, B: Bits>(src: Source<'a>, dst: Destination<'a>) {
     match_dst_format!(src, dst, read_i420_to_rgb);
 }
 
-fn convert_rgb<'a, const REVERSE: bool, B: Bits>(src: Source<'a>, dst: Destination<'a>) {
+fn convert_rgb<const REVERSE: bool, SB, DB>(src: Source<'_, SB>, dst: Destination<'_, DB>)
+where
+    SB: BitsInternal,
+    DB: BitsInternal,
+{
     macro_rules! read_rgb_to_rgb {
         ($src:ident, $dst:ident, $writer:expr $(,)?) => {
-            read_rgb_4x::<REVERSE, B, _>(
+            read_rgb_4x::<REVERSE, SB, _>(
                 $src.width,
                 $src.height,
-                $src.buf,
+                $src.planes,
                 $src.bits_per_channel,
                 $src.window,
                 RgbTransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
@@ -258,13 +257,17 @@ fn convert_rgb<'a, const REVERSE: bool, B: Bits>(src: Source<'a>, dst: Destinati
     match_dst_format!(src, dst, read_rgb_to_rgb);
 }
 
-fn convert_rgba<'a, const REVERSE: bool, B: Bits>(src: Source<'a>, dst: Destination<'a>) {
+fn convert_rgba<const REVERSE: bool, SB, DB>(src: Source<'_, SB>, dst: Destination<'_, DB>)
+where
+    SB: BitsInternal,
+    DB: BitsInternal,
+{
     macro_rules! read_rgba_to_rgb {
         ($src:ident, $dst:ident, $writer:expr $(,)?) => {
-            read_rgba_4x::<REVERSE, B, _>(
+            read_rgba_4x::<REVERSE, SB, _>(
                 $src.width,
                 $src.height,
-                $src.buf,
+                $src.planes,
                 $src.bits_per_channel,
                 $src.window,
                 RgbTransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),

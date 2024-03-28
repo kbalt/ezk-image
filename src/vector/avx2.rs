@@ -8,52 +8,56 @@ unsafe impl Vector for __m256 {
     const LEN: usize = 8;
     type Mask = __m256;
 
-    #[target_feature(enable = "avx2")]
+    #[inline(always)]
     unsafe fn splat(v: f32) -> Self {
         _mm256_set1_ps(v)
     }
 
-    #[target_feature(enable = "avx2")]
+    #[inline(always)]
     unsafe fn vadd(self, other: Self) -> Self {
         _mm256_add_ps(self, other)
     }
-    #[target_feature(enable = "avx2")]
+
+    #[inline(always)]
     unsafe fn vsub(self, other: Self) -> Self {
         _mm256_sub_ps(self, other)
     }
-    #[target_feature(enable = "avx2")]
+
+    #[inline(always)]
     unsafe fn vmul(self, other: Self) -> Self {
         _mm256_mul_ps(self, other)
     }
-    #[target_feature(enable = "avx2")]
+
+    #[inline(always)]
     unsafe fn vdiv(self, other: Self) -> Self {
         _mm256_div_ps(self, other)
     }
 
-    #[target_feature(enable = "avx2")]
+    #[inline(always)]
     unsafe fn vmax(self, other: Self) -> Self {
         _mm256_max_ps(self, other)
     }
 
-    #[target_feature(enable = "avx2")]
+    #[inline(always)]
     unsafe fn lt(self, other: Self) -> Self::Mask {
         _mm256_cmp_ps(self, other, _CMP_LT_OQ)
     }
-    #[target_feature(enable = "avx2")]
+    #[inline(always)]
     unsafe fn le(self, other: Self) -> Self::Mask {
         _mm256_cmp_ps(self, other, _CMP_LE_OQ)
     }
-    #[target_feature(enable = "avx2")]
+    #[inline(always)]
     unsafe fn select(a: Self, b: Self, mask: Self::Mask) -> Self {
         let a = _mm256_and_ps(a, mask);
         let b = _mm256_andnot_ps(mask, b);
 
         _mm256_or_ps(a, b)
     }
-    #[target_feature(enable = "avx2")]
+    #[inline(always)]
     unsafe fn vsqrt(self) -> Self {
         _mm256_sqrt_ps(self)
     }
+
     #[target_feature(enable = "avx2", enable = "fma")]
     unsafe fn vpow(self, pow: Self) -> Self {
         if cfg!(feature = "veryfastmath") {
@@ -64,6 +68,7 @@ unsafe impl Vector for __m256 {
             math::pow(self, pow)
         }
     }
+
     #[target_feature(enable = "avx2", enable = "fma")]
     unsafe fn vln(self) -> Self {
         if cfg!(feature = "veryfastmath") {
@@ -75,7 +80,7 @@ unsafe impl Vector for __m256 {
         }
     }
 
-    #[target_feature(enable = "avx2")]
+    #[inline(always)]
     unsafe fn zip(self, other: Self) -> (Self, Self) {
         let lo = _mm256_unpacklo_ps(self, other);
         let hi = _mm256_unpackhi_ps(self, other);
@@ -86,14 +91,14 @@ unsafe impl Vector for __m256 {
         )
     }
 
-    #[target_feature(enable = "avx2")]
+    #[inline(always)]
     unsafe fn unzip(self, other: Self) -> (Self, Self) {
         let (a, b) = self.zip(other);
         let (a, b) = a.zip(b);
         a.zip(b)
     }
 
-    #[target_feature(enable = "avx2")]
+    #[inline(always)]
     unsafe fn load_u8(ptr: *const u8) -> Self {
         let v = ptr.cast::<i64>().read_unaligned();
 
@@ -110,7 +115,7 @@ unsafe impl Vector for __m256 {
         _mm256_cvtepi32_ps(v)
     }
 
-    #[target_feature(enable = "avx2")]
+    #[inline(always)]
     unsafe fn load_u16<E: Endian>(ptr: *const u16) -> Self {
         let v = ptr.cast::<__m128i>().read_unaligned();
 
@@ -130,9 +135,9 @@ unsafe impl Vector for __m256 {
         _mm256_cvtepi32_ps(v)
     }
 
-    #[target_feature(enable = "avx2")]
+    #[inline(always)]
     unsafe fn load_u8_4x_interleaved_2x(ptr: *const u8) -> [[Self; 4]; 2] {
-        #[target_feature(enable = "avx2")]
+        #[inline(always)]
         pub(super) unsafe fn inner(ptr: *const u8) -> (__m256, __m256, __m256, __m256) {
             let m1 = __m256::load_u8(ptr);
             let m2 = __m256::load_u8(ptr.add(__m256::LEN));
@@ -148,9 +153,9 @@ unsafe impl Vector for __m256 {
         [[al, bl, cl, dl], [ah, bh, ch, dh]]
     }
 
-    #[target_feature(enable = "avx2")]
+    #[inline(always)]
     unsafe fn load_u16_4x_interleaved_2x<E: Endian>(ptr: *const u16) -> [[Self; 4]; 2] {
-        #[target_feature(enable = "avx2")]
+        #[inline(always)]
         pub(super) unsafe fn inner<E: Endian>(ptr: *const u16) -> (__m256, __m256, __m256, __m256) {
             let m1 = __m256::load_u16::<E>(ptr);
             let m2 = __m256::load_u16::<E>(ptr.add(__m256::LEN));
@@ -164,6 +169,62 @@ unsafe impl Vector for __m256 {
         let (ah, bh, ch, dh) = inner::<E>(ptr.add(Self::LEN * 4));
 
         [[al, bl, cl, dl], [ah, bh, ch, dh]]
+    }
+
+    #[inline(always)]
+    unsafe fn write_u8(self, ptr: *mut u8) {
+        ptr.cast::<[u8; 8]>()
+            .write_unaligned(util::float32x8_to_u8x8(self))
+    }
+
+    #[inline(always)]
+    unsafe fn write_u8_2x(v0: Self, v1: Self, ptr: *mut u8) {
+        ptr.cast::<[u8; 16]>()
+            .write_unaligned(util::float32x8x2_to_u8x16(v0, v1))
+    }
+
+    #[inline(always)]
+    unsafe fn write_u16<E: Endian>(self, ptr: *mut u16) {
+        ptr.cast::<[u16; 8]>()
+            .write_unaligned(util::float32x8_to_u16x8::<E>(self))
+    }
+
+    #[inline(always)]
+    unsafe fn write_u16_2x<E: Endian>(v0: Self, v1: Self, ptr: *mut u16) {
+        ptr.cast::<[u16; 16]>()
+            .write_unaligned(util::float32x8x2_to_u16x16::<E>(v0, v1))
+    }
+
+    #[inline(always)]
+    unsafe fn write_interleaved_3x_2x_u8(this: [[Self; 3]; 2], ptr: *mut u8) {
+        let a = util::pack_f32x8_rgb_u8x24(this[0][0], this[0][1], this[0][2]);
+        let b = util::pack_f32x8_rgb_u8x24(this[1][0], this[1][1], this[1][2]);
+
+        ptr.cast::<[[u8; 24]; 2]>().write_unaligned([a, b])
+    }
+
+    #[inline(always)]
+    unsafe fn write_interleaved_3x_2x_u16<E: Endian>(this: [[Self; 3]; 2], ptr: *mut u16) {
+        let a = util::pack_f32x8_rgb_u16x24::<E>(this[0][0], this[0][1], this[0][2]);
+        let b = util::pack_f32x8_rgb_u16x24::<E>(this[1][0], this[1][1], this[1][2]);
+
+        ptr.cast::<[[u16; 24]; 2]>().write_unaligned([a, b])
+    }
+
+    #[inline(always)]
+    unsafe fn write_interleaved_4x_2x_u8(this: [[Self; 4]; 2], ptr: *mut u8) {
+        let a = util::pack_f32x8_rgba_u8x32(this[0][0], this[0][1], this[0][2], this[0][3]);
+        let b = util::pack_f32x8_rgba_u8x32(this[1][0], this[1][1], this[1][2], this[1][3]);
+
+        ptr.cast::<[[u8; 32]; 2]>().write_unaligned([a, b])
+    }
+
+    #[inline(always)]
+    unsafe fn write_interleaved_4x_2x_u16<E: Endian>(this: [[Self; 4]; 2], ptr: *mut u16) {
+        let a = util::pack_f32x8_rgba_u16x32::<E>(this[0][0], this[0][1], this[0][2], this[0][3]);
+        let b = util::pack_f32x8_rgba_u16x32::<E>(this[1][0], this[1][1], this[1][2], this[1][3]);
+
+        ptr.cast::<[[u16; 32]; 2]>().write_unaligned([a, b])
     }
 
     #[inline(always)]
@@ -542,7 +603,7 @@ pub(crate) mod util {
     }
 
     #[inline(always)]
-    pub(crate) unsafe fn packf32x8_rgb_u8x24(r: __m256, g: __m256, b: __m256) -> [u8; 24] {
+    pub(crate) unsafe fn pack_f32x8_rgb_u8x24(r: __m256, g: __m256, b: __m256) -> [u8; 24] {
         let rgba = pack_f32x8_rgba_u8x32(r, g, b, _mm256_setzero_ps());
 
         #[rustfmt::skip]
@@ -568,7 +629,7 @@ pub(crate) mod util {
     }
 
     #[inline(always)]
-    pub(crate) unsafe fn packf32x8_rgb_u16x24<E: Endian>(
+    pub(crate) unsafe fn pack_f32x8_rgb_u16x24<E: Endian>(
         r: __m256,
         g: __m256,
         b: __m256,

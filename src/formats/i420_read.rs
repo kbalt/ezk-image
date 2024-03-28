@@ -1,28 +1,33 @@
 use super::i420::{I420Block, I420Visitor, I420VisitorImpl};
-use crate::bits::Bits;
+use crate::bits::BitsInternal;
 use crate::vector::Vector;
-use crate::Rect;
 use crate::{arch::*, max_value_for_bits};
-use std::mem::size_of;
+use crate::{PixelFormatPlanes, Rect};
 
 pub(crate) fn read_i420<B, Vis>(
     src_width: usize,
     src_height: usize,
-    src: &[u8],
+    src_planes: PixelFormatPlanes<&[B::Primitive]>,
     bits_per_channel: usize,
     window: Option<Rect>,
     visitor: Vis,
 ) where
-    B: Bits,
+    B: BitsInternal,
     Vis: I420Visitor,
 {
+    let PixelFormatPlanes::I420 { y, u, v } = src_planes else {
+        panic!("Invalid PixelFormatPlanes for read_i420");
+    };
+
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     if is_x86_feature_detected!("avx2") && is_x86_feature_detected!("fma") {
         unsafe {
             return read_i420_avx2::<B, Vis>(
                 src_width,
                 src_height,
-                src,
+                y,
+                u,
+                v,
                 bits_per_channel,
                 window,
                 visitor,
@@ -42,7 +47,9 @@ pub(crate) fn read_i420<B, Vis>(
         read_i420_impl::<f32, B, Vis>(
             src_width,
             src_height,
-            src,
+            y,
+            u,
+            v,
             bits_per_channel,
             window,
             visitor,
@@ -56,18 +63,22 @@ pub(crate) fn read_i420<B, Vis>(
 unsafe fn read_i420_neon<B, Vis>(
     src_width: usize,
     src_height: usize,
-    src: &[u8],
+    y: &[B::Primitive],
+    u: &[B::Primitive],
+    v: &[B::Primitive],
     bits_per_channel: usize,
     window: Option<Rect>,
     visitor: Vis,
 ) where
-    B: Bits,
+    B: BitsInternal,
     Vis: I420Visitor,
 {
     read_i420_impl::<float32x4_t, B, Vis>(
         src_width,
         src_height,
-        src,
+        y,
+        u,
+        v,
         bits_per_channel,
         window,
         visitor,
@@ -77,21 +88,26 @@ unsafe fn read_i420_neon<B, Vis>(
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
 #[inline(never)]
+#[allow(clippy::too_many_arguments)]
 unsafe fn read_i420_avx2<B, Vis>(
     src_width: usize,
     src_height: usize,
-    src: &[u8],
+    y: &[B::Primitive],
+    u: &[B::Primitive],
+    v: &[B::Primitive],
     bits_per_channel: usize,
     window: Option<Rect>,
     visitor: Vis,
 ) where
-    B: Bits,
+    B: BitsInternal,
     Vis: I420Visitor,
 {
     read_i420_impl::<__m256, B, Vis>(
         src_width,
         src_height,
-        src,
+        y,
+        u,
+        v,
         bits_per_channel,
         window,
         visitor,
@@ -99,20 +115,21 @@ unsafe fn read_i420_avx2<B, Vis>(
 }
 
 #[inline(always)]
+#[allow(clippy::too_many_arguments)]
 unsafe fn read_i420_impl<V, B, Vis>(
     src_width: usize,
     src_height: usize,
-    src: &[u8],
+    src_y: &[B::Primitive],
+    src_u: &[B::Primitive],
+    src_v: &[B::Primitive],
     bits_per_channel: usize,
     window: Option<Rect>,
     mut visitor: Vis,
 ) where
     V: Vector,
-    B: Bits,
+    B: BitsInternal,
     Vis: I420Visitor + I420VisitorImpl<V>,
 {
-    assert!(src.len() >= ((src_width * src_height * 12 * size_of::<B::Primitive>()).div_ceil(8)));
-
     let max_value = max_value_for_bits(bits_per_channel);
 
     let window = window.unwrap_or(Rect {
@@ -132,11 +149,9 @@ unsafe fn read_i420_impl<V, B, Vis>(
     let non_vectored_pixels_per_row = window.width % (V::LEN * 2);
     let vectored_pixels_per_row = window.width - non_vectored_pixels_per_row;
 
-    let n_pixels = src_width * src_height;
-
-    let y_ptr = src.as_ptr().cast::<B::Primitive>();
-    let u_ptr = y_ptr.add(n_pixels);
-    let v_ptr = u_ptr.add(n_pixels / 4);
+    let y_ptr = src_y.as_ptr();
+    let u_ptr = src_u.as_ptr();
+    let v_ptr = src_v.as_ptr();
 
     // Process 2 rows of pixels for iteration of this loop
     for y in (0..window.height).step_by(2) {
@@ -209,7 +224,7 @@ unsafe fn load_and_visit_block<V, B, Vis>(
 ) where
     V: Vector,
     Vis: I420VisitorImpl<V>,
-    B: Bits,
+    B: BitsInternal,
 {
     // Load Y pixels
     let y00 = B::load::<V>(y_ptr.add(y00_offset));

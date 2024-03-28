@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use ezk_image::{
     convert, convert_multi_thread, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer,
-    Destination, PixelFormat, Source,
+    Destination, PixelFormat, PixelFormatPlanes, Source, U8,
 };
 use std::hint::black_box;
 
@@ -15,59 +15,110 @@ const NOOP_COLOR_INFO: ColorInfo = ColorInfo {
     full_range: true,
 };
 
-fn do_convert(src_format: PixelFormat, src: &[u8], dst_format: PixelFormat, dst: &mut [u8]) {
-    let src = Source::new(src_format, NOOP_COLOR_INFO, src, IMAGE_WIDTH, IMAGE_HEIGHT);
-    let dst = Destination::new(dst_format, NOOP_COLOR_INFO, dst, IMAGE_WIDTH, IMAGE_HEIGHT);
+fn do_convert(
+    src_format: PixelFormat,
+    src_planes: PixelFormatPlanes<&[u8]>,
+    dst_format: PixelFormat,
+    dst_planes: PixelFormatPlanes<&mut [u8]>,
+) {
+    let src = Source::<U8>::new(
+        src_format,
+        src_planes,
+        IMAGE_WIDTH,
+        IMAGE_HEIGHT,
+        NOOP_COLOR_INFO,
+        8,
+    );
+    let dst = Destination::<U8>::new(
+        dst_format,
+        dst_planes,
+        IMAGE_WIDTH,
+        IMAGE_HEIGHT,
+        NOOP_COLOR_INFO,
+        8,
+    );
 
     convert(src, dst);
 }
 
 fn do_convert_multi_thread(
     src_format: PixelFormat,
-    src: &[u8],
+    src_planes: PixelFormatPlanes<&[u8]>,
     dst_format: PixelFormat,
-    dst: &mut [u8],
+    dst_planes: PixelFormatPlanes<&mut [u8]>,
 ) {
-    let src = Source::new(src_format, NOOP_COLOR_INFO, src, IMAGE_WIDTH, IMAGE_HEIGHT);
-    let dst = Destination::new(dst_format, NOOP_COLOR_INFO, dst, IMAGE_WIDTH, IMAGE_HEIGHT);
+    let src = Source::<U8>::new(
+        src_format,
+        src_planes,
+        IMAGE_WIDTH,
+        IMAGE_HEIGHT,
+        NOOP_COLOR_INFO,
+        8,
+    );
+    let dst = Destination::<U8>::new(
+        dst_format,
+        dst_planes,
+        IMAGE_WIDTH,
+        IMAGE_HEIGHT,
+        NOOP_COLOR_INFO,
+        8,
+    );
 
     convert_multi_thread(src, dst);
 }
 
-fn run_benchmarks(
-    c: &mut Criterion,
-    do_convert: fn(PixelFormat, &[u8], PixelFormat, &mut [u8]),
-    s: &str,
-) {
+type ConvertFunction =
+    fn(PixelFormat, PixelFormatPlanes<&[u8]>, PixelFormat, PixelFormatPlanes<&mut [u8]>);
+
+fn run_benchmarks(c: &mut Criterion, do_convert: ConvertFunction, s: &str) {
     use PixelFormat::*;
 
     let mut rgb = black_box(vec![0u8; RGB.buffer_size(IMAGE_WIDTH, IMAGE_HEIGHT)]);
     let mut rgba = black_box(vec![0u8; RGBA.buffer_size(IMAGE_WIDTH, IMAGE_HEIGHT)]);
-    let mut i420_u8 = black_box(vec![0u8; I420.buffer_size(IMAGE_WIDTH, IMAGE_HEIGHT)]);
-    let mut i420_u16 = black_box(vec![0u8; I420P10LE.buffer_size(IMAGE_WIDTH, IMAGE_HEIGHT)]);
+    let mut i420 = black_box(vec![0u8; I420.buffer_size(IMAGE_WIDTH, IMAGE_HEIGHT)]);
 
     c.bench_function(&format!("RGB to I420 {s}"), |b| {
-        b.iter(|| do_convert(RGB, &rgb, I420, &mut i420_u8))
+        b.iter(|| {
+            do_convert(
+                RGB,
+                PixelFormatPlanes::RGB(&rgb),
+                I420,
+                PixelFormatPlanes::infer_i420(&mut i420[..], IMAGE_WIDTH, IMAGE_HEIGHT),
+            )
+        })
     });
 
     c.bench_function(&format!("I420 to RGB {s}"), |b| {
-        b.iter(|| do_convert(I420, &i420_u8, RGB, &mut rgb))
+        b.iter(|| {
+            do_convert(
+                I420,
+                PixelFormatPlanes::infer_i420(&i420[..], IMAGE_WIDTH, IMAGE_HEIGHT),
+                RGB,
+                PixelFormatPlanes::RGB(&mut rgb),
+            );
+        })
     });
 
     c.bench_function(&format!("RGBA to I420 {s}"), |b| {
-        b.iter(|| do_convert(RGBA, &rgba, I420, &mut i420_u8))
+        b.iter(|| {
+            do_convert(
+                RGBA,
+                PixelFormatPlanes::RGBA(&rgba),
+                I420,
+                PixelFormatPlanes::infer_i420(&mut i420[..], IMAGE_WIDTH, IMAGE_HEIGHT),
+            )
+        })
     });
 
     c.bench_function(&format!("I420 to RGBA {s}"), |b| {
-        b.iter(|| do_convert(I420, &i420_u8, RGBA, &mut rgba))
-    });
-
-    c.bench_function(&format!("RGBA to I420P10LE {s}"), |b| {
-        b.iter(|| do_convert(RGBA, &rgba, I420P10LE, &mut i420_u16))
-    });
-
-    c.bench_function(&format!("I420P10LE to RGBA {s}"), |b| {
-        b.iter(|| do_convert(I420P10LE, &i420_u16, RGBA, &mut rgba))
+        b.iter(|| {
+            do_convert(
+                I420,
+                PixelFormatPlanes::infer_i420(&i420[..], IMAGE_WIDTH, IMAGE_HEIGHT),
+                RGBA,
+                PixelFormatPlanes::RGBA(&mut rgba),
+            );
+        })
     });
 }
 

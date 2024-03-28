@@ -1,20 +1,25 @@
 use super::rgb::RgbBlockVisitor;
-use crate::bits::Bits;
+use crate::bits::BitsInternal;
 use crate::formats::rgb::{RgbBlock, RgbPixel};
-use crate::Rect;
+use crate::{PixelFormatPlanes, Rect};
 
 /// Visit all pixels in an rgb image, reverse=true if its an bgr image
-pub(crate) fn read_rgb_4x<const REVERSE: bool, B: Bits, Vis>(
+pub(crate) fn read_rgb_4x<const REVERSE: bool, B: BitsInternal, Vis>(
     src_width: usize,
     src_height: usize,
-    src: &[u8],
+    src_planes: PixelFormatPlanes<&[B::Primitive]>,
     bits_per_channel: usize,
     window: Option<Rect>,
     mut visitor: Vis,
 ) where
     Vis: RgbBlockVisitor,
 {
-    assert!((src_width * src_height * 3) <= src.len());
+    assert!(src_planes.bounds_check(src_width, src_height));
+
+    let PixelFormatPlanes::RGB(src) = src_planes else {
+        panic!("Invalid PixelFormatPlanes for read_rgb");
+    };
+
     assert_eq!(src_width % 2, 0);
     assert_eq!(src_height % 2, 0);
 
@@ -61,7 +66,7 @@ pub(crate) fn read_rgb_4x<const REVERSE: bool, B: Bits, Vis>(
     }
 }
 
-fn read_pixel<const REVERSE: bool, B: Bits>(
+fn read_pixel<const REVERSE: bool, B: BitsInternal>(
     rgb: *const B::Primitive,
     idx: usize,
     max_value: f32,

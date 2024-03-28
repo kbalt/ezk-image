@@ -92,8 +92,21 @@ pub(crate) unsafe trait Vector: Debug + Copy + 'static {
     /// Pointer must be valid to read Self::LEN * 2 bytes
     unsafe fn load_u16<E: Endian>(ptr: *const u16) -> Self;
 
+    /// Load RGBA functions
     unsafe fn load_u8_4x_interleaved_2x(ptr: *const u8) -> [[Self; 4]; 2];
     unsafe fn load_u16_4x_interleaved_2x<E: Endian>(ptr: *const u16) -> [[Self; 4]; 2];
+
+    /// Write
+    unsafe fn write_u8(self, ptr: *mut u8);
+    unsafe fn write_u8_2x(v0: Self, v1: Self, ptr: *mut u8);
+    unsafe fn write_u16<E: Endian>(self, ptr: *mut u16);
+    unsafe fn write_u16_2x<E: Endian>(v0: Self, v1: Self, ptr: *mut u16);
+
+    unsafe fn write_interleaved_3x_2x_u8(this: [[Self; 3]; 2], ptr: *mut u8);
+    unsafe fn write_interleaved_3x_2x_u16<E: Endian>(this: [[Self; 3]; 2], ptr: *mut u16);
+
+    unsafe fn write_interleaved_4x_2x_u8(this: [[Self; 4]; 2], ptr: *mut u8);
+    unsafe fn write_interleaved_4x_2x_u16<E: Endian>(this: [[Self; 4]; 2], ptr: *mut u16);
 
     fn color_ops(c: &ColorOps) -> &ColorOpsPart<Self>;
 }
@@ -102,34 +115,43 @@ unsafe impl Vector for f32 {
     const LEN: usize = 1;
     type Mask = bool;
 
+    #[inline(always)]
     unsafe fn splat(v: f32) -> Self {
         v
     }
 
+    #[inline(always)]
     unsafe fn vadd(self, other: Self) -> Self {
         self + other
     }
+    #[inline(always)]
     unsafe fn vsub(self, other: Self) -> Self {
         self - other
     }
+    #[inline(always)]
     unsafe fn vmul(self, other: Self) -> Self {
         self * other
     }
+    #[inline(always)]
     unsafe fn vdiv(self, other: Self) -> Self {
         self / other
     }
 
+    #[inline(always)]
     unsafe fn vmax(self, other: Self) -> Self {
         self.max(other)
     }
 
+    #[inline(always)]
     unsafe fn lt(self, other: Self) -> Self::Mask {
         self < other
     }
 
+    #[inline(always)]
     unsafe fn le(self, other: Self) -> Self::Mask {
         self <= other
     }
+    #[inline(always)]
     unsafe fn select(a: Self, b: Self, mask: Self::Mask) -> Self {
         if mask {
             a
@@ -138,6 +160,7 @@ unsafe impl Vector for f32 {
         }
     }
 
+    #[inline(always)]
     unsafe fn vsqrt(self) -> Self {
         f32::sqrt(self)
     }
@@ -151,6 +174,7 @@ unsafe impl Vector for f32 {
             self.powf(pow)
         }
     }
+
     unsafe fn vln(self) -> Self {
         if cfg!(feature = "veryfastmath") {
             veryfastmath::log(self)
@@ -161,17 +185,21 @@ unsafe impl Vector for f32 {
         }
     }
 
+    #[inline(always)]
     unsafe fn zip(self, other: Self) -> (Self, Self) {
         (self, other)
     }
 
+    #[inline(always)]
     unsafe fn unzip(self, other: Self) -> (Self, Self) {
         (self, other)
     }
 
+    #[inline(always)]
     unsafe fn load_u8(ptr: *const u8) -> Self {
         Self::from(ptr.read_unaligned())
     }
+    #[inline(always)]
     unsafe fn load_u16<E: Endian>(ptr: *const u16) -> Self {
         let v = ptr.read_unaligned();
 
@@ -182,54 +210,86 @@ unsafe impl Vector for f32 {
         }
     }
 
+    #[inline(always)]
     unsafe fn load_u8_4x_interleaved_2x(ptr: *const u8) -> [[Self; 4]; 2] {
-        [
-            [
-                Self::from(ptr.read()),
-                Self::from(ptr.add(1).read()),
-                Self::from(ptr.add(2).read()),
-                Self::from(ptr.add(3).read()),
-            ],
-            [
-                Self::from(ptr.add(4).read()),
-                Self::from(ptr.add(5).read()),
-                Self::from(ptr.add(6).read()),
-                Self::from(ptr.add(7).read()),
-            ],
-        ]
+        let v = ptr.cast::<[[u8; 4]; 2]>().read_unaligned();
+        v.map(|v| v.map(|v| v as f32))
     }
+
+    #[inline(always)]
     unsafe fn load_u16_4x_interleaved_2x<E: Endian>(ptr: *const u16) -> [[Self; 4]; 2] {
+        let v = ptr.cast::<[[u16; 4]; 2]>().read_unaligned();
+
         if E::IS_NATIVE {
-            [
-                [
-                    Self::from(ptr.read()),
-                    Self::from(ptr.add(1).read()),
-                    Self::from(ptr.add(2).read()),
-                    Self::from(ptr.add(3).read()),
-                ],
-                [
-                    Self::from(ptr.add(4).read()),
-                    Self::from(ptr.add(5).read()),
-                    Self::from(ptr.add(6).read()),
-                    Self::from(ptr.add(7).read()),
-                ],
-            ]
+            v.map(|v| v.map(|v| v as f32))
         } else {
-            [
-                [
-                    Self::from(ptr.read().swap_bytes()),
-                    Self::from(ptr.add(1).read().swap_bytes()),
-                    Self::from(ptr.add(2).read().swap_bytes()),
-                    Self::from(ptr.add(3).read().swap_bytes()),
-                ],
-                [
-                    Self::from(ptr.add(4).read().swap_bytes()),
-                    Self::from(ptr.add(5).read().swap_bytes()),
-                    Self::from(ptr.add(6).read().swap_bytes()),
-                    Self::from(ptr.add(7).read().swap_bytes()),
-                ],
-            ]
+            v.map(|v| v.map(|v| v.swap_bytes() as f32))
         }
+    }
+    #[inline(always)]
+    unsafe fn write_u8(self, ptr: *mut u8) {
+        ptr.write(self as u8)
+    }
+    #[inline(always)]
+    unsafe fn write_u8_2x(v0: Self, v1: Self, ptr: *mut u8) {
+        ptr.cast::<[u8; 2]>().write_unaligned([v0 as u8, v1 as u8]);
+    }
+    #[inline(always)]
+    unsafe fn write_u16<E: Endian>(self, ptr: *mut u16) {
+        let v = if E::IS_NATIVE {
+            self as u16
+        } else {
+            (self as u16).swap_bytes()
+        };
+        ptr.write_unaligned(v);
+    }
+    #[inline(always)]
+    unsafe fn write_u16_2x<E: Endian>(v0: Self, v1: Self, ptr: *mut u16) {
+        let v = if E::IS_NATIVE {
+            [v0, v1].map(|f| (f as u16))
+        } else {
+            [v0, v1].map(|f| (f as u16).swap_bytes())
+        };
+
+        ptr.cast::<[u16; 2]>().write_unaligned(v);
+    }
+
+    #[inline(always)]
+    unsafe fn write_interleaved_3x_2x_u8(this: [[Self; 3]; 2], ptr: *mut u8) {
+        ptr.cast::<[[u8; 3]; 2]>()
+            .write_unaligned(this.map(|f| f.map(|f| f as u8)));
+    }
+
+    #[inline(always)]
+    unsafe fn write_interleaved_3x_2x_u16<E: Endian>(this: [[Self; 3]; 2], ptr: *mut u16) {
+        ptr.cast::<[[u16; 3]; 2]>().write_unaligned(this.map(|f| {
+            f.map(|f| {
+                if E::IS_NATIVE {
+                    f as u16
+                } else {
+                    (f as u16).swap_bytes()
+                }
+            })
+        }));
+    }
+
+    #[inline(always)]
+    unsafe fn write_interleaved_4x_2x_u8(this: [[Self; 4]; 2], ptr: *mut u8) {
+        ptr.cast::<[[u8; 4]; 2]>()
+            .write_unaligned(this.map(|f| f.map(|f| f as u8)));
+    }
+
+    #[inline(always)]
+    unsafe fn write_interleaved_4x_2x_u16<E: Endian>(this: [[Self; 4]; 2], ptr: *mut u16) {
+        ptr.cast::<[[u16; 4]; 2]>().write_unaligned(this.map(|f| {
+            f.map(|f| {
+                if E::IS_NATIVE {
+                    f as u16
+                } else {
+                    (f as u16).swap_bytes()
+                }
+            })
+        }));
     }
 
     #[inline(always)]

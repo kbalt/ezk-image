@@ -1,37 +1,36 @@
-use crate::{ColorInfo, PixelFormat, Rect};
-use std::marker::PhantomData;
+use crate::{bits::Bits, ColorInfo, PixelFormat, PixelFormatPlanes, Rect};
 
 /// Describes an immutable image buffer used as source for conversions
 #[derive(Debug, Clone, Copy)]
-pub struct Source<'a> {
+pub struct Source<'a, B: Bits> {
     pub(crate) format: PixelFormat,
-    pub(crate) color: ColorInfo,
-
-    pub(crate) buf: &'a [u8],
+    pub(crate) planes: PixelFormatPlanes<&'a [B::Primitive]>,
     pub(crate) width: usize,
     pub(crate) height: usize,
+
+    pub(crate) color: ColorInfo,
     pub(crate) bits_per_channel: usize,
 
     pub(crate) window: Option<Rect>,
 }
 
-impl<'a> Source<'a> {
+impl<'a, B: Bits> Source<'a, B> {
     pub fn new(
         format: PixelFormat,
-        color: ColorInfo,
-        buf: &'a [u8],
+        planes: PixelFormatPlanes<&'a [B::Primitive]>,
         width: usize,
         height: usize,
+        color: ColorInfo,
         bits_per_channel: usize,
     ) -> Self {
-        assert!(format.buffer_size(width, height) <= buf.len());
+        assert!(planes.bounds_check(width, height));
 
         Self {
             format,
-            color,
-            buf,
+            planes,
             width,
             height,
+            color,
             bits_per_channel,
             window: None,
         }
@@ -51,36 +50,36 @@ impl<'a> Source<'a> {
 }
 
 /// Describes a mutable image buffer used as destination for conversions
-pub struct Destination<'a> {
+pub struct Destination<'a, B: Bits> {
     pub(crate) format: PixelFormat,
-    pub(crate) color: ColorInfo,
-
-    pub(crate) buf: RawMutSliceU8<'a>,
+    pub(crate) planes: PixelFormatPlanes<&'a mut [B::Primitive]>,
     pub(crate) width: usize,
     pub(crate) height: usize,
+
+    pub(crate) color: ColorInfo,
     pub(crate) bits_per_channel: usize,
 
     pub(crate) window: Option<Rect>,
 }
 
-impl<'a> Destination<'a> {
+impl<'a, B: Bits> Destination<'a, B> {
     pub fn new(
         format: PixelFormat,
-        color: ColorInfo,
-        buf: &'a mut [u8],
+        planes: PixelFormatPlanes<&'a mut [B::Primitive]>,
         width: usize,
         height: usize,
+        color: ColorInfo,
         bits_per_channel: usize,
     ) -> Self {
-        assert!(format.buffer_size(width, height) <= buf.len());
+        assert!(planes.bounds_check(width, height));
 
         Self {
             format,
-            color,
-            buf: RawMutSliceU8::from(buf),
-            bits_per_channel,
+            planes,
             width,
             height,
+            color,
+            bits_per_channel,
             window: None,
         }
     }
@@ -95,61 +94,5 @@ impl<'a> Destination<'a> {
         assert!(window.y + window.height <= self.height);
 
         self.window = Some(window)
-    }
-
-    #[cfg(feature = "multi-thread")]
-    pub(crate) fn unsafe_copy_for_multi_threading(&self) -> Self {
-        Self {
-            format: self.format,
-            color: self.color,
-            buf: self.buf.unsafe_explicit_copy(),
-            width: self.width,
-            height: self.height,
-            bits_per_channel: self.bits_per_channel,
-            window: self.window,
-        }
-    }
-}
-
-/// Basically `&mut [u8]` which is copyable and shareable across thread without any safety guarantees
-///
-/// This allows sharing non-contiguous parts of a buffer, but the code must make sure to not write to the same parts
-/// of the buffer as other threads, throwing rust safety grantees out of the window.
-pub(crate) struct RawMutSliceU8<'a> {
-    ptr: *mut u8,
-    len: usize,
-
-    _m: PhantomData<&'a mut u8>,
-}
-
-impl RawMutSliceU8<'_> {
-    #[cfg(feature = "multi-thread")]
-    fn unsafe_explicit_copy(&self) -> Self {
-        Self {
-            ptr: self.ptr,
-            len: self.len,
-            _m: PhantomData,
-        }
-    }
-
-    pub(crate) fn len(&self) -> usize {
-        self.len
-    }
-
-    pub(crate) fn ptr(&self) -> *mut u8 {
-        self.ptr
-    }
-}
-
-unsafe impl Send for RawMutSliceU8<'_> {}
-unsafe impl Sync for RawMutSliceU8<'_> {}
-
-impl<'a> From<&'a mut [u8]> for RawMutSliceU8<'a> {
-    fn from(slice: &'a mut [u8]) -> Self {
-        Self {
-            ptr: slice.as_mut_ptr(),
-            len: slice.len(),
-            _m: PhantomData,
-        }
     }
 }
