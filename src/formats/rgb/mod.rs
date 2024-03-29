@@ -1,5 +1,11 @@
 use crate::vector::Vector;
 
+mod read;
+mod write;
+
+pub(crate) use read::read_rgb_4x;
+pub(crate) use write::RGBWriter;
+
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct RgbPixel<V> {
     pub(crate) r: V,

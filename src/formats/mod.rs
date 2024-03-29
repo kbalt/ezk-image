@@ -24,21 +24,11 @@ macro_rules! platform_trait {
 }
 
 mod i420;
-mod i420_read;
-mod i420_to_rgb;
-mod i420_write;
 mod rgb;
-mod rgb_read;
-mod rgb_to_i420;
-mod rgb_transfer_and_primaries_convert;
-mod rgb_write;
 mod rgba;
-mod rgba_read;
-mod rgba_write;
+mod transfer_and_primaries_convert;
 
-pub(crate) use self::{
-    i420_read::read_i420, i420_to_rgb::I420ToRgbVisitor, i420_write::I420Writer,
-    rgb_read::read_rgb_4x, rgb_to_i420::RgbToI420Visitor,
-    rgb_transfer_and_primaries_convert::RgbTransferAndPrimariesConvert, rgb_write::RGBWriter,
-    rgba_read::read_rgba_4x, rgba_write::RGBAWriter,
-};
+pub(crate) use i420::*;
+pub(crate) use rgb::*;
+pub(crate) use rgba::*;
+pub(crate) use transfer_and_primaries_convert::TransferAndPrimariesConvert;

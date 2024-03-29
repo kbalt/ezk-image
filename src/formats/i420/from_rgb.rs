@@ -1,8 +1,7 @@
-use super::i420::{I420Block, I420Visitor, I420VisitorImpl};
-use super::rgb::{RgbBlock, RgbBlockVisitorImpl, RgbPixel};
-use super::rgba::RgbaBlockVisitorImpl;
+use super::{I420Block, I420Visitor, I420VisitorImpl};
 use crate::color::{ColorInfo, ColorOps};
-use crate::formats::rgba::{RgbaBlock, RgbaPixel};
+use crate::formats::rgb::{RgbBlock, RgbBlockVisitorImpl, RgbPixel};
+use crate::formats::rgba::{RgbaBlock, RgbaBlockVisitorImpl, RgbaPixel};
 use crate::vector::Vector;
 
 pub(crate) struct RgbToI420Visitor<Vis> {

@@ -1,9 +1,8 @@
-use super::rgba::RgbaBlockVisitorImpl;
+use super::{RgbaBlock, RgbaBlockVisitor, RgbaBlockVisitorImpl, RgbaPixel};
+use crate::arch::*;
 use crate::bits::BitsInternal;
-use crate::formats::rgba::{RgbaBlock, RgbaBlockVisitor, RgbaPixel};
 use crate::vector::Vector;
-use crate::Rect;
-use crate::{arch::*, PixelFormatPlanes};
+use crate::{PixelFormatPlanes, Rect};
 
 #[inline(never)]
 pub(crate) fn read_rgba_4x<const REVERSE: bool, B, Vis>(

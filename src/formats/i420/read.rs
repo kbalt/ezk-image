@@ -1,4 +1,4 @@
-use super::i420::{I420Block, I420Visitor, I420VisitorImpl};
+use super::{I420Block, I420Visitor, I420VisitorImpl};
 use crate::bits::BitsInternal;
 use crate::vector::Vector;
 use crate::{arch::*, max_value_for_bits};

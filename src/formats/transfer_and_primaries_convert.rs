@@ -3,7 +3,7 @@ use super::rgba::{RgbaBlock, RgbaBlockVisitorImpl};
 use crate::color::{ColorInfo, ColorOps};
 use crate::vector::Vector;
 
-pub(crate) struct RgbTransferAndPrimariesConvert<Vis> {
+pub(crate) struct TransferAndPrimariesConvert<Vis> {
     src_color: ColorOps,
     dst_color: ColorOps,
 
@@ -12,7 +12,7 @@ pub(crate) struct RgbTransferAndPrimariesConvert<Vis> {
     visitor: Vis,
 }
 
-impl<Vis> RgbTransferAndPrimariesConvert<Vis> {
+impl<Vis> TransferAndPrimariesConvert<Vis> {
     pub(crate) fn new(src_color: &ColorInfo, dst_color: &ColorInfo, visitor: Vis) -> Self {
         Self {
             src_color: ColorOps::from_info(src_color),
@@ -62,7 +62,7 @@ impl<Vis> RgbTransferAndPrimariesConvert<Vis> {
     }
 }
 
-impl<V, Vis> RgbBlockVisitorImpl<V> for RgbTransferAndPrimariesConvert<Vis>
+impl<V, Vis> RgbBlockVisitorImpl<V> for TransferAndPrimariesConvert<Vis>
 where
     V: Vector,
     Vis: RgbBlockVisitorImpl<V>,
@@ -95,7 +95,7 @@ where
     }
 }
 
-impl<V, Vis> RgbaBlockVisitorImpl<V> for RgbTransferAndPrimariesConvert<Vis>
+impl<V, Vis> RgbaBlockVisitorImpl<V> for TransferAndPrimariesConvert<Vis>
 where
     V: Vector,
     Vis: RgbaBlockVisitorImpl<V>,

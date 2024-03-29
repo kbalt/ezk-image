@@ -1,5 +1,11 @@
 use crate::vector::Vector;
 
+mod read;
+mod write;
+
+pub(crate) use read::read_rgba_4x;
+pub(crate) use write::RGBAWriter;
+
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct RgbaPixel<V> {
     pub(crate) r: V,

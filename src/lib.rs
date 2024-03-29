@@ -230,7 +230,7 @@ where
                 $src.window,
                 I420ToRgbVisitor::new(
                     &$src.color,
-                    RgbTransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
+                    TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
                 ),
             )
         };
@@ -251,7 +251,7 @@ where
                 $src.planes,
                 $src.bits_per_channel,
                 $src.window,
-                RgbTransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
+                TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
             )
         };
     }
@@ -272,7 +272,7 @@ where
                 $src.planes,
                 $src.bits_per_channel,
                 $src.window,
-                RgbTransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
+                TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
             )
         };
     }

@@ -1,6 +1,5 @@
-use super::rgb::RgbBlockVisitor;
+use super::{RgbBlock, RgbBlockVisitor, RgbPixel};
 use crate::bits::BitsInternal;
-use crate::formats::rgb::{RgbBlock, RgbPixel};
 use crate::{PixelFormatPlanes, Rect};
 
 /// Visit all pixels in an rgb image, reverse=true if its an bgr image
