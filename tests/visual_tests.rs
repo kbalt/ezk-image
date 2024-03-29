@@ -1,6 +1,6 @@
 use ezk_image::{
     convert, convert_multi_thread, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer,
-    Destination, PixelFormat, PixelFormatPlanes, Source, U16LE, U8,
+    Destination, PixelFormat, PixelFormatPlanes, Rect, Source, U16LE, U8,
 };
 use image::{Rgb, Rgba};
 
@@ -106,6 +106,65 @@ fn i420_to_rgba() {
         image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(width as _, height as _, rgb).unwrap();
 
     buffer.save("tests/I420_TO_RGBA.png").unwrap();
+}
+
+#[test]
+fn i420_to_rgba_with_window() {
+    let (i420, width, height) = make_i420_image(ColorInfo {
+        space: ColorSpace::BT709,
+        transfer: ColorTransfer::Linear,
+        primaries: ColorPrimaries::BT709,
+        full_range: true,
+    });
+
+    let mut rgb = vec![0u8; PixelFormat::RGB.buffer_size(width, height)];
+
+    let src = Source::<U8>::new(
+        PixelFormat::I420,
+        PixelFormatPlanes::infer_i420(&i420[..], width, height),
+        width,
+        height,
+        ColorInfo {
+            space: ColorSpace::BT709,
+            transfer: ColorTransfer::Linear,
+            primaries: ColorPrimaries::SRGB,
+            full_range: false,
+        },
+        8,
+    )
+    .with_window(Rect {
+        x: 100,
+        y: 200,
+        width: 2500,
+        height: 2888,
+    });
+
+    let dst = Destination::<U8>::new(
+        PixelFormat::RGB,
+        PixelFormatPlanes::RGB(&mut rgb),
+        width,
+        height,
+        ColorInfo {
+            space: ColorSpace::BT709,
+            transfer: ColorTransfer::Linear,
+            primaries: ColorPrimaries::SRGB,
+            full_range: false,
+        },
+        8,
+    )
+    .with_window(Rect {
+        x: 400,
+        y: 700,
+        width: 2500,
+        height: 2888,
+    });
+
+    convert_multi_thread(src, dst);
+
+    let buffer =
+        image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(width as _, height as _, rgb).unwrap();
+
+    buffer.save("tests/I420_TO_RGBA_WINDOW.png").unwrap();
 }
 
 #[test]

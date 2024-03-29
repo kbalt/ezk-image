@@ -50,7 +50,17 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
             initial_window.y + initial_window.height
         ));
 
-        let rects = calculate_windows_by_rows(initial_window, max_results);
+        let mut rects = calculate_windows_by_rows(initial_window, max_results);
+
+        rects.insert(
+            0,
+            Rect {
+                x: 0,
+                y: 0,
+                width: initial_window.width,
+                height: initial_window.y,
+            },
+        );
 
         let mut ret = vec![];
 
@@ -107,6 +117,8 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
                 }
             }
         }
+
+        ret.remove(0);
 
         ret
     }
@@ -165,7 +177,7 @@ fn calculate_windows_by_rows(initial_window: Rect, threads: usize) -> Vec<Rect> 
         });
 
         rects.push(Rect {
-            x: 0,
+            x: initial_window.x,
             y: prev.y + prev.height,
             width: initial_window.width,
             height: (parts_per_section + extra) * 2,
