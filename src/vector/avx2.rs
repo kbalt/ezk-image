@@ -136,6 +136,40 @@ unsafe impl Vector for __m256 {
     }
 
     #[inline(always)]
+    unsafe fn load_u8_3x_interleaved_2x(ptr: *const u8) -> [[Self; 3]; 2] {
+        #[inline(always)]
+        pub(super) unsafe fn inner(ptr: *const u8) -> (__m256, __m256, __m256) {
+            let m1 = __m256::load_u8(ptr);
+            let m2 = __m256::load_u8(ptr.add(__m256::LEN));
+            let m3 = __m256::load_u8(ptr.add(__m256::LEN * 2));
+
+            deinterleave_3x(m1, m2, m3)
+        }
+
+        let (al, bl, cl) = inner(ptr);
+        let (ah, bh, ch) = inner(ptr.add(Self::LEN * 3));
+
+        [[al, bl, cl], [ah, bh, ch]]
+    }
+
+    #[inline(always)]
+    unsafe fn load_u16_3x_interleaved_2x<E: Endian>(ptr: *const u16) -> [[Self; 3]; 2] {
+        #[inline(always)]
+        pub(super) unsafe fn inner<E: Endian>(ptr: *const u16) -> (__m256, __m256, __m256) {
+            let m1 = __m256::load_u16::<E>(ptr);
+            let m2 = __m256::load_u16::<E>(ptr.add(__m256::LEN));
+            let m3 = __m256::load_u16::<E>(ptr.add(__m256::LEN * 2));
+
+            deinterleave_3x(m1, m2, m3)
+        }
+
+        let (al, bl, cl) = inner::<E>(ptr);
+        let (ah, bh, ch) = inner::<E>(ptr.add(Self::LEN * 3));
+
+        [[al, bl, cl], [ah, bh, ch]]
+    }
+
+    #[inline(always)]
     unsafe fn load_u8_4x_interleaved_2x(ptr: *const u8) -> [[Self; 4]; 2] {
         #[inline(always)]
         pub(super) unsafe fn inner(ptr: *const u8) -> (__m256, __m256, __m256, __m256) {
@@ -231,6 +265,21 @@ unsafe impl Vector for __m256 {
     fn color_ops(c: &ColorOps) -> &ColorOpsPart<Self> {
         &c.avx2
     }
+}
+
+#[inline(always)]
+unsafe fn deinterleave_3x(m1: __m256, m2: __m256, m3: __m256) -> (__m256, __m256, __m256) {
+    // TODO: write something smarter here, until then - let the compiler figure it out
+
+    let [v00, v01, v02, v03, v04, v05, v06, v07] = transmute::<_, [f32; 8]>(m1);
+    let [v08, v09, v10, v11, v12, v13, v14, v15] = transmute::<_, [f32; 8]>(m2);
+    let [v16, v17, v18, v19, v20, v21, v22, v23] = transmute::<_, [f32; 8]>(m3);
+
+    let a = transmute([v00, v03, v06, v09, v12, v15, v18, v21]);
+    let b = transmute([v01, v04, v07, v10, v13, v16, v19, v22]);
+    let c = transmute([v02, v05, v08, v11, v14, v17, v20, v23]);
+
+    (a, b, c)
 }
 
 #[inline(always)]

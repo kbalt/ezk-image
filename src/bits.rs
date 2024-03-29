@@ -8,6 +8,7 @@ pub trait Bits {
 
 pub(crate) trait BitsInternal: Bits {
     unsafe fn load<V: Vector>(ptr: *const Self::Primitive) -> V;
+    unsafe fn load_3x_interleaved_2x<V: Vector>(ptr: *const Self::Primitive) -> [[V; 3]; 2];
     unsafe fn load_4x_interleaved_2x<V: Vector>(ptr: *const Self::Primitive) -> [[V; 4]; 2];
 
     unsafe fn write<V: Vector>(ptr: *mut Self::Primitive, v: V);
@@ -38,6 +39,11 @@ impl BitsInternal for U8 {
     #[inline(always)]
     unsafe fn write_2x<V: Vector>(ptr: *mut Self::Primitive, v0: V, v1: V) {
         V::write_u8_2x(v0, v1, ptr)
+    }
+
+    #[inline(always)]
+    unsafe fn load_3x_interleaved_2x<V: Vector>(ptr: *const Self::Primitive) -> [[V; 3]; 2] {
+        V::load_u8_3x_interleaved_2x(ptr)
     }
 
     #[inline(always)]
@@ -79,6 +85,10 @@ impl BitsInternal for U16LE {
     }
 
     #[inline(always)]
+    unsafe fn load_3x_interleaved_2x<V: Vector>(ptr: *const Self::Primitive) -> [[V; 3]; 2] {
+        V::load_u16_3x_interleaved_2x::<Self::Endian>(ptr)
+    }
+    #[inline(always)]
     unsafe fn load_4x_interleaved_2x<V: Vector>(ptr: *const Self::Primitive) -> [[V; 4]; 2] {
         V::load_u16_4x_interleaved_2x::<LittleEndian>(ptr)
     }
@@ -116,6 +126,10 @@ impl BitsInternal for U16BE {
         V::write_u16_2x::<Self::Endian>(v0, v1, ptr)
     }
 
+    #[inline(always)]
+    unsafe fn load_3x_interleaved_2x<V: Vector>(ptr: *const Self::Primitive) -> [[V; 3]; 2] {
+        V::load_u16_3x_interleaved_2x::<Self::Endian>(ptr)
+    }
     #[inline(always)]
     unsafe fn load_4x_interleaved_2x<V: Vector>(ptr: *const Self::Primitive) -> [[V; 4]; 2] {
         V::load_u16_4x_interleaved_2x::<BigEndian>(ptr)

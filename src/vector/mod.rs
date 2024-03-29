@@ -99,8 +99,14 @@ pub(crate) unsafe trait Vector: Debug + Copy + 'static {
     /// Pointer must be valid to read Self::LEN * 2 bytes
     unsafe fn load_u16<E: Endian>(ptr: *const u16) -> Self;
 
-    /// Load RGBA functions
+    /// Load u8 interleaved 3 times functions
+    unsafe fn load_u8_3x_interleaved_2x(ptr: *const u8) -> [[Self; 3]; 2];
+    /// Load u8 interleaved 3 times functions
+    unsafe fn load_u16_3x_interleaved_2x<E: Endian>(ptr: *const u16) -> [[Self; 3]; 2];
+
+    /// Load u8 interleaved 4 times functions
     unsafe fn load_u8_4x_interleaved_2x(ptr: *const u8) -> [[Self; 4]; 2];
+    /// Load u16 interleaved 4 times functions
     unsafe fn load_u16_4x_interleaved_2x<E: Endian>(ptr: *const u16) -> [[Self; 4]; 2];
 
     /// Write
@@ -218,6 +224,23 @@ unsafe impl Vector for f32 {
     }
 
     #[inline(always)]
+    unsafe fn load_u8_3x_interleaved_2x(ptr: *const u8) -> [[Self; 3]; 2] {
+        let v = ptr.cast::<[[u8; 3]; 2]>().read_unaligned();
+        v.map(|v| v.map(|v| v as f32))
+    }
+
+    #[inline(always)]
+    unsafe fn load_u16_3x_interleaved_2x<E: Endian>(ptr: *const u16) -> [[Self; 3]; 2] {
+        let v = ptr.cast::<[[u16; 3]; 2]>().read_unaligned();
+
+        if E::IS_NATIVE {
+            v.map(|v| v.map(|v| v as f32))
+        } else {
+            v.map(|v| v.map(|v| v.swap_bytes() as f32))
+        }
+    }
+
+    #[inline(always)]
     unsafe fn load_u8_4x_interleaved_2x(ptr: *const u8) -> [[Self; 4]; 2] {
         let v = ptr.cast::<[[u8; 4]; 2]>().read_unaligned();
         v.map(|v| v.map(|v| v as f32))
@@ -233,6 +256,7 @@ unsafe impl Vector for f32 {
             v.map(|v| v.map(|v| v.swap_bytes() as f32))
         }
     }
+
     #[inline(always)]
     unsafe fn write_u8(self, ptr: *mut u8) {
         ptr.write(self as u8)
