@@ -1,5 +1,3 @@
-#![allow(clippy::missing_safety_doc)]
-
 use bits::BitsInternal;
 use formats::*;
 

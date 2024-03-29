@@ -2,7 +2,6 @@ use super::Vector;
 use crate::arch::*;
 use crate::color::{ColorOps, ColorOpsPart};
 use crate::endian::Endian;
-use crate::Bits;
 use std::mem::transmute;
 
 unsafe impl Vector for float32x4_t {
@@ -151,6 +150,76 @@ unsafe impl Vector for float32x4_t {
         let ah = vcvtq_f32_u32(vmovl_u16(vget_high_u16(a)));
 
         [[rl, gl, bl, al], [rh, gh, bh, ah]]
+    }
+
+    #[inline(always)]
+    unsafe fn write_u8(self, ptr: *mut u8) {
+        ptr.cast::<[u8; 4]>()
+            .write_unaligned(util::float32x4_to_u8x4(self))
+    }
+
+    #[inline(always)]
+    unsafe fn write_u8_2x(v0: Self, v1: Self, ptr: *mut u8) {
+        ptr.cast::<[u8; 8]>()
+            .write_unaligned(util::float32x4x2_to_u8x8(v0, v1))
+    }
+
+    #[inline(always)]
+    unsafe fn write_u16<E: Endian>(self, ptr: *mut u16) {
+        ptr.cast::<[u16; 4]>()
+            .write_unaligned(util::float32x4_to_u16x4::<E>(self))
+    }
+
+    #[inline(always)]
+    unsafe fn write_u16_2x<E: Endian>(v0: Self, v1: Self, ptr: *mut u16) {
+        ptr.cast::<[u16; 8]>()
+            .write_unaligned(util::float32x4x2_to_u16x8::<E>(v0, v1))
+    }
+
+    #[inline(always)]
+    unsafe fn write_interleaved_3x_2x_u8(this: [[Self; 3]; 2], ptr: *mut u8) {
+        let v0 = util::float32x4x2_to_u8x8(this[0][0], this[1][0]);
+        let v1 = util::float32x4x2_to_u8x8(this[0][1], this[1][1]);
+        let v2 = util::float32x4x2_to_u8x8(this[0][2], this[1][2]);
+
+        let v = transmute::<[[u8; 8]; 3], uint8x8x3_t>([v0, v1, v2]);
+
+        vst3_u8(ptr, v)
+    }
+
+    #[inline(always)]
+    unsafe fn write_interleaved_3x_2x_u16<E: Endian>(this: [[Self; 3]; 2], ptr: *mut u16) {
+        let v0 = util::float32x4x2_to_u16x8::<E>(this[0][0], this[1][0]);
+        let v1 = util::float32x4x2_to_u16x8::<E>(this[0][1], this[1][1]);
+        let v2 = util::float32x4x2_to_u16x8::<E>(this[0][2], this[1][2]);
+
+        let v = transmute::<[[u16; 8]; 3], uint16x8x3_t>([v0, v1, v2]);
+
+        vst3q_u16(ptr, v)
+    }
+
+    #[inline(always)]
+    unsafe fn write_interleaved_4x_2x_u8(this: [[Self; 4]; 2], ptr: *mut u8) {
+        let v0 = util::float32x4x2_to_u8x8(this[0][0], this[1][0]);
+        let v1 = util::float32x4x2_to_u8x8(this[0][1], this[1][1]);
+        let v2 = util::float32x4x2_to_u8x8(this[0][2], this[1][2]);
+        let v3 = util::float32x4x2_to_u8x8(this[0][3], this[1][3]);
+
+        let v = transmute::<[[u8; 8]; 4], uint8x8x4_t>([v0, v1, v2, v3]);
+
+        vst4_u8(ptr, v)
+    }
+
+    #[inline(always)]
+    unsafe fn write_interleaved_4x_2x_u16<E: Endian>(this: [[Self; 4]; 2], ptr: *mut u16) {
+        let v0 = util::float32x4x2_to_u16x8::<E>(this[0][0], this[1][0]);
+        let v1 = util::float32x4x2_to_u16x8::<E>(this[0][1], this[1][1]);
+        let v2 = util::float32x4x2_to_u16x8::<E>(this[0][2], this[1][2]);
+        let v3 = util::float32x4x2_to_u16x8::<E>(this[0][3], this[1][3]);
+
+        let v = transmute::<[[u16; 8]; 4], uint16x8x4_t>([v0, v1, v2, v3]);
+
+        vst4q_u16(ptr, v)
     }
 
     #[inline(always)]
@@ -327,38 +396,37 @@ mod math {
 pub(crate) mod util {
     use crate::arch::*;
     use crate::endian::Endian;
-    use crate::Bits;
     use std::mem::transmute;
 
     #[inline(always)]
-    pub(crate) unsafe fn float32x4x2_to_uint8x8_t(l: float32x4_t, h: float32x4_t) -> uint8x8_t {
+    pub(crate) unsafe fn float32x4x2_to_u8x8(l: float32x4_t, h: float32x4_t) -> [u8; 8] {
         let l = vcvtq_u32_f32(l);
-        let l = vminq_u32(l, vdupq_n_u32(255));
+        let l = vminq_u32(l, vdupq_n_u32(u8::MAX as u32));
         let l = vmovn_u32(l);
 
         let h = vcvtq_u32_f32(h);
-        let h = vminq_u32(h, vdupq_n_u32(255));
+        let h = vminq_u32(h, vdupq_n_u32(u8::MAX as u32));
         let h = vmovn_u32(h);
 
         let v = transmute::<[uint16x4_t; 2], uint16x8_t>([l, h]);
 
-        vmovn_u16(v)
+        transmute(vmovn_u16(v))
     }
 
     #[inline(always)]
-    pub(crate) unsafe fn float32x4x2_to_uint16x8_t<B: Bits>(
+    pub(crate) unsafe fn float32x4x2_to_u16x8<E: Endian>(
         l: float32x4_t,
         h: float32x4_t,
-    ) -> uint16x8_t {
+    ) -> [u16; 8] {
         let l = vcvtq_u32_f32(l);
-        let l = vminq_u32(l, vdupq_n_u32(B::MAX_VALUE as u32));
+        let l = vminq_u32(l, vdupq_n_u32(u16::MAX as u32));
         let l = vmovn_u32(l);
 
         let h = vcvtq_u32_f32(h);
-        let h = vminq_u32(h, vdupq_n_u32(B::MAX_VALUE as u32));
+        let h = vminq_u32(h, vdupq_n_u32(u16::MAX as u32));
         let h = vmovn_u32(h);
 
-        let (l, h) = if B::Endian::IS_NATIVE {
+        let (l, h) = if E::IS_NATIVE {
             (l, h)
         } else {
             (vrev32_u16(l), (vrev32_u16(h)))
@@ -381,15 +449,15 @@ pub(crate) mod util {
     }
 
     #[inline(always)]
-    pub(crate) unsafe fn float32x4_to_u16x4<B: Bits>(i: float32x4_t) -> uint16x4_t {
+    pub(crate) unsafe fn float32x4_to_u16x4<E: Endian>(i: float32x4_t) -> [u16; 4] {
         let i = vcvtq_u32_f32(i);
-        let i = vminq_u32(i, vdupq_n_u32(B::MAX_VALUE as u32));
+        let i = vminq_u32(i, vdupq_n_u32(u16::MAX as u32));
         let i = vmovn_u32(i);
 
-        if B::Endian::IS_NATIVE {
-            i
+        if E::IS_NATIVE {
+            transmute(i)
         } else {
-            vrev32_u16(i)
+            transmute(vrev32_u16(i))
         }
     }
 }
@@ -412,10 +480,10 @@ mod tests {
             let expected_a = [100.0, 200.0, 101.0, 201.0];
             let expected_b = [102.0, 202.0, 103.0, 203.0];
 
-            let a = float32x4_t::load(rgba.as_ptr());
-            let b = float32x4_t::load(rgba.as_ptr().add(4));
+            let a = float32x4_t::load_u8(rgba.as_ptr());
+            let b = float32x4_t::load_u8(rgba.as_ptr().add(4));
 
-            let (a, b) = a.interleave(b);
+            let (a, b) = a.zip(b);
 
             assert_eq!(transmute::<_, [f32; 4]>(a), expected_a);
             assert_eq!(transmute::<_, [f32; 4]>(b), expected_b);
@@ -441,15 +509,15 @@ mod tests {
             ]
             .map(|x| x as f32);
 
-            let r00 = float32x4_t::load(red.as_ptr());
-            let r01 = float32x4_t::load(red.as_ptr().add(float32x4_t::LEN));
-            let r10 = float32x4_t::load(red.as_ptr().add(float32x4_t::LEN * 2));
-            let r11 = float32x4_t::load(red.as_ptr().add(float32x4_t::LEN * 3));
+            let r00 = float32x4_t::load_u8(red.as_ptr());
+            let r01 = float32x4_t::load_u8(red.as_ptr().add(float32x4_t::LEN));
+            let r10 = float32x4_t::load_u8(red.as_ptr().add(float32x4_t::LEN * 2));
+            let r11 = float32x4_t::load_u8(red.as_ptr().add(float32x4_t::LEN * 3));
 
             let r0 = r00.vadd(r10);
             let r1 = r01.vadd(r11);
 
-            let (r0, r1) = r0.interleave_nx(r1);
+            let (r0, r1) = r0.unzip(r1);
 
             let x = r0.vadd(r1);
 

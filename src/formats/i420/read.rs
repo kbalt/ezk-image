@@ -1,3 +1,5 @@
+#![allow(clippy::too_many_arguments)]
+
 use super::{I420Block, I420Visitor, I420VisitorImpl};
 use crate::bits::BitsInternal;
 use crate::vector::Vector;
@@ -38,7 +40,16 @@ pub(crate) fn read_i420<B, Vis>(
     #[cfg(target_arch = "aarch64")]
     if is_aarch64_feature_detected!("neon") {
         unsafe {
-            return read_i420_neon::<B, Vis>(src_width, src_height, src, window, visitor);
+            return read_i420_neon::<B, Vis>(
+                src_width,
+                src_height,
+                y,
+                u,
+                v,
+                bits_per_channel,
+                window,
+                visitor,
+            );
         }
     }
 
@@ -88,7 +99,6 @@ unsafe fn read_i420_neon<B, Vis>(
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
 #[inline(never)]
-#[allow(clippy::too_many_arguments)]
 unsafe fn read_i420_avx2<B, Vis>(
     src_width: usize,
     src_height: usize,
@@ -115,7 +125,6 @@ unsafe fn read_i420_avx2<B, Vis>(
 }
 
 #[inline(always)]
-#[allow(clippy::too_many_arguments)]
 unsafe fn read_i420_impl<V, B, Vis>(
     src_width: usize,
     src_height: usize,
@@ -208,7 +217,6 @@ unsafe fn read_i420_impl<V, B, Vis>(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 #[inline(always)]
 unsafe fn load_and_visit_block<V, B, Vis>(
     visitor: &mut Vis,
