@@ -73,26 +73,32 @@ fn verify_input_windows_same_size<SB: Bits, DB: Bits>(
 #[derive(Debug, Clone, Copy)]
 pub enum PixelFormat {
     /// 3 Planes, Y, U, V
-    /// 4x Y, 1x U, 1X V
+    ///
+    /// 4x Y, 1x U, 1x V
     I420,
 
     // /// 4 Planes, Y, U, V, A
+    // ///
     // /// 4x Y, 1x U, 1x V, 4x A
     // I420A,
 
     // /// 3 Planes, Y, U, V
+    // ///
     // /// 4x Y, 2x U, 2x V
     // I422
 
     // /// 4 Planes, Y, U, V, A
+    // ////
     // /// 4x Y, 2x U, 2x V, 4x A
     // I422A
 
     // /// 3 Planes, Y, U, V
+    // ///
     // /// 1x Y, 1x U, 1x V
     // I444,
 
     // /// 2 Planes, Y, U & V interleaved
+    // ///
     // /// 4x Y, 1x U & V
     // NV12,
     /// 1 Plane 4 primitives R, G, B, A
@@ -103,10 +109,6 @@ pub enum PixelFormat {
     RGB,
     /// 1 Plane 3 primitives B, G, R
     BGR,
-    // I420A,
-    // I422,
-    // I444,
-    // NV12,
 }
 
 impl PixelFormat {

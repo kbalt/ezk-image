@@ -1,9 +1,6 @@
 use crate::endian::{BigEndian, Endian, LittleEndian, NativeEndian};
 use crate::vector::Vector;
 
-// TODO: merge Bits and BitsInternal and make it "pub" but don't expose
-#[doc(hidden)]
-#[allow(private_bounds)]
 pub trait Bits {
     type Primitive: Send + Sync + 'static;
     type Endian: Endian;

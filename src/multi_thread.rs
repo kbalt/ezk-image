@@ -9,7 +9,11 @@ pub fn convert_multi_thread<SB: BitsInternal, DB: BitsInternal>(
 ) {
     let (src_window, dst_window) = verify_input_windows_same_size(&src, &dst);
 
-    let threads = 32;
+    let threads = num_cpus::get();
+
+    if threads == 1 {
+        return convert(src, dst);
+    }
 
     let src_planes = src.planes.split(src.width, src_window, threads);
     let dst_planes = dst.planes.split(src.width, dst_window, threads);

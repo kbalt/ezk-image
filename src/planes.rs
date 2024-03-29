@@ -31,6 +31,11 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
         }
     }
 
+    /// Infer the planes for a full I420 image using the given dimensions
+    ///
+    /// # Panics
+    ///
+    /// If `buf` is too small for the given dimensions this function will panic
     pub fn infer_i420(buf: S, width: usize, height: usize) -> Self {
         let (y, tmp) = buf.slice_split_at(width * height);
         let (u, v) = tmp.slice_split_at((width * height) / 4);
@@ -38,6 +43,12 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
         Self::I420 { y, u, v }
     }
 
+    /// Split the planes into multiple planes, where
+    /// - `width` is the width of the image which is represented by the planes
+    /// - `initial_window` is the window in the image, if the complete image should be processed it should have the same dimensions has the image
+    /// - `max_results` how often the image should be split (upper limit, might be less if the image is too small)
+    ///
+    /// Returns a list containing the new planes and a the window piece of the `initial_window`
     pub fn split(
         mut self,
         width: usize,
@@ -52,6 +63,9 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
 
         let mut rects = calculate_windows_by_rows(initial_window, max_results);
 
+        // Ugly hack: Insert a rect as the first window,
+        // to have the loop trim the beginning of the planes
+        // then remove it in the result
         rects.insert(
             0,
             Rect {
@@ -118,12 +132,14 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
             }
         }
 
+        // Part of the before mentioned hack, remove the temporary window
         ret.remove(0);
 
         ret
     }
 }
 
+/// Abstract over &[T] and &mut [T]
 pub trait AnySlice: Default + Sized {
     fn slice_len(&self) -> usize;
     fn slice_split_at(self, at: usize) -> (Self, Self);
@@ -212,44 +228,4 @@ fn verify_windows() {
     }
 
     assert_eq!(height_accum, 1440);
-}
-
-#[test]
-fn xd() {
-    let rgb = PixelFormatPlanes::RGB(&[0u8; 90 * 3][..]);
-
-    let r = rgb.split(
-        3,
-        Rect {
-            x: 0,
-            y: 0,
-            width: 3,
-            height: 30,
-        },
-        9,
-    );
-
-    println!("{r:#?}")
-}
-
-#[test]
-fn xd2() {
-    let rgb = PixelFormatPlanes::I420 {
-        y: &[0u8; 80][..],
-        v: &[0u8; 20][..],
-        u: &[0u8; 20][..],
-    };
-
-    let r = rgb.split(
-        4,
-        Rect {
-            x: 0,
-            y: 0,
-            width: 4,
-            height: 20,
-        },
-        4,
-    );
-
-    println!("{r:#?}")
 }
