@@ -30,7 +30,7 @@ pub fn convert_multi_thread<SB: BitsInternal, DB: BitsInternal>(
                 dst.format,
                 dst_planes,
                 dst.width,
-                src_window.y + src_window.height,
+                dst_window.y + dst_window.height,
                 dst.color,
                 dst.bits_per_channel,
             )
