@@ -8,60 +8,60 @@ unsafe impl Vector for float32x4_t {
     const LEN: usize = 4;
     type Mask = uint32x4_t;
 
-    #[target_feature(enable = "neon")]
+    #[inline(always)]
     unsafe fn splat(v: f32) -> Self {
         vdupq_n_f32(v)
     }
 
-    #[target_feature(enable = "neon")]
+    #[inline(always)]
     unsafe fn vadd(self, other: Self) -> Self {
         vaddq_f32(self, other)
     }
-    #[target_feature(enable = "neon")]
+    #[inline(always)]
     unsafe fn vsub(self, other: Self) -> Self {
         vsubq_f32(self, other)
     }
-    #[target_feature(enable = "neon")]
+    #[inline(always)]
     unsafe fn vmul(self, other: Self) -> Self {
         vmulq_f32(self, other)
     }
-    #[target_feature(enable = "neon")]
+    #[inline(always)]
     unsafe fn vdiv(self, other: Self) -> Self {
         vdivq_f32(self, other)
     }
-    #[target_feature(enable = "neon")]
+    #[inline(always)]
     unsafe fn vmax(self, other: Self) -> Self {
         vmaxq_f32(self, other)
     }
 
-    #[target_feature(enable = "neon")]
+    #[inline(always)]
     unsafe fn lt(self, other: Self) -> Self::Mask {
         vcaltq_f32(self, other)
     }
-    #[target_feature(enable = "neon")]
+    #[inline(always)]
     unsafe fn le(self, other: Self) -> Self::Mask {
         vcaleq_f32(self, other)
     }
-    #[target_feature(enable = "neon")]
+    #[inline(always)]
     unsafe fn select(a: Self, b: Self, mask: Self::Mask) -> Self {
         vbslq_f32(mask, a, b)
     }
 
-    #[target_feature(enable = "neon")]
+    #[inline(always)]
     unsafe fn vsqrt(self) -> Self {
         vsqrtq_f32(self)
     }
 
-    #[target_feature(enable = "neon")]
+    #[inline(always)]
     unsafe fn vpow(self, pow: Self) -> Self {
         math::powf(self, pow)
     }
-    #[target_feature(enable = "neon")]
+    #[inline(always)]
     unsafe fn vln(self) -> Self {
         math::log(self)
     }
 
-    #[target_feature(enable = "neon")]
+    #[inline(always)]
     unsafe fn zip(self, other: Self) -> (Self, Self) {
         let a = vzip1q_f32(self, other);
         let b = vzip2q_f32(self, other);
@@ -69,7 +69,7 @@ unsafe impl Vector for float32x4_t {
         (a, b)
     }
 
-    #[target_feature(enable = "neon")]
+    #[inline(always)]
     unsafe fn unzip(self, other: Self) -> (Self, Self) {
         let a = vuzp1q_f32(self, other);
         let b = vuzp2q_f32(self, other);
@@ -77,7 +77,7 @@ unsafe impl Vector for float32x4_t {
         (a, b)
     }
 
-    #[target_feature(enable = "neon")]
+    #[inline(always)]
     unsafe fn load_u8(ptr: *const u8) -> Self {
         let v = ptr.cast::<[u8; 4]>().read_unaligned();
         let v = vmovl_u8(transmute([v, v]));
@@ -86,7 +86,7 @@ unsafe impl Vector for float32x4_t {
         vcvtq_f32_u32(v)
     }
 
-    #[target_feature(enable = "neon")]
+    #[inline(always)]
     unsafe fn load_u16<E: Endian>(ptr: *const u16) -> Self {
         let v = ptr.cast::<uint16x4_t>().read_unaligned();
         let v = if E::IS_NATIVE { v } else { vrev32_u16(v) };
@@ -95,7 +95,7 @@ unsafe impl Vector for float32x4_t {
         vcvtq_f32_u32(v)
     }
 
-    #[target_feature(enable = "neon")]
+    #[inline(always)]
     unsafe fn load_u8_4x_interleaved_2x(ptr: *const u8) -> [[Self; 4]; 2] {
         let rgba_lanes = vld4_u8(ptr);
 
@@ -120,7 +120,7 @@ unsafe impl Vector for float32x4_t {
         [[rl, gl, bl, al], [rh, gh, bh, ah]]
     }
 
-    #[target_feature(enable = "neon")]
+    #[inline(always)]
     unsafe fn load_u16_4x_interleaved_2x<E: Endian>(ptr: *const u16) -> [[Self; 4]; 2] {
         let rgba_lanes = vld4q_u16(ptr);
 
