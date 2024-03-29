@@ -44,6 +44,22 @@ impl<Vis> RgbTransferAndPrimariesConvert<Vis> {
             **b = x.vmulf(bw[0][2]).vadd(y.vmulf(bw[1][2])).vadd(z.vmulf(bw[2][2]));
         }
     }
+
+    #[inline(always)]
+    unsafe fn convert_rgb<V>(&mut self, mut i: [&mut V; 12])
+    where
+        V: Vector,
+    {
+        V::color_ops(&self.src_color)
+            .transfer
+            .scaled_to_linear12(&mut i);
+
+        self.convert_primaries(&mut i);
+
+        V::color_ops(&self.dst_color)
+            .transfer
+            .linear_to_scaled12(&mut i);
+    }
 }
 
 impl<V, Vis> RgbBlockVisitorImpl<V> for RgbTransferAndPrimariesConvert<Vis>
@@ -58,7 +74,7 @@ where
             return;
         }
 
-        let mut i = [
+        let i = [
             &mut block.rgb00.r,
             &mut block.rgb00.g,
             &mut block.rgb00.b,
@@ -73,17 +89,8 @@ where
             &mut block.rgb11.b,
         ];
 
-        V::color_ops(&self.src_color)
-            .transfer
-            .scaled_to_linear12(&mut i);
+        self.convert_rgb(i);
 
-        self.convert_primaries(&mut i);
-
-        V::color_ops(&self.dst_color)
-            .transfer
-            .linear_to_scaled12(&mut i);
-
-        self.visitor.visit(x, y, block);
         self.visitor.visit(x, y, block);
     }
 }
@@ -100,7 +107,7 @@ where
             return;
         }
 
-        let mut i = [
+        let i = [
             &mut block.rgba00.r,
             &mut block.rgba00.g,
             &mut block.rgba00.b,
@@ -115,15 +122,7 @@ where
             &mut block.rgba11.b,
         ];
 
-        V::color_ops(&self.src_color)
-            .transfer
-            .scaled_to_linear12(&mut i);
-
-        self.convert_primaries(&mut i);
-
-        V::color_ops(&self.dst_color)
-            .transfer
-            .linear_to_scaled12(&mut i);
+        self.convert_rgb(i);
 
         self.visitor.visit(x, y, block);
     }
