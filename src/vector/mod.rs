@@ -12,8 +12,9 @@ pub(crate) mod neon;
 ///
 /// # Safety
 ///
-/// This safe is unsafe to implement as assumptions using constant `LEN` are made, every function is unsafe as they
+/// This trait is unsafe, because assumptions using constant `LEN` are made. Also every function is unsafe as they
 /// might use instructions that are not available on the current processor, so cpu-feature checks always need to be made
+/// before calling these.
 ///
 /// Functions that are _only_ unsafe because they're generic over `Vector` are always safe to call with the `f32` type.
 pub(crate) unsafe trait Vector: Debug + Copy + 'static {
