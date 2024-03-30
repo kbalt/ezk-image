@@ -24,7 +24,6 @@ nalgebra = "0.32"
 
 criterion = "0.5"
 
-
 [[bench]]
 name = "pixel_format"
 harness = false

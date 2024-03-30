@@ -99,14 +99,10 @@ pub(crate) unsafe trait Vector: Debug + Copy + 'static {
     /// Pointer must be valid to read Self::LEN * 2 bytes
     unsafe fn load_u16<E: Endian>(ptr: *const u16) -> Self;
 
-    /// Load u8 interleaved 3 times functions
     unsafe fn load_u8_3x_interleaved_2x(ptr: *const u8) -> [[Self; 3]; 2];
-    /// Load u8 interleaved 3 times functions
     unsafe fn load_u16_3x_interleaved_2x<E: Endian>(ptr: *const u16) -> [[Self; 3]; 2];
 
-    /// Load u8 interleaved 4 times functions
     unsafe fn load_u8_4x_interleaved_2x(ptr: *const u8) -> [[Self; 4]; 2];
-    /// Load u16 interleaved 4 times functions
     unsafe fn load_u16_4x_interleaved_2x<E: Endian>(ptr: *const u16) -> [[Self; 4]; 2];
 
     /// Write

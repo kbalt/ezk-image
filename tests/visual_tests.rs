@@ -335,3 +335,75 @@ fn rgba8_to_rgba16_and_back() {
 
     buffer.save("tests/RGB16_TO_RGBA8.png").unwrap();
 }
+
+#[test]
+fn rgba8_to_nv12_and_back() {
+    let (mut rgba8, width, height) = make_rgba8_image(ColorPrimaries::SRGB, ColorTransfer::Linear);
+
+    let mut nv12 = vec![0u8; PixelFormat::NV12.buffer_size(width, height)];
+
+    let src = Source::<U8>::new(
+        PixelFormat::RGBA,
+        PixelFormatPlanes::RGBA(&rgba8),
+        width,
+        height,
+        ColorInfo {
+            space: ColorSpace::BT709,
+            transfer: ColorTransfer::Linear,
+            primaries: ColorPrimaries::SRGB,
+            full_range: false,
+        },
+        8,
+    );
+
+    let dst = Destination::<U8>::new(
+        PixelFormat::NV12,
+        PixelFormatPlanes::infer_nv12(&mut nv12, width, height),
+        width,
+        height,
+        ColorInfo {
+            space: ColorSpace::BT709,
+            transfer: ColorTransfer::Linear,
+            primaries: ColorPrimaries::SRGB,
+            full_range: false,
+        },
+        8,
+    );
+
+    convert_multi_thread(src, dst);
+
+    let src = Source::<U8>::new(
+        PixelFormat::NV12,
+        PixelFormatPlanes::infer_nv12(&nv12, width, height),
+        width,
+        height,
+        ColorInfo {
+            space: ColorSpace::BT709,
+            transfer: ColorTransfer::Linear,
+            primaries: ColorPrimaries::SRGB,
+            full_range: false,
+        },
+        8,
+    );
+
+    let dst = Destination::<U8>::new(
+        PixelFormat::RGBA,
+        PixelFormatPlanes::RGBA(&mut rgba8),
+        width,
+        height,
+        ColorInfo {
+            space: ColorSpace::BT709,
+            transfer: ColorTransfer::Linear,
+            primaries: ColorPrimaries::SRGB,
+            full_range: false,
+        },
+        8,
+    );
+
+    convert(src, dst);
+
+    let buffer =
+        image::ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(width as _, height as _, rgba8).unwrap();
+
+    buffer.save("tests/NV12_TO_RGBA.png").unwrap();
+}

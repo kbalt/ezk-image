@@ -6,6 +6,9 @@ pub enum PixelFormatPlanes<S: AnySlice> {
     /// See [PixelFormat::I420]
     I420 { y: S, u: S, v: S },
 
+    /// See [PixelFormat::NV12]
+    NV12 { y: S, uv: S },
+
     /// See [PixelFormat::RGB] and [PixelFormat::BGR],
     RGB(S),
 
@@ -26,6 +29,11 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
                     && uv_req_len <= u.slice_len()
                     && uv_req_len <= v.slice_len()
             }
+            Self::NV12 { y, uv } => {
+                let uv_req_len = n_pixels / 2;
+
+                n_pixels <= y.slice_len() && uv_req_len <= uv.slice_len()
+            }
             Self::RGB(buf) => n_pixels * 3 <= buf.slice_len(),
             Self::RGBA(buf) => n_pixels * 4 <= buf.slice_len(),
         }
@@ -41,6 +49,19 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
         let (u, v) = tmp.slice_split_at((width * height) / 4);
 
         Self::I420 { y, u, v }
+    }
+
+    /// Infer the planes for a full NV12 image using the given dimensions
+    ///
+    /// # Panics
+    ///
+    /// If `buf` is too small for the given dimensions this function will panic
+    pub fn infer_nv12(buf: S, width: usize, height: usize) -> Self {
+        let (y, uv) = buf.slice_split_at(width * height);
+
+        assert!(uv.slice_len() >= (width * height) / 2);
+
+        Self::NV12 { y, uv }
     }
 
     /// Split the planes into multiple planes, where
@@ -95,6 +116,23 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
                             u: u_,
                             v: v_,
                         },
+                        Rect {
+                            x: rect.x,
+                            y: 0,
+                            width: rect.width,
+                            height: rect.height,
+                        },
+                    ));
+                }
+                Self::NV12 { y, uv } => {
+                    let (y_, y_remaining) = take(y).slice_split_at(width * rect.height);
+                    let (uv_, uv_remaining) = take(uv).slice_split_at((width * rect.height) / 2);
+
+                    *y = y_remaining;
+                    *uv = uv_remaining;
+
+                    ret.push((
+                        Self::NV12 { y: y_, uv: uv_ },
                         Rect {
                             x: rect.x,
                             y: 0,

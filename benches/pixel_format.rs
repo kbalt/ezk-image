@@ -120,6 +120,28 @@ fn run_benchmarks(c: &mut Criterion, do_convert: ConvertFunction, s: &str) {
             );
         })
     });
+
+    c.bench_function(&format!("RGBA to NV12 {s}"), |b| {
+        b.iter(|| {
+            do_convert(
+                RGBA,
+                PixelFormatPlanes::RGBA(&rgba),
+                NV12,
+                PixelFormatPlanes::infer_nv12(&mut i420[..], IMAGE_WIDTH, IMAGE_HEIGHT),
+            )
+        })
+    });
+
+    c.bench_function(&format!("NV12 to RGBA {s}"), |b| {
+        b.iter(|| {
+            do_convert(
+                NV12,
+                PixelFormatPlanes::infer_nv12(&i420[..], IMAGE_WIDTH, IMAGE_HEIGHT),
+                RGBA,
+                PixelFormatPlanes::RGBA(&mut rgba),
+            );
+        })
+    });
 }
 
 fn single_threaded(c: &mut Criterion) {

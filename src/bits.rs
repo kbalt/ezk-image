@@ -45,7 +45,6 @@ impl BitsInternal for U8 {
     unsafe fn load_3x_interleaved_2x<V: Vector>(ptr: *const Self::Primitive) -> [[V; 3]; 2] {
         V::load_u8_3x_interleaved_2x(ptr)
     }
-
     #[inline(always)]
     unsafe fn load_4x_interleaved_2x<V: Vector>(ptr: *const Self::Primitive) -> [[V; 4]; 2] {
         V::load_u8_4x_interleaved_2x(ptr)
@@ -55,7 +54,6 @@ impl BitsInternal for U8 {
     unsafe fn write_interleaved_3x_2x<V: Vector>(ptr: *mut Self::Primitive, v: [[V; 3]; 2]) {
         V::write_interleaved_3x_2x_u8(v, ptr)
     }
-
     #[inline(always)]
     unsafe fn write_interleaved_4x_2x<V: Vector>(ptr: *mut Self::Primitive, v: [[V; 4]; 2]) {
         V::write_interleaved_4x_2x_u8(v, ptr)
@@ -97,7 +95,6 @@ impl BitsInternal for U16LE {
     unsafe fn write_interleaved_3x_2x<V: Vector>(ptr: *mut Self::Primitive, v: [[V; 3]; 2]) {
         V::write_interleaved_3x_2x_u16::<Self::Endian>(v, ptr)
     }
-
     #[inline(always)]
     unsafe fn write_interleaved_4x_2x<V: Vector>(ptr: *mut Self::Primitive, v: [[V; 4]; 2]) {
         V::write_interleaved_4x_2x_u16::<Self::Endian>(v, ptr)
@@ -139,7 +136,6 @@ impl BitsInternal for U16BE {
     unsafe fn write_interleaved_3x_2x<V: Vector>(ptr: *mut Self::Primitive, v: [[V; 3]; 2]) {
         V::write_interleaved_3x_2x_u16::<Self::Endian>(v, ptr)
     }
-
     #[inline(always)]
     unsafe fn write_interleaved_4x_2x<V: Vector>(ptr: *mut Self::Primitive, v: [[V; 4]; 2]) {
         V::write_interleaved_4x_2x_u16::<Self::Endian>(v, ptr)
