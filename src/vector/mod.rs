@@ -176,23 +176,11 @@ unsafe impl Vector for f32 {
     }
 
     unsafe fn vpow(self, pow: Self) -> Self {
-        if cfg!(feature = "veryfastmath") {
-            veryfastmath::pow(self, pow)
-        } else if cfg!(feature = "fastmath") {
-            fastmath::pow(self, pow)
-        } else {
-            self.powf(pow)
-        }
+        self.powf(pow)
     }
 
     unsafe fn vln(self) -> Self {
-        if cfg!(feature = "veryfastmath") {
-            veryfastmath::log(self)
-        } else if cfg!(feature = "fastmath") {
-            fastmath::log(self)
-        } else {
-            self.ln()
-        }
+        self.ln()
     }
 
     #[inline(always)]
@@ -323,76 +311,5 @@ unsafe impl Vector for f32 {
     #[inline(always)]
     fn color_ops(c: &ColorOps) -> &ColorOpsPart<Self> {
         &c.f32
-    }
-}
-
-mod fastmath {
-    // Ported from https://code.google.com/archive/p/fastapprox/
-
-    use std::f32::consts::{LN_2, LOG2_E};
-
-    pub(super) fn exp(x: f32) -> f32 {
-        let x = LOG2_E * x;
-
-        let offset = if x < 0.0 { 1.0 } else { 0.0 };
-
-        let clip = x.max(-126.0);
-        let z = clip.fract() + offset;
-
-        let i = (((1 << 23) as f32)
-            * (clip + 121.274_055 + 27.728_024 / (4.842_525_5 - z) - 1.490_129_1 * z))
-            as u32;
-
-        f32::from_bits(i)
-    }
-
-    pub(super) fn log(x: f32) -> f32 {
-        let vx_i = x.to_bits();
-
-        let mx_i = (vx_i & 0x007FFFFF) | 0x3f000000;
-        let y = (vx_i as f32) * 1.192_092_9e-7;
-
-        let mx_f = f32::from_bits(mx_i);
-
-        let r = y - 124.225_52 - 1.498_030_3 * mx_f - 1.725_88 / (0.352_088_72 + mx_f);
-
-        r * LN_2
-    }
-
-    pub(super) fn pow(x: f32, y: f32) -> f32 {
-        exp(x * log(y))
-    }
-}
-
-mod veryfastmath {
-    // Ported from https://code.google.com/archive/p/fastapprox/
-
-    use std::f32::consts::{LN_2, LOG2_E};
-
-    pub(super) fn exp(x: f32) -> f32 {
-        let x = LOG2_E * x;
-
-        let clip = x.max(-126.0);
-
-        let i = (((1 << 23) as f32) * (clip + 126.942_696)) as u32;
-
-        f32::from_bits(i)
-    }
-
-    pub(super) fn log(x: f32) -> f32 {
-        let vx_i = x.to_bits();
-
-        let mx_i = (vx_i & 0x007FFFFF) | 0x3f000000;
-        let y = (vx_i as f32) * 1.192_092_9e-7;
-
-        let mx_f = f32::from_bits(mx_i);
-
-        let r = y - 124.225_52 - 1.498_030_3 * mx_f - 1.725_88 / (0.352_088_72 + mx_f);
-
-        r * LN_2
-    }
-
-    pub(super) fn pow(x: f32, y: f32) -> f32 {
-        exp(x * log(y))
     }
 }

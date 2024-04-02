@@ -13,11 +13,6 @@ default = ["multi-thread"]
 # Enable multi threading for image conversion
 multi-thread = ["rayon"]
 
-# Use somewhat fast approximations for mathematical operations
-fastmath = []
-# Use very fast approximations for mathematical operations
-veryfastmath = []
-
 [dev-dependencies]
 image = { version = "0.25", default-features = false, features = ["png"] }
 nalgebra = "0.32"

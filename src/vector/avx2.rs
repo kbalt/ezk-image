@@ -60,24 +60,12 @@ unsafe impl Vector for __m256 {
 
     #[target_feature(enable = "avx2", enable = "fma")]
     unsafe fn vpow(self, pow: Self) -> Self {
-        if cfg!(feature = "veryfastmath") {
-            veryfastmath::pow(self, pow)
-        } else if cfg!(feature = "fastmath") {
-            fastmath::pow(self, pow)
-        } else {
-            math::pow(self, pow)
-        }
+        math::pow(self, pow)
     }
 
     #[target_feature(enable = "avx2", enable = "fma")]
     unsafe fn vln(self) -> Self {
-        if cfg!(feature = "veryfastmath") {
-            veryfastmath::log(self)
-        } else if cfg!(feature = "fastmath") {
-            fastmath::log(self)
-        } else {
-            math::log(self)
-        }
+        math::log(self)
     }
 
     #[inline(always)]
@@ -332,35 +320,57 @@ mod math {
 
     #[inline(always)]
     pub(super) unsafe fn exp(x: __m256) -> __m256 {
-        const L2E: __m256 = splat(LOG2_E); /* log2(e) */
-        const L2H: __m256 = splat(-6.931_457_5e-1); /* -log(2)_hi */
-        const L2L: __m256 = splat(-1.428_606_8e-6); /* -log(2)_lo */
-        /* coefficients for core approximation to exp() in [-log(2)/2, log(2)/2] */
-        const C0: __m256 = splat(0.041_944_39);
-        const C1: __m256 = splat(0.168_006_67);
-        const C2: __m256 = splat(0.499_999_94);
-        const C3: __m256 = splat(0.999_956_9);
-        const C4: __m256 = splat(0.999_999_64);
+        const EXP_HI: __m256 = splat(88.376_26);
+        const EXP_LO: __m256 = splat(-88.376_26);
 
-        /* exp(x) = 2^i * e^f; i = rint (log2(e) * x), f = x - log(2) * i */
-        let t = _mm256_mul_ps(x, L2E); /* t = log2(e) * x */
-        let r = _mm256_round_ps(t, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC); /* r = rint (t) */
+        const L2E: __m256 = splat(LOG2_E);
+        const C1: __m256 = splat(0.693_359_4);
+        const C2: __m256 = splat(-2.121_944_4e-4);
 
-        let f = _mm256_fmadd_ps(r, L2H, x); /* x - log(2)_hi * r */
-        let f = _mm256_fmadd_ps(r, L2L, f); /* f = x - log(2)_hi * r - log(2)_lo * r */
+        const P0: __m256 = splat(1.987_569_1E-4);
+        const P1: __m256 = splat(1.398_199_9E-3);
+        const P2: __m256 = splat(8.333_452E-3);
+        const P3: __m256 = splat(4.166_579_6E-2);
+        const P4: __m256 = splat(1.666_666_6E-1);
+        const P5: __m256 = splat(5E-1);
 
-        let i = _mm256_cvtps_epi32(t); /* i = (int)rint(t) */
+        let x = _mm256_min_ps(x, EXP_HI);
+        let x = _mm256_max_ps(x, EXP_LO);
 
-        /* p ~= exp (f), -log(2)/2 <= f <= log(2)/2 */
-        let p = C0; /* c0 */
-        let p = _mm256_fmadd_ps(p, f, C1); /* c0*f+c1 */
-        let p = _mm256_fmadd_ps(p, f, C2); /* (c0*f+c1)*f+c2 */
-        let p = _mm256_fmadd_ps(p, f, C3); /* ((c0*f+c1)*f+c2)*f+c3 */
-        let p = _mm256_fmadd_ps(p, f, C4); /* (((c0*f+c1)*f+c2)*f+c3)*f+c4 ~= exp(f) */
+        /* express exp(x) as exp(g + n*log(2)) */
+        let fx = _mm256_mul_ps(x, L2E);
+        let fx = _mm256_add_ps(fx, ONE_HALF);
+        let tmp = _mm256_floor_ps(fx);
+        let mask = _mm256_cmp_ps(tmp, fx, _CMP_GT_OS);
+        let mask = _mm256_and_ps(mask, ONE);
+        let fx = _mm256_sub_ps(tmp, mask);
+        let tmp = _mm256_mul_ps(fx, C1);
+        let z = _mm256_mul_ps(fx, C2);
+        let x = _mm256_sub_ps(x, tmp);
+        let x = _mm256_sub_ps(x, z);
+        let z = _mm256_mul_ps(x, x);
 
-        /* exp(x) = 2^i * p */
-        let j = _mm256_slli_epi32(i, 23); /* i << 23 */
-        _mm256_castsi256_ps(_mm256_add_epi32(j, _mm256_castps_si256(p))) /* r = p * 2^i */
+        let y = P0;
+        let y = _mm256_mul_ps(y, x);
+        let y = _mm256_add_ps(y, P1);
+        let y = _mm256_mul_ps(y, x);
+        let y = _mm256_add_ps(y, P2);
+        let y = _mm256_mul_ps(y, x);
+        let y = _mm256_add_ps(y, P3);
+        let y = _mm256_mul_ps(y, x);
+        let y = _mm256_add_ps(y, P4);
+        let y = _mm256_mul_ps(y, x);
+        let y = _mm256_add_ps(y, P5);
+        let y = _mm256_mul_ps(y, z);
+        let y = _mm256_add_ps(y, x);
+        let y = _mm256_add_ps(y, ONE);
+
+        /* build 2^n */
+        let imm0 = _mm256_cvttps_epi32(fx);
+        let imm0 = _mm256_add_epi32(imm0, _mm256_set1_epi32(0x7f));
+        let imm0 = _mm256_slli_epi32(imm0, 23);
+        let pow2n = _mm256_castsi256_ps(imm0);
+        _mm256_mul_ps(y, pow2n)
     }
 
     #[inline(always)]
@@ -427,112 +437,6 @@ mod math {
         let x = _mm256_add_ps(x, y);
         let x = _mm256_add_ps(x, tmp);
         _mm256_or_ps(x, invalid_mask)
-    }
-
-    #[inline(always)]
-    pub(super) unsafe fn pow(x: __m256, y: __m256) -> __m256 {
-        exp(_mm256_mul_ps(y, log(x)))
-    }
-}
-
-pub(crate) mod fastmath {
-    // Ported from https://code.google.com/archive/p/fastapprox/
-    use crate::arch::*;
-    use std::f32::consts::{LN_2, LOG2_E};
-    use std::mem::transmute;
-
-    #[inline(always)]
-    pub(super) unsafe fn exp(x: __m256) -> __m256 {
-        use super::Vector;
-
-        let x = _mm256_mul_ps(x, _mm256_set1_ps(LOG2_E));
-
-        let offset = {
-            let mask = _mm256_cmp_ps(x, _mm256_setzero_ps(), _CMP_LT_OQ);
-
-            let zero = _mm256_setzero_ps();
-            let one = _mm256_set1_ps(1.0);
-
-            __m256::select(one, zero, mask)
-        };
-
-        let clip = _mm256_max_ps(x, _mm256_set1_ps(-126.0));
-
-        let w = _mm256_round_ps(clip, _MM_FROUND_TRUNC);
-        let z = _mm256_add_ps(_mm256_sub_ps(clip, w), offset);
-
-        // (1 << 23) *
-        //   (clipp + 121.2740575f +
-        //     27.7280233f / (4.84252568f - z) - 1.49012907f * z)
-        //  )
-        let v = _mm256_mul_ps(
-            _mm256_set1_ps((1 << 23) as f32),
-            _mm256_sub_ps(
-                _mm256_add_ps(
-                    _mm256_add_ps(clip, _mm256_set1_ps(121.274_055)),
-                    _mm256_div_ps(
-                        _mm256_set1_ps(27.728_024),
-                        _mm256_sub_ps(_mm256_set1_ps(4.842_525_5), z),
-                    ),
-                ),
-                _mm256_mul_ps(z, _mm256_set1_ps(1.490_129_1)),
-            ),
-        );
-        let v = _mm256_cvtps_epi32(v);
-
-        transmute(v)
-    }
-
-    #[inline(always)]
-    pub(super) unsafe fn log(flt: __m256) -> __m256 {
-        let vx_i = transmute::<_, __m256i>(flt);
-
-        let mx_i = _mm256_and_si256(vx_i, _mm256_set1_epi32(0x007FFFFF));
-        let mx_i = _mm256_or_si256(mx_i, _mm256_set1_epi32(0x3f000000));
-        let mx_f = transmute::<_, __m256>(mx_i);
-
-        let y = _mm256_cvtepi32_ps(vx_i);
-        let y = _mm256_mul_ps(y, _mm256_set1_ps(1.192_092_9e-7));
-
-        let y = _mm256_sub_ps(y, _mm256_set1_ps(124.225_52));
-        let y = _mm256_sub_ps(y, _mm256_mul_ps(mx_f, _mm256_set1_ps(1.498_030_3)));
-
-        let tmp = _mm256_add_ps(_mm256_set1_ps(0.352_088_72), mx_f);
-        let tmp = _mm256_div_ps(_mm256_set1_ps(1.725_88), tmp);
-        let y = _mm256_sub_ps(y, tmp);
-        _mm256_mul_ps(y, _mm256_set1_ps(LN_2))
-    }
-
-    #[inline(always)]
-    pub(super) unsafe fn pow(x: __m256, y: __m256) -> __m256 {
-        exp(_mm256_mul_ps(y, log(x)))
-    }
-}
-
-pub(crate) mod veryfastmath {
-    // Ported from https://code.google.com/archive/p/fastapprox/
-    use crate::arch::*;
-    use std::f32::consts::LOG2_E;
-    use std::mem::transmute;
-
-    #[inline(always)]
-    pub(super) unsafe fn exp(x: __m256) -> __m256 {
-        let x = _mm256_mul_ps(x, _mm256_set1_ps(LOG2_E));
-
-        let clip = _mm256_max_ps(x, _mm256_set1_ps(-126.0));
-
-        let x = _mm256_cvtps_epi32(_mm256_mul_ps(
-            _mm256_set1_ps((1 << 23) as f32),
-            _mm256_add_ps(clip, _mm256_set1_ps(126.942_696)),
-        ));
-
-        transmute(x)
-    }
-
-    #[inline(always)]
-    pub(super) unsafe fn log(x: __m256) -> __m256 {
-        let x = _mm256_cvtepi32_ps(transmute(x));
-        _mm256_fmsub_ps(x, _mm256_set1_ps(8.262_958e-8), _mm256_set1_ps(87.989_97))
     }
 
     #[inline(always)]
@@ -817,20 +721,13 @@ mod tests {
             let input: __m256 = transmute(INPUT);
 
             let math = transmute::<_, [f32; 8]>(math::exp(input));
-            let fastmath = transmute::<_, [f32; 8]>(fastmath::exp(input));
-            let veryfastmath = transmute::<_, [f32; 8]>(veryfastmath::exp(input));
 
             let expected = transmute::<_, [f32; 8]>(input).map(|x| x.exp());
 
             for i in 0..8 {
-                println!(
-                    "exp({})={} got ({}, {}, {})",
-                    INPUT[i], expected[i], math[i], fastmath[i], veryfastmath[i]
-                );
+                println!("exp({})={} got {}", INPUT[i], expected[i], math[i]);
 
                 assert_within_error(expected[i], math[i], 0.001);
-                assert_within_error(expected[i], fastmath[i], 0.03);
-                assert_within_error(expected[i], veryfastmath[i], 0.25);
             }
         }
     }
@@ -843,20 +740,13 @@ mod tests {
             let input: __m256 = transmute(INPUT);
 
             let math = transmute::<_, [f32; 8]>(math::log(input));
-            let fastmath = transmute::<_, [f32; 8]>(fastmath::log(input));
-            let veryfastmath = transmute::<_, [f32; 8]>(veryfastmath::log(input));
 
             let expected = transmute::<_, [f32; 8]>(input).map(|x| x.ln());
 
             for i in 0..8 {
-                println!(
-                    "ln({})={} got ({}, {}, {})",
-                    INPUT[i], expected[i], math[i], fastmath[i], veryfastmath[i]
-                );
+                println!("ln({})={} got {}", INPUT[i], expected[i], math[i]);
 
                 assert_within_error(expected[i], math[i], 0.0001);
-                assert_within_error(expected[i], fastmath[i], 0.01);
-                assert_within_error(expected[i], veryfastmath[i], 0.1);
             }
         }
     }
@@ -872,21 +762,13 @@ mod tests {
 
             for pow in pows {
                 let math = transmute::<_, [f32; 8]>(math::pow(input, _mm256_set1_ps(pow)));
-                let fastmath = transmute::<_, [f32; 8]>(fastmath::pow(input, _mm256_set1_ps(pow)));
-                let veryfastmath =
-                    transmute::<_, [f32; 8]>(veryfastmath::pow(input, _mm256_set1_ps(pow)));
 
                 let expected = transmute::<_, [f32; 8]>(input).map(|x| x.powf(pow));
 
                 for i in 0..8 {
-                    println!(
-                        "{}^{pow}={} got ({}, {}, {})",
-                        INPUT[i], expected[i], math[i], fastmath[i], veryfastmath[i]
-                    );
+                    println!("{}^{pow}={} got {}", INPUT[i], expected[i], math[i],);
 
                     assert_within_error(expected[i], math[i], 0.0001);
-                    assert_within_error(expected[i], fastmath[i], 0.01);
-                    assert_within_error(expected[i], veryfastmath[i], 00.1);
                 }
             }
         }
