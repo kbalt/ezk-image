@@ -16,7 +16,7 @@ pub fn convert_multi_thread<SB: BitsInternal, DB: BitsInternal>(
     }
 
     let src_planes = src.planes.split(src.width, src_window, threads);
-    let dst_planes = dst.planes.split(src.width, dst_window, threads);
+    let dst_planes = dst.planes.split(dst.width, dst_window, threads);
 
     let src_and_dst = src_planes.into_iter().zip(dst_planes).map(
         |((src_planes, src_window), (dst_planes, dst_window))| {

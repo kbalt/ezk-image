@@ -69,7 +69,7 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
     /// - `initial_window` is the window in the image, if the complete image should be processed it should have the same dimensions has the image
     /// - `max_results` how often the image should be split (upper limit, might be less if the image is too small)
     ///
-    /// Returns a list containing the new planes and a the window piece of the `initial_window`
+    /// Returns a list containing the new planes and the window piece of the `initial_window`
     pub fn split(
         mut self,
         width: usize,
