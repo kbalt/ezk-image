@@ -305,6 +305,7 @@ unsafe fn deinterleave_4x(
 
 mod math {
     use crate::arch::*;
+    use crate::vector::Vector;
     use std::f32::consts::LOG2_E;
     use std::mem::transmute;
 
@@ -334,8 +335,8 @@ mod math {
         const P4: __m256 = splat(1.666_666_6E-1);
         const P5: __m256 = splat(5E-1);
 
-        let x = _mm256_min_ps(x, EXP_HI);
-        let x = _mm256_max_ps(x, EXP_LO);
+        let x = _mm256_min_ps(EXP_HI, x);
+        let x = _mm256_max_ps(EXP_LO, x);
 
         /* express exp(x) as exp(g + n*log(2)) */
         let fx = _mm256_mul_ps(x, L2E);
@@ -375,7 +376,6 @@ mod math {
 
     #[inline(always)]
     pub(super) unsafe fn log(x: __m256) -> __m256 {
-        const MIN_NORM_POS: __m256 = splat(0.0);
         const INV_MANT_MASK: __m256 = splat(unsafe { transmute::<i32, f32>(!0x7f800000) });
         const CEPHES_SQRT_HF: __m256 = splat(0.707_106_77);
         const CEPHES_LOG_P0: __m256 = splat(7.037_683_6E-2);
@@ -390,15 +390,15 @@ mod math {
         const CEPHES_LOG_Q1: __m256 = splat(-2.121_944_4e-4);
         const CEPHES_LOG_Q2: __m256 = splat(0.693_359_4);
 
-        let invalid_mask = _mm256_cmp_ps(x, _mm256_setzero_ps(), _CMP_LE_OS);
-
-        let x = _mm256_max_ps(x, MIN_NORM_POS);
+        // Find any numbers lower than 0 or NaN and make a mask for it
+        let nan_mask = _mm256_cmp_ps(x, _mm256_setzero_ps(), _CMP_NGE_UQ);
+        let x = _mm256_max_ps(_mm256_set1_ps(0.0), x);
 
         let imm0 = _mm256_srli_epi32(_mm256_castps_si256(x), 23);
 
         // keep only the fractional part
-        let x = _mm256_and_ps(x, INV_MANT_MASK);
-        let x = _mm256_or_ps(x, ONE_HALF);
+        let x = _mm256_and_ps(INV_MANT_MASK, x);
+        let x = _mm256_or_ps(ONE_HALF, x);
 
         let imm0 = _mm256_sub_epi32(imm0, _mm256_set1_epi32(0x7F));
         let e = _mm256_cvtepi32_ps(imm0);
@@ -436,7 +436,9 @@ mod math {
         let tmp = _mm256_mul_ps(e, CEPHES_LOG_Q2);
         let x = _mm256_add_ps(x, y);
         let x = _mm256_add_ps(x, tmp);
-        _mm256_or_ps(x, invalid_mask)
+
+        // Any input < 0 and NaN should return NaN
+        __m256::select(_mm256_set1_ps(f32::NAN), x, nan_mask)
     }
 
     #[inline(always)]
@@ -711,23 +713,28 @@ mod tests {
         assert!(err < error, "error ({err}) too large between {a} and {b}")
     }
 
-    const INPUT: [f32; 8] = [0.1, 0.223, 0.775, 0.5, 2.5, 3.33, 1.1, 0.01];
+    unsafe fn make_arr(i: __m256) -> [f32; 8] {
+        transmute(i)
+    }
 
     #[test]
     fn exp() {
         assert!(is_x86_feature_detected!("avx2"));
 
         unsafe {
-            let input: __m256 = transmute(INPUT);
+            assert!(make_arr(math::exp(_mm256_set1_ps(f32::NAN)))[0].is_nan());
 
-            let math = transmute::<_, [f32; 8]>(math::exp(input));
+            for i in 0..10_000 {
+                let i = (i - 5000) as f32 / 1000.0;
 
-            let expected = transmute::<_, [f32; 8]>(input).map(|x| x.exp());
+                let iv = _mm256_set1_ps(i);
 
-            for i in 0..8 {
-                println!("exp({})={} got {}", INPUT[i], expected[i], math[i]);
+                let rv = math::exp(iv);
+                let r = i.exp();
 
-                assert_within_error(expected[i], math[i], 0.001);
+                let rv = make_arr(rv)[0];
+
+                assert_within_error(r, rv, 0.0001);
             }
         }
     }
@@ -737,16 +744,20 @@ mod tests {
         assert!(is_x86_feature_detected!("avx2"));
 
         unsafe {
-            let input: __m256 = transmute(INPUT);
+            assert!(make_arr(math::log(_mm256_set1_ps(f32::NAN)))[0].is_nan());
 
-            let math = transmute::<_, [f32; 8]>(math::log(input));
+            for i in 1..10_000 {
+                let i = (i) as f32 / 10000.0;
+                println!("{i}");
 
-            let expected = transmute::<_, [f32; 8]>(input).map(|x| x.ln());
+                let iv = _mm256_set1_ps(i);
 
-            for i in 0..8 {
-                println!("ln({})={} got {}", INPUT[i], expected[i], math[i]);
+                let rv = math::log(iv);
+                let r = i.ln();
 
-                assert_within_error(expected[i], math[i], 0.0001);
+                let rv = make_arr(rv)[0];
+
+                assert_within_error(r, rv, 0.0001);
             }
         }
     }
@@ -756,19 +767,27 @@ mod tests {
         assert!(is_x86_feature_detected!("avx2"));
 
         unsafe {
-            let input: __m256 = transmute(INPUT);
+            assert!(make_arr(math::pow(
+                _mm256_set1_ps(f32::NAN),
+                _mm256_set1_ps(f32::NAN)
+            ))[0]
+                .is_nan());
 
-            let pows = [0.1, 0.2, 1.0, 2.0];
+            assert!(make_arr(math::pow(_mm256_set1_ps(1.0), _mm256_set1_ps(f32::NAN)))[0].is_nan());
+            assert!(make_arr(math::pow(_mm256_set1_ps(f32::NAN), _mm256_set1_ps(1.0)))[0].is_nan());
 
-            for pow in pows {
-                let math = transmute::<_, [f32; 8]>(math::pow(input, _mm256_set1_ps(pow)));
+            for a in 1..100 {
+                for p in 1..1000 {
+                    let a = (a) as f32 / 53.1;
+                    let p = (p) as f32 / 839.333;
+                    println!("{a}^{p}");
 
-                let expected = transmute::<_, [f32; 8]>(input).map(|x| x.powf(pow));
+                    let rv = math::pow(_mm256_set1_ps(a), _mm256_set1_ps(p));
+                    let r = a.powf(p);
 
-                for i in 0..8 {
-                    println!("{}^{pow}={} got {}", INPUT[i], expected[i], math[i],);
+                    let rv = make_arr(rv)[0];
 
-                    assert_within_error(expected[i], math[i], 0.0001);
+                    assert_within_error(r, rv, 0.0001);
                 }
             }
         }

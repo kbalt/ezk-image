@@ -3,8 +3,14 @@ use std::convert::identity;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColorTransfer {
+    /// Linear
     Linear,
 
+    /// Gamma of 2.2
+    Gamma22,
+    /// Gamma of 2.8
+    Gamma28,
+    /// SRGB (Gamma of 2.2 with linear part)
     SRGB,
     /// BT.601 BT.709 BT.2020
     SDR,
@@ -28,6 +34,8 @@ impl ColorTransfer {
     pub(super) fn dispatch<V>(&self) -> &'static dyn ColorTransferImpl<V>
     where
         Linear: ColorTransferImpl<V>,
+        Gamma22: ColorTransferImpl<V>,
+        Gamma28: ColorTransferImpl<V>,
         Srgb: ColorTransferImpl<V>,
         Sdr: ColorTransferImpl<V>,
         BT2100PQ: ColorTransferImpl<V>,
@@ -35,6 +43,8 @@ impl ColorTransfer {
     {
         match self {
             Self::Linear => &Linear,
+            Self::Gamma22 => &Gamma22,
+            Self::Gamma28 => &Gamma28,
             Self::SRGB => &Srgb,
             Self::SDR => &Sdr,
             Self::BT2100PQ => &BT2100PQ,
@@ -45,9 +55,11 @@ impl ColorTransfer {
 
 pub(crate) trait ColorTransferImpl<V> {
     unsafe fn linear_to_scaled(&self, i: V) -> V;
+    unsafe fn linear_to_scaled3(&self, i: &mut [&mut V; 3]);
     unsafe fn linear_to_scaled12(&self, i: &mut [&mut V; 12]);
 
     unsafe fn scaled_to_linear(&self, i: V) -> V;
+    unsafe fn scaled_to_linear3(&self, i: &mut [&mut V; 3]);
     unsafe fn scaled_to_linear12(&self, i: &mut [&mut V; 12]);
 }
 
@@ -60,6 +72,11 @@ macro_rules! make_impls {
             unsafe fn linear_to_scaled(&self, i: f32) -> f32 {
                 $linear_to_scaled(i)
             }
+            unsafe fn linear_to_scaled3(&self, i: &mut [&mut f32; 3]) {
+                for id in 0..3 {
+                    *i[id] = $linear_to_scaled(*i[id]);
+                }
+            }
             unsafe fn linear_to_scaled12(&self, i: &mut [&mut f32; 12]) {
                 for id in 0..12 {
                     *i[id] = $linear_to_scaled(*i[id]);
@@ -68,6 +85,11 @@ macro_rules! make_impls {
 
             unsafe fn scaled_to_linear(&self, i: f32) -> f32 {
                 $scaled_to_linear(i)
+            }
+            unsafe fn scaled_to_linear3(&self, i: &mut [&mut f32; 3]) {
+                for id in 0..3 {
+                    *i[id] = $scaled_to_linear(*i[id]);
+                }
             }
             unsafe fn scaled_to_linear12(&self, i: &mut [&mut f32; 12]) {
                 for id in 0..12 {
@@ -83,6 +105,12 @@ macro_rules! make_impls {
                 $linear_to_scaled(i)
             }
             #[target_feature(enable = "avx2")]
+            unsafe fn linear_to_scaled3(&self, i: &mut [&mut __m256; 3]) {
+                for id in 0..3 {
+                    *i[id] = $linear_to_scaled(*i[id]);
+                }
+            }
+            #[target_feature(enable = "avx2")]
             unsafe fn linear_to_scaled12(&self, i: &mut [&mut __m256; 12]) {
                 for id in 0..12 {
                     *i[id] = $linear_to_scaled(*i[id]);
@@ -92,6 +120,12 @@ macro_rules! make_impls {
             #[target_feature(enable = "avx2")]
             unsafe fn scaled_to_linear(&self, i: __m256) -> __m256 {
                 $scaled_to_linear(i)
+            }
+            #[target_feature(enable = "avx2")]
+            unsafe fn scaled_to_linear3(&self, i: &mut [&mut __m256; 3]) {
+                for id in 0..3 {
+                    *i[id] = $scaled_to_linear(*i[id]);
+                }
             }
             #[target_feature(enable = "avx2")]
             unsafe fn scaled_to_linear12(&self, i: &mut [&mut __m256; 12]) {
@@ -108,6 +142,12 @@ macro_rules! make_impls {
                 $linear_to_scaled(i)
             }
             #[target_feature(enable = "neon")]
+            unsafe fn linear_to_scaled3(&self, i: &mut [&mut float32x4_t; 3]) {
+                for id in 0..3 {
+                    *i[id] = $linear_to_scaled(*i[id]);
+                }
+            }
+            #[target_feature(enable = "neon")]
             unsafe fn linear_to_scaled12(&self, i: &mut [&mut float32x4_t; 12]) {
                 for id in 0..12 {
                     *i[id] = $linear_to_scaled(*i[id]);
@@ -117,6 +157,12 @@ macro_rules! make_impls {
             #[target_feature(enable = "neon")]
             unsafe fn scaled_to_linear(&self, i: float32x4_t) -> float32x4_t {
                 $scaled_to_linear(i)
+            }
+            #[target_feature(enable = "neon")]
+            unsafe fn scaled_to_linear3(&self, i: &mut [&mut float32x4_t; 3]) {
+                for id in 0..3 {
+                    *i[id] = $scaled_to_linear(*i[id]);
+                }
             }
             #[target_feature(enable = "neon")]
             unsafe fn scaled_to_linear12(&self, i: &mut [&mut float32x4_t; 12]) {
@@ -132,16 +178,17 @@ macro_rules! make_impls {
             use super::*;
 
             $(
-            #[allow(non_snake_case)]
+            #[allow(non_snake_case, unused_unsafe)]
             #[test]
             fn $name() {
                 for i in 0..10000 {
                     let i = (i as f32) / 10000.0;
 
-                    #[allow(unused_unsafe)]
-                    let v = unsafe { $linear_to_scaled($scaled_to_linear(i)) };
+                    let v0 = unsafe { $linear_to_scaled($scaled_to_linear(i)) };
+                    let v1 = unsafe { $scaled_to_linear($linear_to_scaled(i)) };
 
-                    assert!((i - v).abs() < 0.001);
+                    assert!((i - v0).abs() < 0.001);
+                    assert!((i - v1).abs() < 0.001);
                 }
             }
             )*
@@ -153,6 +200,14 @@ make_impls!(
     Linear:
     identity,
     identity;
+
+    Gamma22:
+    gamma::linear_to_scaled::<22, _>,
+    gamma::scaled_to_linear::<22, _>;
+
+    Gamma28:
+    gamma::linear_to_scaled::<28, _>,
+    gamma::scaled_to_linear::<28, _>;
 
     Srgb:
     srgb::linear_to_scaled,
@@ -170,6 +225,20 @@ make_impls!(
     bt2100_hlg::linear_to_scaled,
     bt2100_hlg::scaled_to_linear;
 );
+
+mod gamma {
+    use crate::vector::Vector;
+
+    #[inline(always)]
+    pub(super) unsafe fn linear_to_scaled<const GAMMA: u32, V: Vector>(i: V) -> V {
+        i.vpowf(1.0 / (GAMMA as f32 / 10.0))
+    }
+
+    #[inline(always)]
+    pub(super) unsafe fn scaled_to_linear<const GAMMA: u32, V: Vector>(i: V) -> V {
+        i.vpowf(GAMMA as f32 / 10.0)
+    }
+}
 
 mod srgb {
     use crate::vector::Vector;
@@ -231,33 +300,46 @@ mod sdr {
     }
 }
 
-mod bt2100_pq {
+pub(crate) mod bt2100_pq {
     use crate::vector::Vector;
+
+    const M1: f32 = 0.15930176;
+    const M2: f32 = 78.84375;
 
     const C1: f32 = 0.8359375;
     const C2: f32 = 18.851563;
     const C3: f32 = 18.6875;
-    const M1: f32 = 0.15930176;
-    const M2: f32 = 78.84375;
 
+    const L: f32 = 10000.0;
+
+    /// PQ inverse EOTF
     #[inline(always)]
     pub(crate) unsafe fn linear_to_scaled<V: Vector>(i: V) -> V {
-        let a = V::splat(0.0).vmax(i.vpowf(1.0 / M2).vsubf(C1));
-        let b = V::splat(C2).vsub((i.vpowf(1.0 / M2)).vmulf(C3));
+        let i = i.vdivf(L);
+        let ym1 = i.vpowf(M1);
 
-        a.vdiv(b).vpowf(1.0 / M1)
-    }
-
-    #[inline(always)]
-    pub(crate) unsafe fn scaled_to_linear<V: Vector>(i: V) -> V {
-        let a = V::splat(C1).vadd(i.vpowf(M1).vmulf(C2));
-        let b = V::splat(1.0).vadd(i.vpowf(M1).vmulf(C3));
+        let a = ym1.vmulf(C2).vaddf(C1);
+        let b = ym1.vmulf(C3).vaddf(1.0);
 
         a.vdiv(b).vpowf(M2)
     }
+
+    /// PQ EOTF
+    #[inline(always)]
+    pub(crate) unsafe fn scaled_to_linear<V: Vector>(i: V) -> V {
+        // Avoid producing NaN for negative numbers
+        let i = i.vmaxf(0.0);
+
+        let epow1dm2 = i.vpowf(1.0 / M2);
+
+        let a = epow1dm2.vsubf(C1).vmaxf(0.0);
+        let b = V::splat(C2).vsub(epow1dm2.vmulf(C3));
+
+        a.vdiv(b).vpowf(1.0 / M1).vmulf(L)
+    }
 }
 
-mod bt2100_hlg {
+pub(crate) mod bt2100_hlg {
     use crate::vector::Vector;
     use std::f32::consts::E;
 
@@ -282,6 +364,9 @@ mod bt2100_hlg {
 
     #[inline(always)]
     pub(crate) unsafe fn scaled_to_linear<V: Vector>(i: V) -> V {
+        // Avoid producing NaN for negative numbers
+        let i = i.vmaxf(0.0);
+
         let mask = i.lef(0.5);
 
         // a = i.powf(2.0) / 3.0

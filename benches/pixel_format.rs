@@ -5,13 +5,13 @@ use ezk_image::{
 };
 use std::hint::black_box;
 
-const IMAGE_WIDTH: usize = 1026;
-const IMAGE_HEIGHT: usize = 1026;
+const IMAGE_WIDTH: usize = 1920;
+const IMAGE_HEIGHT: usize = 1080;
 
 const NOOP_COLOR_INFO: ColorInfo = ColorInfo {
     space: ColorSpace::BT709,
     transfer: ColorTransfer::Linear,
-    primaries: ColorPrimaries::SRGB,
+    primaries: ColorPrimaries::BT709,
     full_range: true,
 };
 

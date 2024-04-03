@@ -19,17 +19,6 @@ pub struct ColorInfo {
     pub full_range: bool,
 }
 
-impl ColorInfo {
-    pub const fn srgb() -> Self {
-        Self {
-            space: ColorSpace::BT709,
-            transfer: ColorTransfer::SRGB,
-            primaries: ColorPrimaries::SRGB,
-            full_range: false,
-        }
-    }
-}
-
 pub mod mat_idxs {
     pub const Y: usize = 0;
     pub const U: usize = 1;

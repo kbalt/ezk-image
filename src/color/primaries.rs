@@ -1,12 +1,10 @@
+use crate::vector::Vector;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColorPrimaries {
-    // TODO: remove duplicates
-    SRGB,
-    BT601PAL,
     BT601NTSC,
     BT709,
     BT2020,
-    BT2100,
 }
 
 impl ColorPrimaries {
@@ -14,12 +12,9 @@ impl ColorPrimaries {
         use ColorPrimaries::*;
 
         match self {
-            SRGB => &generated_consts::SRGB_RGB_TO_XYZ,
-            BT601PAL => &generated_consts::BT601PAL_RGB_TO_XYZ,
             BT601NTSC => &generated_consts::BT601NTSC_RGB_TO_XYZ,
             BT709 => &generated_consts::BT709_RGB_TO_XYZ,
             BT2020 => &generated_consts::BT2020_RGB_TO_XYZ,
-            BT2100 => &generated_consts::BT2100_RGB_TO_XYZ,
         }
     }
 
@@ -27,39 +22,50 @@ impl ColorPrimaries {
         use ColorPrimaries::*;
 
         match self {
-            SRGB => &generated_consts::SRGB_XYZ_TO_RGB,
-            BT601PAL => &generated_consts::BT601PAL_XYZ_TO_RGB,
             BT601NTSC => &generated_consts::BT601NTSC_XYZ_TO_RGB,
             BT709 => &generated_consts::BT709_XYZ_TO_RGB,
             BT2020 => &generated_consts::BT2020_XYZ_TO_RGB,
-            BT2100 => &generated_consts::BT2100_XYZ_TO_RGB,
         }
     }
 }
 
+#[inline(always)]
+pub(crate) unsafe fn rgb_to_xyz<V: Vector>(fw: &[[f32; 3]; 3], r: V, g: V, b: V) -> [V; 3] {
+    let x = r
+        .vmulf(fw[0][0])
+        .vadd(g.vmulf(fw[1][0]))
+        .vadd(b.vmulf(fw[2][0]));
+    let y = r
+        .vmulf(fw[0][1])
+        .vadd(g.vmulf(fw[1][1]))
+        .vadd(b.vmulf(fw[2][1]));
+    let z = r
+        .vmulf(fw[0][2])
+        .vadd(g.vmulf(fw[1][2]))
+        .vadd(b.vmulf(fw[2][2]));
+
+    [x, y, z]
+}
+
+#[inline(always)]
+pub(crate) unsafe fn xyz_to_rgb<V: Vector>(bw: &[[f32; 3]; 3], x: V, y: V, z: V) -> [V; 3] {
+    let r = x
+        .vmulf(bw[0][0])
+        .vadd(y.vmulf(bw[1][0]))
+        .vadd(z.vmulf(bw[2][0]));
+    let g = x
+        .vmulf(bw[0][1])
+        .vadd(y.vmulf(bw[1][1]))
+        .vadd(z.vmulf(bw[2][1]));
+    let b = x
+        .vmulf(bw[0][2])
+        .vadd(y.vmulf(bw[1][2]))
+        .vadd(z.vmulf(bw[2][2]));
+
+    [r, g, b]
+}
+
 mod generated_consts {
-    pub(super) const SRGB_RGB_TO_XYZ: [[f32; 3]; 3] = [
-        [0.41239083, 0.21263903, 0.01933082],
-        [0.35758436, 0.7151687, 0.11919474],
-        [0.1804808, 0.07219231, 0.95053214],
-    ];
-    pub(super) const SRGB_XYZ_TO_RGB: [[f32; 3]; 3] = [
-        [3.2409694, -0.9692435, 0.055630032],
-        [-1.537383, 1.8759671, -0.20397685],
-        [-0.49861073, 0.04155508, 1.0569714],
-    ];
-
-    pub(super) const BT601PAL_RGB_TO_XYZ: [[f32; 3]; 3] = [
-        [0.43055388, 0.22200435, 0.020182215],
-        [0.34154972, 0.70665467, 0.12955336],
-        [0.17835231, 0.07134092, 0.9393222],
-    ];
-    pub(super) const BT601PAL_XYZ_TO_RGB: [[f32; 3]; 3] = [
-        [3.0633607, -0.9692438, 0.06786106],
-        [-1.3933898, 1.8759677, -0.2287993],
-        [-0.47582373, 0.041555077, 1.0690897],
-    ];
-
     pub(super) const BT601NTSC_RGB_TO_XYZ: [[f32; 3]; 3] = [
         [0.39031416, 0.20383073, 0.025401404],
         [0.3700937, 0.71034116, 0.11341577],
@@ -92,17 +98,6 @@ mod generated_consts {
         [-0.3556708, 1.6164812, -0.04277061],
         [-0.25336626, 0.01576853, 0.9421032],
     ];
-
-    pub(super) const BT2100_RGB_TO_XYZ: [[f32; 3]; 3] = [
-        [0.63695806, 0.2627002, 0.0],
-        [0.14461692, 0.6779981, 0.028072689],
-        [0.16888095, 0.05930171, 1.060985],
-    ];
-    pub(super) const BT2100_XYZ_TO_RGB: [[f32; 3]; 3] = [
-        [1.7166512, -0.66668427, 0.017639855],
-        [-0.3556708, 1.6164812, -0.04277061],
-        [-0.25336626, 0.01576853, 0.9421032],
-    ];
 }
 
 #[cfg(test)]
@@ -116,15 +111,9 @@ mod generate_matrices {
 
     fn xyz_rgbw(primaries: ColorPrimaries) -> [Vector3<f32>; 4] {
         match primaries {
-            SRGB | BT709 => [
+            BT709 => [
                 xy(0.64, 0.33),
                 xy(0.3, 0.6),
-                xy(0.15, 0.06),
-                xy(0.3127, 0.3290),
-            ],
-            BT601PAL => [
-                xy(0.64, 0.33),
-                xy(0.29, 0.6),
                 xy(0.15, 0.06),
                 xy(0.3127, 0.3290),
             ],
@@ -134,7 +123,7 @@ mod generate_matrices {
                 xy(0.155, 0.07),
                 xy(0.3127, 0.3290),
             ],
-            BT2020 | BT2100 => [
+            BT2020 => [
                 xy(0.708, 0.292),
                 xy(0.170, 0.797),
                 xy(0.131, 0.046),
@@ -173,7 +162,7 @@ mod generate_matrices {
     #[test]
     #[ignore]
     fn run() {
-        let primaries = [SRGB, BT601PAL, BT601NTSC, BT709, BT2020, BT2100];
+        let primaries = [BT601NTSC, BT709, BT2020];
 
         for primaries in primaries {
             let rgb_to_xyz = rgb_to_xyz_mat(primaries);

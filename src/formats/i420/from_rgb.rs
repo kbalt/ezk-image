@@ -67,10 +67,16 @@ where
         } = block;
 
         let ([y00, y01, y10, y11], u, v) = color.space.rgbx4_to_yx4_uv(
+            color.transfer,
+            self.color.rgb_to_xyz,
             [rgb00.r, rgb01.r, rgb10.r, rgb11.r],
             [rgb00.g, rgb01.g, rgb10.g, rgb11.g],
             [rgb00.b, rgb01.b, rgb10.b, rgb11.b],
         );
+
+        // U & V scales from -0.5..=0.5, so bring that up into 0..=1
+        let u = u.vaddf(0.5);
+        let v = v.vaddf(0.5);
 
         let (y00, y01, y10, y11, u, v) = if self.full_range {
             (y00, y01, y10, y11, u, v)

@@ -65,11 +65,20 @@ where
             v = v.vmul(uv_scale);
         }
 
-        u = u.vsub(V::splat(0.5));
-        v = v.vsub(V::splat(0.5));
+        u = u.vsubf(0.5);
+        v = v.vsubf(0.5);
 
         let [[r00, g00, b00], [r01, g01, b01], [r10, g10, b10], [r11, g11, b11]] =
-            color.space.yx4_uv_to_rgb(y00, y01, y10, y11, u, v);
+            color.space.yx4_uv_to_rgb(
+                color.transfer,
+                self.color.xyz_to_rgb,
+                y00,
+                y01,
+                y10,
+                y11,
+                u,
+                v,
+            );
 
         let block = RgbBlock {
             rgb00: RgbPixel {

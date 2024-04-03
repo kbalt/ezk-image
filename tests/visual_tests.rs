@@ -1,6 +1,6 @@
 use ezk_image::{
-    convert, convert_multi_thread, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer,
-    Destination, PixelFormat, PixelFormatPlanes, Rect, Source, U16LE, U8,
+    convert_multi_thread, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, Destination,
+    PixelFormat, PixelFormatPlanes, Rect, Source, U16LE, U8,
 };
 use image::{Rgb, Rgba};
 
@@ -19,7 +19,7 @@ fn make_rgba8_image(primaries: ColorPrimaries, transfer: ColorTransfer) -> (Vec<
         let x = (x as f32) / 4098.0;
 
         for z in 0..width {
-            let z = 1.0 - ((z as f32) / 4098.0);
+            let z = (z as f32) / 4098.0;
 
             let r = x * primaries[0][0] + y * primaries[1][0] + z * primaries[2][0];
             let g = x * primaries[0][1] + y * primaries[1][1] + z * primaries[2][1];
@@ -39,7 +39,7 @@ fn make_i420_image(color: ColorInfo) -> (Vec<u8>, usize, usize) {
     let (rgba, width, height) = make_rgba8_image(color.primaries, color.transfer);
     let mut i420 = vec![255u8; PixelFormat::I420.buffer_size(width, height)];
 
-    convert(
+    convert_multi_thread(
         Source::<U8>::new(
             PixelFormat::RGBA,
             PixelFormatPlanes::RGBA(&rgba),
@@ -80,7 +80,7 @@ fn i420_to_rgb() {
         ColorInfo {
             space: ColorSpace::BT709,
             transfer: ColorTransfer::Linear,
-            primaries: ColorPrimaries::SRGB,
+            primaries: ColorPrimaries::BT709,
             full_range: false,
         },
         8,
@@ -94,7 +94,7 @@ fn i420_to_rgb() {
         ColorInfo {
             space: ColorSpace::BT709,
             transfer: ColorTransfer::Linear,
-            primaries: ColorPrimaries::SRGB,
+            primaries: ColorPrimaries::BT709,
             full_range: false,
         },
         8,
@@ -127,7 +127,7 @@ fn i420_to_rgba_with_window() {
         ColorInfo {
             space: ColorSpace::BT709,
             transfer: ColorTransfer::Linear,
-            primaries: ColorPrimaries::SRGB,
+            primaries: ColorPrimaries::BT709,
             full_range: false,
         },
         8,
@@ -147,7 +147,7 @@ fn i420_to_rgba_with_window() {
         ColorInfo {
             space: ColorSpace::BT709,
             transfer: ColorTransfer::Linear,
-            primaries: ColorPrimaries::SRGB,
+            primaries: ColorPrimaries::BT709,
             full_range: false,
         },
         8,
@@ -169,7 +169,7 @@ fn i420_to_rgba_with_window() {
 
 #[test]
 fn rgba_to_rgba() {
-    let (rgba, width, height) = make_rgba8_image(ColorPrimaries::SRGB, ColorTransfer::Linear);
+    let (rgba, width, height) = make_rgba8_image(ColorPrimaries::BT709, ColorTransfer::Linear);
 
     let mut rgba_dst = rgba.clone();
     rgba_dst.iter_mut().for_each(|b| *b = 255);
@@ -182,7 +182,7 @@ fn rgba_to_rgba() {
         ColorInfo {
             space: ColorSpace::BT709,
             transfer: ColorTransfer::Linear,
-            primaries: ColorPrimaries::SRGB,
+            primaries: ColorPrimaries::BT709,
             full_range: false,
         },
         8,
@@ -196,7 +196,7 @@ fn rgba_to_rgba() {
         ColorInfo {
             space: ColorSpace::BT709,
             transfer: ColorTransfer::Linear,
-            primaries: ColorPrimaries::SRGB,
+            primaries: ColorPrimaries::BT709,
             full_range: false,
         },
         8,
@@ -213,7 +213,7 @@ fn rgba_to_rgba() {
 
 #[test]
 fn rgba_to_rgb() {
-    let (rgba, width, height) = make_rgba8_image(ColorPrimaries::SRGB, ColorTransfer::SRGB);
+    let (rgba, width, height) = make_rgba8_image(ColorPrimaries::BT709, ColorTransfer::SRGB);
 
     let mut rgb_dst = vec![0u8; PixelFormat::RGB.buffer_size(width, height)];
 
@@ -225,7 +225,7 @@ fn rgba_to_rgb() {
         ColorInfo {
             space: ColorSpace::BT709,
             transfer: ColorTransfer::SRGB,
-            primaries: ColorPrimaries::SRGB,
+            primaries: ColorPrimaries::BT709,
             full_range: false,
         },
         8,
@@ -239,7 +239,7 @@ fn rgba_to_rgb() {
         ColorInfo {
             space: ColorSpace::BT709,
             transfer: ColorTransfer::Linear,
-            primaries: ColorPrimaries::SRGB,
+            primaries: ColorPrimaries::BT709,
             full_range: false,
         },
         8,
@@ -255,7 +255,7 @@ fn rgba_to_rgb() {
 
 #[test]
 fn rgba8_to_rgba16_and_back() {
-    let (mut rgba8, width, height) = make_rgba8_image(ColorPrimaries::SRGB, ColorTransfer::Linear);
+    let (mut rgba8, width, height) = make_rgba8_image(ColorPrimaries::BT709, ColorTransfer::Linear);
 
     let mut rgb16 = vec![0u16; PixelFormat::RGB.buffer_size(width, height)];
 
@@ -267,7 +267,7 @@ fn rgba8_to_rgba16_and_back() {
         ColorInfo {
             space: ColorSpace::BT709,
             transfer: ColorTransfer::Linear,
-            primaries: ColorPrimaries::SRGB,
+            primaries: ColorPrimaries::BT709,
             full_range: false,
         },
         8,
@@ -281,13 +281,13 @@ fn rgba8_to_rgba16_and_back() {
         ColorInfo {
             space: ColorSpace::BT709,
             transfer: ColorTransfer::Linear,
-            primaries: ColorPrimaries::SRGB,
+            primaries: ColorPrimaries::BT709,
             full_range: false,
         },
         16,
     );
 
-    convert(src, dst);
+    convert_multi_thread(src, dst);
 
     {
         let buffer = image::ImageBuffer::<Rgb<u16>, Vec<u16>>::from_vec(
@@ -308,7 +308,7 @@ fn rgba8_to_rgba16_and_back() {
         ColorInfo {
             space: ColorSpace::BT709,
             transfer: ColorTransfer::Linear,
-            primaries: ColorPrimaries::SRGB,
+            primaries: ColorPrimaries::BT709,
             full_range: false,
         },
         16,
@@ -322,13 +322,13 @@ fn rgba8_to_rgba16_and_back() {
         ColorInfo {
             space: ColorSpace::BT709,
             transfer: ColorTransfer::Linear,
-            primaries: ColorPrimaries::SRGB,
+            primaries: ColorPrimaries::BT709,
             full_range: false,
         },
         8,
     );
 
-    convert(src, dst);
+    convert_multi_thread(src, dst);
 
     let buffer =
         image::ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(width as _, height as _, rgba8).unwrap();
@@ -338,7 +338,7 @@ fn rgba8_to_rgba16_and_back() {
 
 #[test]
 fn rgba8_to_nv12_and_back() {
-    let (mut rgba8, width, height) = make_rgba8_image(ColorPrimaries::SRGB, ColorTransfer::Linear);
+    let (mut rgba8, width, height) = make_rgba8_image(ColorPrimaries::BT709, ColorTransfer::Linear);
 
     let mut nv12 = vec![0u8; PixelFormat::NV12.buffer_size(width, height)];
 
@@ -350,7 +350,7 @@ fn rgba8_to_nv12_and_back() {
         ColorInfo {
             space: ColorSpace::BT709,
             transfer: ColorTransfer::Linear,
-            primaries: ColorPrimaries::SRGB,
+            primaries: ColorPrimaries::BT709,
             full_range: false,
         },
         8,
@@ -364,7 +364,7 @@ fn rgba8_to_nv12_and_back() {
         ColorInfo {
             space: ColorSpace::BT709,
             transfer: ColorTransfer::Linear,
-            primaries: ColorPrimaries::SRGB,
+            primaries: ColorPrimaries::BT709,
             full_range: false,
         },
         8,
@@ -380,7 +380,7 @@ fn rgba8_to_nv12_and_back() {
         ColorInfo {
             space: ColorSpace::BT709,
             transfer: ColorTransfer::Linear,
-            primaries: ColorPrimaries::SRGB,
+            primaries: ColorPrimaries::BT709,
             full_range: false,
         },
         8,
@@ -394,16 +394,160 @@ fn rgba8_to_nv12_and_back() {
         ColorInfo {
             space: ColorSpace::BT709,
             transfer: ColorTransfer::Linear,
-            primaries: ColorPrimaries::SRGB,
+            primaries: ColorPrimaries::BT709,
             full_range: false,
         },
         8,
     );
 
-    convert(src, dst);
+    convert_multi_thread(src, dst);
 
     let buffer =
         image::ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(width as _, height as _, rgba8).unwrap();
 
     buffer.save("tests/NV12_TO_RGBA.png").unwrap();
+}
+
+#[test]
+fn rgba8_to_nv12_and_back_ictcp_pq() {
+    let (mut rgba8, width, height) = make_rgba8_image(ColorPrimaries::BT709, ColorTransfer::Linear);
+
+    let mut nv12 = vec![0u16; PixelFormat::NV12.buffer_size(width, height)];
+
+    let src = Source::<U8>::new(
+        PixelFormat::RGBA,
+        PixelFormatPlanes::RGBA(&rgba8),
+        width,
+        height,
+        ColorInfo {
+            space: ColorSpace::BT709,
+            transfer: ColorTransfer::Linear,
+            primaries: ColorPrimaries::BT709,
+            full_range: false,
+        },
+        8,
+    );
+
+    let dst = Destination::<U16LE>::new(
+        PixelFormat::NV12,
+        PixelFormatPlanes::infer_nv12(&mut nv12, width, height),
+        width,
+        height,
+        ColorInfo {
+            space: ColorSpace::ICtCpPQ,
+            transfer: ColorTransfer::BT2100PQ,
+            primaries: ColorPrimaries::BT709,
+            full_range: false,
+        },
+        16,
+    );
+
+    convert_multi_thread(src, dst);
+
+    let src = Source::<U16LE>::new(
+        PixelFormat::NV12,
+        PixelFormatPlanes::infer_nv12(&nv12, width, height),
+        width,
+        height,
+        ColorInfo {
+            space: ColorSpace::ICtCpPQ,
+            transfer: ColorTransfer::BT2100PQ,
+            primaries: ColorPrimaries::BT709,
+            full_range: false,
+        },
+        16,
+    );
+
+    let dst = Destination::<U8>::new(
+        PixelFormat::RGBA,
+        PixelFormatPlanes::RGBA(&mut rgba8),
+        width,
+        height,
+        ColorInfo {
+            space: ColorSpace::BT709,
+            transfer: ColorTransfer::Linear,
+            primaries: ColorPrimaries::BT709,
+            full_range: false,
+        },
+        8,
+    );
+
+    convert_multi_thread(src, dst);
+
+    let buffer =
+        image::ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(width as _, height as _, rgba8).unwrap();
+
+    buffer.save("tests/NV12_TO_RGBA_ICTCP_PQ.png").unwrap();
+}
+
+#[test]
+fn rgba8_to_nv12_and_back_ictcp_hlg() {
+    let (mut rgba8, width, height) = make_rgba8_image(ColorPrimaries::BT709, ColorTransfer::Linear);
+
+    let mut nv12 = vec![0u16; PixelFormat::NV12.buffer_size(width, height)];
+
+    let src = Source::<U8>::new(
+        PixelFormat::RGBA,
+        PixelFormatPlanes::RGBA(&rgba8),
+        width,
+        height,
+        ColorInfo {
+            space: ColorSpace::BT709,
+            transfer: ColorTransfer::Linear,
+            primaries: ColorPrimaries::BT709,
+            full_range: false,
+        },
+        8,
+    );
+
+    let dst = Destination::<U16LE>::new(
+        PixelFormat::NV12,
+        PixelFormatPlanes::infer_nv12(&mut nv12, width, height),
+        width,
+        height,
+        ColorInfo {
+            space: ColorSpace::ICtCpHLG,
+            transfer: ColorTransfer::BT2100HLG,
+            primaries: ColorPrimaries::BT709,
+            full_range: false,
+        },
+        16,
+    );
+
+    convert_multi_thread(src, dst);
+
+    let src = Source::<U16LE>::new(
+        PixelFormat::NV12,
+        PixelFormatPlanes::infer_nv12(&nv12, width, height),
+        width,
+        height,
+        ColorInfo {
+            space: ColorSpace::ICtCpHLG,
+            transfer: ColorTransfer::BT2100HLG,
+            primaries: ColorPrimaries::BT709,
+            full_range: false,
+        },
+        16,
+    );
+
+    let dst = Destination::<U8>::new(
+        PixelFormat::RGBA,
+        PixelFormatPlanes::RGBA(&mut rgba8),
+        width,
+        height,
+        ColorInfo {
+            space: ColorSpace::BT709,
+            transfer: ColorTransfer::Linear,
+            primaries: ColorPrimaries::BT709,
+            full_range: false,
+        },
+        8,
+    );
+
+    convert_multi_thread(src, dst);
+
+    let buffer =
+        image::ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(width as _, height as _, rgba8).unwrap();
+
+    buffer.save("tests/NV12_TO_RGBA_ICTCP_HLG.png").unwrap();
 }

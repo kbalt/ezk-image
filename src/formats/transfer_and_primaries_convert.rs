@@ -1,5 +1,6 @@
 use super::rgb::{RgbBlock, RgbBlockVisitorImpl};
 use super::rgba::{RgbaBlock, RgbaBlockVisitorImpl};
+use crate::color::primaries::{rgb_to_xyz, xyz_to_rgb};
 use crate::color::{ColorInfo, ColorOps};
 use crate::vector::Vector;
 
@@ -35,13 +36,13 @@ impl<Vis> TransferAndPrimariesConvert<Vis> {
         let mut iter = i.chunks_exact_mut(3);
 
         while let Some([r, g, b]) = iter.next() {
-            let x = r.vmulf(fw[0][0]).vadd(g.vmulf(fw[1][0])).vadd(b.vmulf(fw[2][0]));
-            let y = r.vmulf(fw[0][1]).vadd(g.vmulf(fw[1][1])).vadd(b.vmulf(fw[2][1]));
-            let z = r.vmulf(fw[0][2]).vadd(g.vmulf(fw[1][2])).vadd(b.vmulf(fw[2][2]));
+            let [x, y, z] = rgb_to_xyz(fw, **r, **g, **b);
 
-            **r = x.vmulf(bw[0][0]).vadd(y.vmulf(bw[1][0])).vadd(z.vmulf(bw[2][0]));
-            **g = x.vmulf(bw[0][1]).vadd(y.vmulf(bw[1][1])).vadd(z.vmulf(bw[2][1]));
-            **b = x.vmulf(bw[0][2]).vadd(y.vmulf(bw[1][2])).vadd(z.vmulf(bw[2][2]));
+            let [r_, g_, b_] =  xyz_to_rgb(bw, x, y, z);
+
+            **r = r_;
+            **g = g_;
+            **b = b_;
         }
     }
 
