@@ -1,4 +1,4 @@
-use super::{I444Block, I444VisitorImpl};
+use super::{I444Block, I444Visitor};
 use crate::bits::BitsInternal;
 use crate::vector::Vector;
 use crate::{PixelFormatPlanes, Rect};
@@ -55,13 +55,9 @@ impl<'a, B: BitsInternal> I444Writer<'a, B> {
     }
 }
 
-impl<'a, V, B> I444VisitorImpl<V> for I444Writer<'a, B>
-where
-    V: Vector,
-    B: BitsInternal,
-{
+impl<'a, B: BitsInternal> I444Visitor for I444Writer<'a, B> {
     #[inline(always)]
-    unsafe fn visit(&mut self, x: usize, y: usize, block: I444Block<V>) {
+    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, block: I444Block<V>) {
         let x = self.window.x + x;
         let y = self.window.y + y;
 

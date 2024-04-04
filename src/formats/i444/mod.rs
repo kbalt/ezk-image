@@ -1,3 +1,5 @@
+use crate::vector::Vector;
+
 mod from_rgb;
 mod read;
 mod to_rgb;
@@ -21,8 +23,6 @@ pub(crate) struct I444Pixel<V> {
     pub(crate) v: V,
 }
 
-pub(crate) trait I444VisitorImpl<V> {
-    unsafe fn visit(&mut self, x: usize, y: usize, block: I444Block<V>);
+pub(crate) trait I444Visitor {
+    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, block: I444Block<V>);
 }
-
-platform_trait!(I444Visitor:I444VisitorImpl);

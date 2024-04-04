@@ -3,7 +3,7 @@ use crate::vector::Vector;
 mod read;
 mod write;
 
-pub(crate) use read::read_rgba_4x;
+pub(crate) use read::RgbaReader;
 pub(crate) use write::RGBAWriter;
 
 #[derive(Debug, Clone, Copy)]
@@ -32,8 +32,6 @@ pub(crate) struct RgbaBlock<V> {
     pub(crate) rgba11: RgbaPixel<V>,
 }
 
-pub(crate) trait RgbaBlockVisitorImpl<V> {
-    unsafe fn visit(&mut self, x: usize, y: usize, block: RgbaBlock<V>);
+pub(crate) trait RgbaBlockVisitor {
+    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, block: RgbaBlock<V>);
 }
-
-platform_trait!(RgbaBlockVisitor:RgbaBlockVisitorImpl);

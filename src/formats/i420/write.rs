@@ -1,4 +1,4 @@
-use super::{I420Block, I420VisitorImpl};
+use super::{I420Block, I420Visitor};
 use crate::bits::BitsInternal;
 use crate::vector::Vector;
 use crate::{PixelFormatPlanes, Rect};
@@ -55,13 +55,9 @@ impl<'a, B: BitsInternal> I420Writer<'a, B> {
     }
 }
 
-impl<'a, V, B> I420VisitorImpl<V> for I420Writer<'a, B>
-where
-    V: Vector,
-    B: BitsInternal,
-{
+impl<'a, B: BitsInternal> I420Visitor for I420Writer<'a, B> {
     #[inline(always)]
-    unsafe fn visit(&mut self, x: usize, y: usize, block: I420Block<V>) {
+    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, block: I420Block<V>) {
         let x = self.window.x + x;
         let y = self.window.y + y;
 

@@ -1,6 +1,6 @@
-use super::{I444Block, I444Pixel, I444VisitorImpl};
+use super::{I444Block, I444Pixel, I444Visitor};
 use crate::color::{ColorInfo, ColorOps};
-use crate::formats::rgb::{RgbBlock, RgbBlockVisitor, RgbBlockVisitorImpl, RgbPixel};
+use crate::formats::rgb::{RgbBlock, RgbBlockVisitor, RgbPixel};
 use crate::vector::Vector;
 
 pub(crate) struct I444ToRgbVisitor<Vis> {
@@ -23,12 +23,9 @@ where
     }
 }
 
-impl<Vis, V: Vector> I444VisitorImpl<V> for I444ToRgbVisitor<Vis>
-where
-    Vis: RgbBlockVisitorImpl<V>,
-{
+impl<Vis: RgbBlockVisitor> I444Visitor for I444ToRgbVisitor<Vis> {
     #[inline(always)]
-    unsafe fn visit(&mut self, x: usize, y: usize, block: I444Block<V>) {
+    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, block: I444Block<V>) {
         let I444Block {
             px00,
             px01,

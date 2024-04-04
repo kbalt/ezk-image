@@ -1,6 +1,6 @@
 #![allow(clippy::too_many_arguments)]
 
-use super::{I420Block, I420Visitor, I420VisitorImpl};
+use super::{I420Block, I420Visitor};
 use crate::bits::BitsInternal;
 use crate::vector::Vector;
 use crate::{arch::*, max_value_for_bits};
@@ -139,7 +139,7 @@ unsafe fn read_i420_impl<V, B, Vis>(
 ) where
     V: Vector,
     B: BitsInternal,
-    Vis: I420Visitor + I420VisitorImpl<V>,
+    Vis: I420Visitor,
 {
     let max_value = max_value_for_bits(bits_per_channel);
 
@@ -233,7 +233,7 @@ unsafe fn load_and_visit_block<V, B, Vis>(
     max_value: f32,
 ) where
     V: Vector,
-    Vis: I420VisitorImpl<V>,
+    Vis: I420Visitor,
     B: BitsInternal,
 {
     // Load Y pixels

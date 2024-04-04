@@ -327,7 +327,7 @@ where
 {
     macro_rules! read_rgb_to_rgb {
         ($src:ident, $dst:ident, $writer:expr $(,)?) => {
-            read_rgb_4x::<REVERSE, SB, _>(
+            RgbReader::<REVERSE, SB, _>::read(
                 $src.width,
                 $src.height,
                 $src.planes,
@@ -348,7 +348,7 @@ where
 {
     macro_rules! read_rgba_to_rgb {
         ($src:ident, $dst:ident, $writer:expr $(,)?) => {
-            read_rgba_4x::<REVERSE, SB, _>(
+            RgbaReader::<REVERSE, SB, _>::read(
                 $src.width,
                 $src.height,
                 $src.planes,

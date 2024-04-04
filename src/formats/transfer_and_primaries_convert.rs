@@ -1,5 +1,5 @@
-use super::rgb::{RgbBlock, RgbBlockVisitorImpl};
-use super::rgba::{RgbaBlock, RgbaBlockVisitorImpl};
+use super::rgb::{RgbBlock, RgbBlockVisitor};
+use super::rgba::{RgbaBlock, RgbaBlockVisitor};
 use crate::color::primaries::{rgb_to_xyz, xyz_to_rgb};
 use crate::color::{ColorInfo, ColorOps};
 use crate::vector::Vector;
@@ -63,13 +63,9 @@ impl<Vis> TransferAndPrimariesConvert<Vis> {
     }
 }
 
-impl<V, Vis> RgbBlockVisitorImpl<V> for TransferAndPrimariesConvert<Vis>
-where
-    V: Vector,
-    Vis: RgbBlockVisitorImpl<V>,
-{
+impl<Vis: RgbBlockVisitor> RgbBlockVisitor for TransferAndPrimariesConvert<Vis> {
     #[inline(always)]
-    unsafe fn visit(&mut self, x: usize, y: usize, mut block: RgbBlock<V>) {
+    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, mut block: RgbBlock<V>) {
         if self.passthrough {
             self.visitor.visit(x, y, block);
             return;
@@ -96,13 +92,9 @@ where
     }
 }
 
-impl<V, Vis> RgbaBlockVisitorImpl<V> for TransferAndPrimariesConvert<Vis>
-where
-    V: Vector,
-    Vis: RgbaBlockVisitorImpl<V>,
-{
+impl<Vis: RgbaBlockVisitor> RgbaBlockVisitor for TransferAndPrimariesConvert<Vis> {
     #[inline(always)]
-    unsafe fn visit(&mut self, x: usize, y: usize, mut block: RgbaBlock<V>) {
+    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, mut block: RgbaBlock<V>) {
         if self.passthrough {
             self.visitor.visit(x, y, block);
             return;

@@ -1,6 +1,6 @@
-use super::{RgbaBlock, RgbaBlockVisitorImpl, RgbaPixel};
+use super::{RgbaBlock, RgbaBlockVisitor, RgbaPixel};
 use crate::bits::BitsInternal;
-use crate::formats::rgb::{RgbBlock, RgbBlockVisitorImpl, RgbPixel};
+use crate::formats::rgb::{RgbBlock, RgbBlockVisitor, RgbPixel};
 use crate::vector::Vector;
 use crate::{PixelFormatPlanes, Rect};
 use std::marker::PhantomData;
@@ -52,14 +52,13 @@ impl<'a, const REVERSE: bool, B: BitsInternal> RGBAWriter<'a, REVERSE, B> {
     }
 }
 
-impl<const REVERSE: bool, V, B> RgbBlockVisitorImpl<V> for RGBAWriter<'_, REVERSE, B>
+impl<const REVERSE: bool, B> RgbBlockVisitor for RGBAWriter<'_, REVERSE, B>
 where
-    Self: RgbaBlockVisitorImpl<V>,
-    V: Vector,
+    Self: RgbaBlockVisitor,
     B: BitsInternal,
 {
     #[inline(always)]
-    unsafe fn visit(&mut self, x: usize, y: usize, block: RgbBlock<V>) {
+    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, block: RgbBlock<V>) {
         #[inline(always)]
         unsafe fn conv<V: Vector>(px: RgbPixel<V>) -> RgbaPixel<V> {
             RgbaPixel {
@@ -70,7 +69,7 @@ where
             }
         }
 
-        RgbaBlockVisitorImpl::visit(
+        RgbaBlockVisitor::visit(
             self,
             x,
             y,
@@ -84,11 +83,9 @@ where
     }
 }
 
-impl<const REVERSE: bool, V: Vector, B: BitsInternal> RgbaBlockVisitorImpl<V>
-    for RGBAWriter<'_, REVERSE, B>
-{
+impl<const REVERSE: bool, B: BitsInternal> RgbaBlockVisitor for RGBAWriter<'_, REVERSE, B> {
     #[inline(always)]
-    unsafe fn visit(&mut self, x: usize, y: usize, block: RgbaBlock<V>) {
+    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, block: RgbaBlock<V>) {
         let x = self.window.x + x;
         let y = self.window.y + y;
 

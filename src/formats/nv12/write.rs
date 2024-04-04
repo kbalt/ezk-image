@@ -1,5 +1,5 @@
 use crate::bits::BitsInternal;
-use crate::formats::{I420Block, I420VisitorImpl};
+use crate::formats::{I420Block, I420Visitor};
 use crate::vector::Vector;
 use crate::{PixelFormatPlanes, Rect};
 use std::marker::PhantomData;
@@ -53,13 +53,9 @@ impl<'a, B: BitsInternal> NV12Writer<'a, B> {
     }
 }
 
-impl<'a, V, B> I420VisitorImpl<V> for NV12Writer<'a, B>
-where
-    V: Vector,
-    B: BitsInternal,
-{
+impl<'a, B: BitsInternal> I420Visitor for NV12Writer<'a, B> {
     #[inline(always)]
-    unsafe fn visit(&mut self, x: usize, y: usize, block: I420Block<V>) {
+    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, block: I420Block<V>) {
         let x = self.window.x + x;
         let y = self.window.y + y;
 

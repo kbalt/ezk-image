@@ -1,3 +1,5 @@
+use crate::vector::Vector;
+
 mod from_rgb;
 mod read;
 mod to_rgb;
@@ -18,8 +20,6 @@ pub(crate) struct I420Block<V> {
     pub(crate) v: V,
 }
 
-pub(crate) trait I420VisitorImpl<V> {
-    unsafe fn visit(&mut self, x: usize, y: usize, block: I420Block<V>);
+pub(crate) trait I420Visitor {
+    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, block: I420Block<V>);
 }
-
-platform_trait!(I420Visitor:I420VisitorImpl);

@@ -1,7 +1,7 @@
-use super::{I420Block, I420Visitor, I420VisitorImpl};
+use super::{I420Block, I420Visitor};
 use crate::color::{ColorInfo, ColorOps};
-use crate::formats::rgb::{RgbBlock, RgbBlockVisitorImpl, RgbPixel};
-use crate::formats::rgba::{RgbaBlock, RgbaBlockVisitorImpl, RgbaPixel};
+use crate::formats::rgb::{RgbBlock, RgbBlockVisitor, RgbPixel};
+use crate::formats::rgba::{RgbaBlock, RgbaBlockVisitor, RgbaPixel};
 use crate::vector::Vector;
 
 pub(crate) struct RgbToI420Visitor<Vis> {
@@ -23,12 +23,9 @@ where
     }
 }
 
-impl<Vis, V: Vector> RgbaBlockVisitorImpl<V> for RgbToI420Visitor<Vis>
-where
-    Vis: I420VisitorImpl<V>,
-{
+impl<Vis: I420Visitor> RgbaBlockVisitor for RgbToI420Visitor<Vis> {
     #[inline(always)]
-    unsafe fn visit(&mut self, x: usize, y: usize, block: RgbaBlock<V>) {
+    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, block: RgbaBlock<V>) {
         fn conv<V>(px: RgbaPixel<V>) -> RgbPixel<V> {
             RgbPixel {
                 r: px.r,
@@ -37,7 +34,7 @@ where
             }
         }
 
-        RgbBlockVisitorImpl::visit(
+        RgbBlockVisitor::visit(
             self,
             x,
             y,
@@ -51,12 +48,9 @@ where
     }
 }
 
-impl<Vis, V: Vector> RgbBlockVisitorImpl<V> for RgbToI420Visitor<Vis>
-where
-    Vis: I420VisitorImpl<V>,
-{
+impl<Vis: I420Visitor> RgbBlockVisitor for RgbToI420Visitor<Vis> {
     #[inline(always)]
-    unsafe fn visit(&mut self, x: usize, y: usize, block: RgbBlock<V>) {
+    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, block: RgbBlock<V>) {
         let color = V::color_ops(&self.color);
 
         let RgbBlock {

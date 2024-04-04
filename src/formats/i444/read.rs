@@ -1,6 +1,6 @@
 #![allow(clippy::too_many_arguments)]
 
-use super::{I444Block, I444Pixel, I444Visitor, I444VisitorImpl};
+use super::{I444Block, I444Pixel, I444Visitor};
 use crate::bits::BitsInternal;
 use crate::vector::Vector;
 use crate::{arch::*, max_value_for_bits};
@@ -139,7 +139,7 @@ unsafe fn read_i444_impl<V, B, Vis>(
 ) where
     V: Vector,
     B: BitsInternal,
-    Vis: I444Visitor + I444VisitorImpl<V>,
+    Vis: I444Visitor,
 {
     let max_value = max_value_for_bits(bits_per_channel);
 
@@ -225,7 +225,7 @@ unsafe fn load_and_visit_block<V, B, Vis>(
     max_value: f32,
 ) where
     V: Vector,
-    Vis: I444VisitorImpl<V>,
+    Vis: I444Visitor,
     B: BitsInternal,
 {
     // Load Y pixels
