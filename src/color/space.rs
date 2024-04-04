@@ -1,4 +1,4 @@
-#![allow(clippy::too_many_arguments)]
+#![allow(clippy::too_many_arguments, clippy::redundant_closure_call)]
 
 use super::transfer::ColorTransferImpl;
 use crate::arch::*;
