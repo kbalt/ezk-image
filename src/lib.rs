@@ -1,3 +1,5 @@
+#![doc = include_str!("../README")]
+
 use bits::BitsInternal;
 use formats::*;
 
