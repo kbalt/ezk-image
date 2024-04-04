@@ -2,6 +2,10 @@
 name = "ezk-image"
 version = "0.1.0"
 edition = "2021"
+description = "Convert between pixel and color formats such and RGB, YUV (YCbCr), ICtCp"
+categories = ["image", "video", "color"]
+keywords = ["video", "convert", "color", "rgb", "yuv", "ycbcr", "ictcp", "simd", "NV12", "I420"]
+readme = "README.md"
 
 [dependencies]
 rayon = { version = "1.9", optional = true }
