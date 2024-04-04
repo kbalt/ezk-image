@@ -6,7 +6,7 @@ mod to_rgb;
 mod write;
 
 pub(crate) use from_rgb::RgbToI444Visitor;
-pub(crate) use read::read_i444;
+pub(crate) use read::I444Reader;
 pub(crate) use to_rgb::I444ToRgbVisitor;
 pub(crate) use write::I444Writer;
 

@@ -281,7 +281,7 @@ where
 {
     macro_rules! read_i444_to_rgb {
         ($src:ident, $dst:ident, $writer:expr $(,)?) => {
-            read_i444::<SB, _>(
+            I444Reader::<SB, _>::read(
                 $src.width,
                 $src.height,
                 $src.planes,
