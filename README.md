@@ -18,6 +18,7 @@ convert parts of an image, or write the converted image into a part of the desti
 Bit depth of up to 16 bit per component is supported.
 
 - I420
+- I422
 - I444
 - NV12
 - RGBA, BGRA

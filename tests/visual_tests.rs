@@ -409,6 +409,78 @@ fn rgba8_to_nv12_and_back() {
 }
 
 #[test]
+fn rgba8_to_i422_and_back() {
+    let (mut rgba8, width, height) = make_rgba8_image(ColorPrimaries::BT709, ColorTransfer::Linear);
+
+    let mut i422 = vec![0u8; PixelFormat::I422.buffer_size(width, height)];
+
+    let src = Source::<U8>::new(
+        PixelFormat::RGBA,
+        PixelFormatPlanes::RGBA(&rgba8),
+        width,
+        height,
+        ColorInfo {
+            space: ColorSpace::BT709,
+            transfer: ColorTransfer::Linear,
+            primaries: ColorPrimaries::BT709,
+            full_range: false,
+        },
+        8,
+    );
+
+    let dst = Destination::<U8>::new(
+        PixelFormat::I422,
+        PixelFormatPlanes::infer_i422(&mut i422, width, height),
+        width,
+        height,
+        ColorInfo {
+            space: ColorSpace::BT709,
+            transfer: ColorTransfer::Linear,
+            primaries: ColorPrimaries::BT709,
+            full_range: false,
+        },
+        8,
+    );
+
+    convert_multi_thread(src, dst);
+
+    let src = Source::<U8>::new(
+        PixelFormat::I422,
+        PixelFormatPlanes::infer_i422(&i422, width, height),
+        width,
+        height,
+        ColorInfo {
+            space: ColorSpace::BT709,
+            transfer: ColorTransfer::Linear,
+            primaries: ColorPrimaries::BT709,
+            full_range: false,
+        },
+        8,
+    );
+
+    let dst = Destination::<U8>::new(
+        PixelFormat::RGBA,
+        PixelFormatPlanes::RGBA(&mut rgba8),
+        width,
+        height,
+        ColorInfo {
+            space: ColorSpace::BT709,
+            transfer: ColorTransfer::Linear,
+            primaries: ColorPrimaries::BT709,
+            full_range: false,
+        },
+        8,
+    );
+
+    convert_multi_thread(src, dst);
+
+    let buffer =
+        image::ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(width as _, height as _, rgba8).unwrap();
+
+    buffer.save("tests/I422_TO_RGBA.png").unwrap();
+}
+
+#[test]
 fn rgba8_to_i444_and_back() {
     let (mut rgba8, width, height) = make_rgba8_image(ColorPrimaries::BT709, ColorTransfer::Linear);
 

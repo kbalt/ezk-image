@@ -77,21 +77,11 @@ pub enum PixelFormat {
     /// 4x Y, 1x U, 1x V
     I420,
 
-    // /// 4 Planes, Y, U, V, A
-    // ///
-    // /// 4x Y, 1x U, 1x V, 4x A
-    // I420A,
+    /// 3 Planes, Y, U, V
+    ///
+    /// 4x Y, 2x U, 2x V
+    I422,
 
-    // /// 3 Planes, Y, U, V
-    // ///
-    // /// 4x Y, 2x U, 2x V
-    // I422
-
-    // /// 4 Planes, Y, U, V, A
-    // ////
-    // /// 4x Y, 2x U, 2x V, 4x A
-    // I422A
-    //
     /// 3 Planes, Y, U, V
     ///
     /// 1x Y, 1x U, 1x V
@@ -118,6 +108,7 @@ impl PixelFormat {
 
         match self {
             I420 | NV12 => (width * height * 12).div_ceil(8),
+            I422 => (width * height * 16).div_ceil(8),
             I444 => width * height * 3,
             RGBA | BGRA => width * height * 4,
             RGB | BGR => width * height * 3,
@@ -130,6 +121,21 @@ macro_rules! write_i420 {
         RgbToI420Visitor::new(
             &$dst.color,
             I420Writer::<DB>::new(
+                $dst.width,
+                $dst.height,
+                $dst.planes,
+                $dst.bits_per_channel,
+                $dst.window,
+            ),
+        )
+    };
+}
+
+macro_rules! write_i422 {
+    ($dst:ident) => {
+        RgbToI422Visitor::new(
+            &$dst.color,
+            I422Writer::<DB>::new(
                 $dst.width,
                 $dst.height,
                 $dst.planes,
@@ -222,6 +228,7 @@ macro_rules! match_dst_format {
     ($src:ident, $dst:ident, $read_to_rgb:ident) => {
         match $dst.format {
             PixelFormat::I420 => $read_to_rgb!($src, $dst, write_i420!($dst)),
+            PixelFormat::I422 => $read_to_rgb!($src, $dst, write_i422!($dst)),
             PixelFormat::I444 => $read_to_rgb!($src, $dst, write_i444!($dst)),
             PixelFormat::NV12 => $read_to_rgb!($src, $dst, write_nv12!($dst)),
             PixelFormat::RGBA => $read_to_rgb!($src, $dst, write_rgba!($dst)),
@@ -242,6 +249,7 @@ where
 
     match src.format {
         PixelFormat::I420 => convert_i420::<SB, DB>(src, dst),
+        PixelFormat::I422 => convert_i422::<SB, DB>(src, dst),
         PixelFormat::I444 => convert_i444::<SB, DB>(src, dst),
         PixelFormat::NV12 => convert_nv12::<SB, DB>(src, dst),
         PixelFormat::RGBA => convert_rgba::<false, SB, DB>(src, dst),
@@ -272,6 +280,29 @@ where
         };
     }
     match_dst_format!(src, dst, read_i420_to_rgb);
+}
+
+fn convert_i422<SB, DB>(src: Source<'_, SB>, dst: Destination<'_, DB>)
+where
+    SB: BitsInternal,
+    DB: BitsInternal,
+{
+    macro_rules! read_i422_to_rgb {
+        ($src:ident, $dst:ident, $writer:expr $(,)?) => {
+            I422Reader::<SB, _>::read(
+                $src.width,
+                $src.height,
+                $src.planes,
+                $src.bits_per_channel,
+                $src.window,
+                I422ToRgbVisitor::new(
+                    &$src.color,
+                    TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
+                ),
+            )
+        };
+    }
+    match_dst_format!(src, dst, read_i422_to_rgb);
 }
 
 fn convert_i444<SB, DB>(src: Source<'_, SB>, dst: Destination<'_, DB>)

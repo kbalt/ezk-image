@@ -3,19 +3,22 @@ use std::mem::take;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum PixelFormatPlanes<S: AnySlice> {
-    /// See [PixelFormat::I420]
+    /// See [`PixelFormat::I420`]
     I420 { y: S, u: S, v: S },
 
-    /// See [PixelFormat::I444]
+    /// See [`PixelFormat::I422`]
+    I422 { y: S, u: S, v: S },
+
+    /// See [`PixelFormat::I444`]
     I444 { y: S, u: S, v: S },
 
-    /// See [PixelFormat::NV12]
+    /// See [`PixelFormat::NV12`]
     NV12 { y: S, uv: S },
 
-    /// See [PixelFormat::RGB] and [PixelFormat::BGR],
+    /// See [`PixelFormat::RGB`] and [`PixelFormat::BGR`],
     RGB(S),
 
-    /// See [PixelFormat::RGBA] and [PixelFormat::BGRA]
+    /// See [`PixelFormat::RGBA`] and [`PixelFormat::BGRA`]
     RGBA(S),
 }
 
@@ -27,6 +30,13 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
         match self {
             Self::I420 { y, u, v } => {
                 let uv_req_len = n_pixels / 4;
+
+                n_pixels <= y.slice_len()
+                    && uv_req_len <= u.slice_len()
+                    && uv_req_len <= v.slice_len()
+            }
+            Self::I422 { y, u, v } => {
+                let uv_req_len = n_pixels / 2;
 
                 n_pixels <= y.slice_len()
                     && uv_req_len <= u.slice_len()
@@ -68,6 +78,18 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
         assert!(uv.slice_len() >= (width * height) / 2);
 
         Self::NV12 { y, uv }
+    }
+
+    /// Infer the planes for a full I422 image using the given dimensions
+    ///
+    /// # Panics
+    ///
+    /// If `buf` is too small for the given dimensions this function will panic
+    pub fn infer_i422(buf: S, width: usize, height: usize) -> Self {
+        let (y, tmp) = buf.slice_split_at(width * height);
+        let (u, v) = tmp.slice_split_at((width * height) / 2);
+
+        Self::I422 { y, u, v }
     }
 
     /// Infer the planes for a full I444 image using the given dimensions
@@ -130,6 +152,29 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
 
                     ret.push((
                         Self::I420 {
+                            y: y_,
+                            u: u_,
+                            v: v_,
+                        },
+                        Rect {
+                            x: rect.x,
+                            y: 0,
+                            width: rect.width,
+                            height: rect.height,
+                        },
+                    ));
+                }
+                Self::I422 { y, u, v } => {
+                    let (y_, y_remaining) = take(y).slice_split_at(width * rect.height);
+                    let (u_, u_remaining) = take(u).slice_split_at((width * rect.height) / 2);
+                    let (v_, v_remaining) = take(v).slice_split_at((width * rect.height) / 2);
+
+                    *y = y_remaining;
+                    *u = u_remaining;
+                    *v = v_remaining;
+
+                    ret.push((
+                        Self::I422 {
                             y: y_,
                             u: u_,
                             v: v_,
