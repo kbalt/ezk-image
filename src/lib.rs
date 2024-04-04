@@ -258,7 +258,7 @@ where
 {
     macro_rules! read_i420_to_rgb {
         ($src:ident, $dst:ident, $writer:expr $(,)?) => {
-            read_i420::<SB, _>(
+            I420Reader::<SB, _>::read(
                 $src.width,
                 $src.height,
                 $src.planes,

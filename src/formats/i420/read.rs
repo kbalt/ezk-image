@@ -2,220 +2,89 @@
 
 use super::{I420Block, I420Visitor};
 use crate::bits::BitsInternal;
+use crate::formats::reader::{read, ImageReader};
 use crate::vector::Vector;
-use crate::{arch::*, max_value_for_bits};
 use crate::{PixelFormatPlanes, Rect};
+use std::marker::PhantomData;
 
-pub(crate) fn read_i420<B, Vis>(
-    src_width: usize,
-    src_height: usize,
-    src_planes: PixelFormatPlanes<&[B::Primitive]>,
-    bits_per_channel: usize,
-    window: Option<Rect>,
-    visitor: Vis,
-) where
+pub(crate) struct I420Reader<B, Vis>
+where
     B: BitsInternal,
     Vis: I420Visitor,
 {
-    assert!(src_planes.bounds_check(src_width, src_height));
+    src_width: usize,
+    src_y: *const B::Primitive,
+    src_u: *const B::Primitive,
+    src_v: *const B::Primitive,
 
-    let PixelFormatPlanes::I420 { y, u, v } = src_planes else {
-        panic!("Invalid PixelFormatPlanes for read_i420");
-    };
+    max_value: f32,
 
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    if is_x86_feature_detected!("avx2") && is_x86_feature_detected!("fma") {
-        unsafe {
-            return read_i420_avx2::<B, Vis>(
-                src_width,
-                src_height,
-                y,
-                u,
-                v,
-                bits_per_channel,
-                window,
-                visitor,
-            );
-        }
-    }
+    visitor: Vis,
 
-    #[cfg(target_arch = "aarch64")]
-    if is_aarch64_feature_detected!("neon") {
-        unsafe {
-            return read_i420_neon::<B, Vis>(
-                src_width,
-                src_height,
-                y,
-                u,
-                v,
-                bits_per_channel,
-                window,
-                visitor,
-            );
-        }
-    }
+    _b: PhantomData<B>,
+}
 
-    // Fallback to naive
-    unsafe {
-        read_i420_impl::<f32, B, Vis>(
+impl<B, Vis> I420Reader<B, Vis>
+where
+    B: BitsInternal,
+    Vis: I420Visitor,
+{
+    #[inline]
+    pub fn read(
+        src_width: usize,
+        src_height: usize,
+        src_planes: PixelFormatPlanes<&[B::Primitive]>,
+        bits_per_component: usize,
+        window: Option<Rect>,
+        visitor: Vis,
+    ) {
+        assert!(src_planes.bounds_check(src_width, src_height));
+
+        let PixelFormatPlanes::I420 { y, u, v } = src_planes else {
+            panic!("Invalid PixelFormatPlanes for read_i420");
+        };
+
+        read(
             src_width,
             src_height,
-            y,
-            u,
-            v,
-            bits_per_channel,
             window,
-            visitor,
+            Self {
+                src_width,
+                src_y: y.as_ptr(),
+                src_u: u.as_ptr(),
+                src_v: v.as_ptr(),
+                max_value: crate::max_value_for_bits(bits_per_component),
+                visitor,
+                _b: PhantomData,
+            },
         )
     }
 }
 
-#[cfg(target_arch = "aarch64")]
-#[target_feature(enable = "neon")]
-#[inline(never)]
-unsafe fn read_i420_neon<B, Vis>(
-    src_width: usize,
-    src_height: usize,
-    y: &[B::Primitive],
-    u: &[B::Primitive],
-    v: &[B::Primitive],
-    bits_per_channel: usize,
-    window: Option<Rect>,
-    visitor: Vis,
-) where
+impl<B, Vis> ImageReader for I420Reader<B, Vis>
+where
     B: BitsInternal,
     Vis: I420Visitor,
 {
-    read_i420_impl::<float32x4_t, B, Vis>(
-        src_width,
-        src_height,
-        y,
-        u,
-        v,
-        bits_per_channel,
-        window,
-        visitor,
-    )
-}
+    #[inline(always)]
+    unsafe fn read_at<V: Vector>(&mut self, window: Rect, x: usize, y: usize) {
+        let uv_offset = (y / 2) * (self.src_width / 2) + (x / 2);
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[target_feature(enable = "avx2")]
-#[inline(never)]
-unsafe fn read_i420_avx2<B, Vis>(
-    src_width: usize,
-    src_height: usize,
-    y: &[B::Primitive],
-    u: &[B::Primitive],
-    v: &[B::Primitive],
-    bits_per_channel: usize,
-    window: Option<Rect>,
-    visitor: Vis,
-) where
-    B: BitsInternal,
-    Vis: I420Visitor,
-{
-    read_i420_impl::<__m256, B, Vis>(
-        src_width,
-        src_height,
-        y,
-        u,
-        v,
-        bits_per_channel,
-        window,
-        visitor,
-    )
-}
+        let y00_offset = (y * self.src_width) + x;
+        let y10_offset = ((y + 1) * self.src_width) + x;
 
-#[inline(always)]
-unsafe fn read_i420_impl<V, B, Vis>(
-    src_width: usize,
-    src_height: usize,
-    src_y: &[B::Primitive],
-    src_u: &[B::Primitive],
-    src_v: &[B::Primitive],
-    bits_per_channel: usize,
-    window: Option<Rect>,
-    mut visitor: Vis,
-) where
-    V: Vector,
-    B: BitsInternal,
-    Vis: I420Visitor,
-{
-    let max_value = max_value_for_bits(bits_per_channel);
-
-    let window = window.unwrap_or(Rect {
-        x: 0,
-        y: 0,
-        width: src_width,
-        height: src_height,
-    });
-
-    assert!(window.x + window.width <= src_width);
-    assert!(window.y + window.height <= src_height);
-
-    assert_eq!(window.width % 2, 0);
-    assert_eq!(window.height % 2, 0);
-
-    // How many pixels cannot be vectorized since they don't fit the vector (per row)
-    let non_vectored_pixels_per_row = window.width % (V::LEN * 2);
-    let vectored_pixels_per_row = window.width - non_vectored_pixels_per_row;
-
-    let y_ptr = src_y.as_ptr();
-    let u_ptr = src_u.as_ptr();
-    let v_ptr = src_v.as_ptr();
-
-    // Process 2 rows of pixels for iteration of this loop
-    for y in (0..window.height).step_by(2) {
-        let y = window.y + y;
-        let hy = y / 2;
-
-        // Process V::LEN amount of U/V pixel per loop
-        // This requires to process V::LEN * 2 Y pixels row since one U/V pixel
-        // belongs to 2 Y pixels per row
-        for x in (0..vectored_pixels_per_row).step_by(V::LEN * 2) {
-            let x = window.x + x;
-
-            let uv_offset = hy * (src_width / 2) + (x / 2);
-
-            let y00_offset = (y * src_width) + x;
-            let y10_offset = ((y + 1) * src_width) + x;
-
-            load_and_visit_block::<V, B, Vis>(
-                &mut visitor,
-                x - window.x,
-                y - window.y,
-                y_ptr,
-                u_ptr,
-                v_ptr,
-                y00_offset,
-                y10_offset,
-                uv_offset,
-                max_value,
-            );
-        }
-
-        // Process remaining pixels that couldn't be vectorized
-        for x in (0..non_vectored_pixels_per_row).step_by(2) {
-            let x = window.x + x + vectored_pixels_per_row;
-
-            let uv_offset = hy * (src_width / 2) + (x / 2);
-
-            let y00_offset = (y * src_width) + x;
-            let y10_offset = ((y + 1) * src_width) + x;
-
-            load_and_visit_block::<f32, B, Vis>(
-                &mut visitor,
-                x - window.x,
-                y - window.y,
-                y_ptr,
-                u_ptr,
-                v_ptr,
-                y00_offset,
-                y10_offset,
-                uv_offset,
-                max_value,
-            );
-        }
+        load_and_visit_block::<V, B, Vis>(
+            &mut self.visitor,
+            x - window.x,
+            y - window.y,
+            self.src_y,
+            self.src_u,
+            self.src_v,
+            y00_offset,
+            y10_offset,
+            uv_offset,
+            self.max_value,
+        );
     }
 }
 
