@@ -46,7 +46,7 @@ where
         where
             R: ImageReader,
         {
-            read_impl::<__m256, _>(window, reader);
+            read_impl::<float32x4_t, _>(window, reader);
         }
 
         // Safety: Did a feature check

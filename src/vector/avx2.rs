@@ -745,6 +745,7 @@ mod tests {
 
         unsafe {
             assert!(make_arr(math::log(_mm256_set1_ps(f32::NAN)))[0].is_nan());
+            assert!(make_arr(math::log(_mm256_set1_ps(-3.33)))[0].is_nan());
 
             for i in 1..10_000 {
                 let i = (i) as f32 / 10000.0;
@@ -775,6 +776,7 @@ mod tests {
 
             assert!(make_arr(math::pow(_mm256_set1_ps(1.0), _mm256_set1_ps(f32::NAN)))[0].is_nan());
             assert!(make_arr(math::pow(_mm256_set1_ps(f32::NAN), _mm256_set1_ps(1.0)))[0].is_nan());
+            assert!(make_arr(math::log(_mm256_set1_ps(-3.33)))[0].is_nan());
 
             for a in 1..100 {
                 for p in 1..1000 {

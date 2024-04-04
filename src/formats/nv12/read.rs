@@ -28,8 +28,7 @@ where
     B: BitsInternal,
     Vis: I420Visitor,
 {
-    #[inline]
-    pub fn read(
+    pub(crate) fn read(
         src_width: usize,
         src_height: usize,
         src_planes: PixelFormatPlanes<&[B::Primitive]>,

@@ -54,7 +54,7 @@ unsafe impl Vector for float32x4_t {
 
     #[inline(always)]
     unsafe fn vpow(self, pow: Self) -> Self {
-        math::powf(self, pow)
+        math::pow(self, pow)
     }
     #[inline(always)]
     unsafe fn vln(self) -> Self {
@@ -275,6 +275,7 @@ unsafe impl Vector for float32x4_t {
 
 mod math {
     use crate::arch::*;
+    use crate::vector::Vector;
     use std::f32::consts::LOG2_E;
     use std::mem::transmute;
 
@@ -364,8 +365,9 @@ mod math {
         const CEPHES_LOG_Q1: float32x4_t = splat(-2.121_944_4e-4);
         const CEPHES_LOG_Q2: float32x4_t = splat(0.693_359_4);
 
-        let x = vmaxq_f32(x, vdupq_n_f32(0.0)); /* force flush to zero on denormal values */
-        let invalid_mask = vcleq_f32(x, vdupq_n_f32(0.0));
+        // TODO: Investigate what behavior for negative numbers is wanted here
+        // if x is NaN then x == x = false
+        let invalid_mask = vceqq_f32(x, x);
 
         let ux = vreinterpretq_s32_f32(x);
 
@@ -428,12 +430,13 @@ mod math {
         let tmp = vmulq_f32(e, CEPHES_LOG_Q2);
         let x = vaddq_f32(x, y);
         let x = vaddq_f32(x, tmp);
-        // negative arg will be NAN
-        vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(x), invalid_mask))
+
+        // Set invalid input to NaN
+        float32x4_t::select(x, float32x4_t::splat(f32::NAN), invalid_mask)
     }
 
     #[inline(always)]
-    pub(super) unsafe fn powf(x: float32x4_t, y: float32x4_t) -> float32x4_t {
+    pub(super) unsafe fn pow(x: float32x4_t, y: float32x4_t) -> float32x4_t {
         exp(vmulq_f32(y, log(x)))
     }
 }
@@ -575,19 +578,28 @@ mod tests {
         assert!((a - b).abs() < error, "error too large between {a} and {b}")
     }
 
+    unsafe fn make_arr(i: float32x4_t) -> [f32; 4] {
+        transmute(i)
+    }
+
     #[test]
     fn exp() {
         assert!(is_aarch64_feature_detected!("neon"));
 
         unsafe {
-            let input: float32x4_t = transmute([0.1f32, 0.4, 0.7, 2.0]);
-            let exp = math::exp(input);
+            assert!(make_arr(math::exp(float32x4_t::splat(f32::NAN)))[0].is_nan());
 
-            let expected = transmute::<_, [f32; 4]>(input).map(f32::exp);
-            let got = transmute::<_, [f32; 4]>(exp);
+            for i in 0..10_000 {
+                let i = (i - 5000) as f32 / 1000.0;
 
-            for (a, b) in expected.iter().zip(got.iter()) {
-                assert_within_error(*a, *b, 0.000001);
+                let iv = float32x4_t::splat(i);
+
+                let rv = math::exp(iv);
+                let r = i.exp();
+
+                let rv = make_arr(rv)[0];
+
+                assert_within_error(r, rv, 0.0001);
             }
         }
     }
@@ -597,14 +609,20 @@ mod tests {
         assert!(is_aarch64_feature_detected!("neon"));
 
         unsafe {
-            let input: float32x4_t = transmute([0.1f32, 0.4, 0.7, 2.0]);
-            let log = math::log(input);
+            assert!(make_arr(math::log(float32x4_t::splat(f32::NAN)))[0].is_nan());
 
-            let expected = transmute::<_, [f32; 4]>(input).map(f32::ln);
-            let got = transmute::<_, [f32; 4]>(log);
+            for i in 1..10_000 {
+                let i = (i) as f32 / 10000.0;
+                println!("{i}");
 
-            for (a, b) in expected.iter().zip(got.iter()) {
-                assert_within_error(*a, *b, 0.000001);
+                let iv = float32x4_t::splat(i);
+
+                let rv = math::log(iv);
+                let r = i.ln();
+
+                let rv = make_arr(rv)[0];
+
+                assert_within_error(r, rv, 0.0001);
             }
         }
     }
@@ -614,16 +632,35 @@ mod tests {
         assert!(is_aarch64_feature_detected!("neon"));
 
         unsafe {
-            let input: float32x4_t = transmute([0.1f32, 0.4, 0.7, 2.0]);
+            assert!(make_arr(math::pow(
+                float32x4_t::splat(f32::NAN),
+                float32x4_t::splat(f32::NAN)
+            ))[0]
+                .is_nan());
 
-            let pows = [0.1, 0.2, 1.0, 2.0];
+            assert!(make_arr(math::pow(
+                float32x4_t::splat(f32::NAN),
+                float32x4_t::splat(1.0)
+            ))[0]
+                .is_nan());
+            assert!(make_arr(math::pow(
+                float32x4_t::splat(1.0),
+                float32x4_t::splat(f32::NAN)
+            ))[0]
+                .is_nan());
 
-            for pow in pows {
-                let got = transmute::<_, [f32; 4]>(input.vpow(vdupq_n_f32(pow)));
-                let expected = transmute::<_, [f32; 4]>(input).map(|x| x.powf(pow));
+            for a in 1..100 {
+                for p in 1..1000 {
+                    let a = (a) as f32 / 53.1;
+                    let p = (p) as f32 / 839.333;
+                    println!("{a}^{p}");
 
-                for (a, b) in expected.iter().zip(got.iter()) {
-                    assert_within_error(*a, *b, 0.00001);
+                    let rv = math::pow(float32x4_t::splat(a), float32x4_t::splat(p));
+                    let r = a.powf(p);
+
+                    let rv = make_arr(rv)[0];
+
+                    assert_within_error(r, rv, 0.0001);
                 }
             }
         }

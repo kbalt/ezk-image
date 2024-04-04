@@ -315,6 +315,9 @@ pub(crate) mod bt2100_pq {
     /// PQ inverse EOTF
     #[inline(always)]
     pub(crate) unsafe fn linear_to_scaled<V: Vector>(i: V) -> V {
+        // Avoid producing NaN for negative numbers
+        let i = i.vmaxf(0.0);
+
         let i = i.vdivf(L);
         let ym1 = i.vpowf(M1);
 
@@ -349,6 +352,9 @@ pub(crate) mod bt2100_hlg {
 
     #[inline(always)]
     pub(crate) unsafe fn linear_to_scaled<V: Vector>(i: V) -> V {
+        // Avoid producing NaN for negative numbers
+        let i = i.vmaxf(0.0);
+
         let mask = i.lef(1.0 / 12.0);
 
         // a = (3.0 * i).sqrt()

@@ -26,8 +26,7 @@ where
     B: BitsInternal,
     Vis: RgbBlockVisitor,
 {
-    #[inline]
-    pub fn read(
+    pub(crate) fn read(
         src_width: usize,
         src_height: usize,
         src_planes: PixelFormatPlanes<&[B::Primitive]>,
