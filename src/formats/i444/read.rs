@@ -1,12 +1,12 @@
 #![allow(clippy::too_many_arguments)]
 
+use super::{I444Block, I444Pixel, I444Visitor, I444VisitorImpl};
 use crate::bits::BitsInternal;
-use crate::formats::{I420Block, I420Visitor, I420VisitorImpl};
 use crate::vector::Vector;
 use crate::{arch::*, max_value_for_bits};
 use crate::{PixelFormatPlanes, Rect};
 
-pub(crate) fn read_nv12<B, Vis>(
+pub(crate) fn read_i444<B, Vis>(
     src_width: usize,
     src_height: usize,
     src_planes: PixelFormatPlanes<&[B::Primitive]>,
@@ -15,22 +15,23 @@ pub(crate) fn read_nv12<B, Vis>(
     visitor: Vis,
 ) where
     B: BitsInternal,
-    Vis: I420Visitor,
+    Vis: I444Visitor,
 {
     assert!(src_planes.bounds_check(src_width, src_height));
 
-    let PixelFormatPlanes::NV12 { y, uv } = src_planes else {
-        panic!("Invalid PixelFormatPlanes for read_nv12");
+    let PixelFormatPlanes::I444 { y, u, v } = src_planes else {
+        panic!("Invalid PixelFormatPlanes for read_i444");
     };
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     if is_x86_feature_detected!("avx2") && is_x86_feature_detected!("fma") {
         unsafe {
-            return read_nv12_avx2::<B, Vis>(
+            return read_i444_avx2::<B, Vis>(
                 src_width,
                 src_height,
                 y,
-                uv,
+                u,
+                v,
                 bits_per_channel,
                 window,
                 visitor,
@@ -41,11 +42,12 @@ pub(crate) fn read_nv12<B, Vis>(
     #[cfg(target_arch = "aarch64")]
     if is_aarch64_feature_detected!("neon") {
         unsafe {
-            return read_nv12_neon::<B, Vis>(
+            return read_i444_neon::<B, Vis>(
                 src_width,
                 src_height,
                 y,
-                uv,
+                u,
+                v,
                 bits_per_channel,
                 window,
                 visitor,
@@ -55,11 +57,12 @@ pub(crate) fn read_nv12<B, Vis>(
 
     // Fallback to naive
     unsafe {
-        read_nv12_impl::<f32, B, Vis>(
+        read_i444_impl::<f32, B, Vis>(
             src_width,
             src_height,
             y,
-            uv,
+            u,
+            v,
             bits_per_channel,
             window,
             visitor,
@@ -70,23 +73,25 @@ pub(crate) fn read_nv12<B, Vis>(
 #[cfg(target_arch = "aarch64")]
 #[target_feature(enable = "neon")]
 #[inline(never)]
-unsafe fn read_nv12_neon<B, Vis>(
+unsafe fn read_i444_neon<B, Vis>(
     src_width: usize,
     src_height: usize,
     y: &[B::Primitive],
-    uv: &[B::Primitive],
+    u: &[B::Primitive],
+    v: &[B::Primitive],
     bits_per_channel: usize,
     window: Option<Rect>,
     visitor: Vis,
 ) where
     B: BitsInternal,
-    Vis: I420Visitor,
+    Vis: I444Visitor,
 {
-    read_nv12_impl::<float32x4_t, B, Vis>(
+    read_i444_impl::<float32x4_t, B, Vis>(
         src_width,
         src_height,
         y,
-        uv,
+        u,
+        v,
         bits_per_channel,
         window,
         visitor,
@@ -96,23 +101,25 @@ unsafe fn read_nv12_neon<B, Vis>(
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
 #[inline(never)]
-unsafe fn read_nv12_avx2<B, Vis>(
+unsafe fn read_i444_avx2<B, Vis>(
     src_width: usize,
     src_height: usize,
     y: &[B::Primitive],
-    uv: &[B::Primitive],
+    u: &[B::Primitive],
+    v: &[B::Primitive],
     bits_per_channel: usize,
     window: Option<Rect>,
     visitor: Vis,
 ) where
     B: BitsInternal,
-    Vis: I420Visitor,
+    Vis: I444Visitor,
 {
-    read_nv12_impl::<__m256, B, Vis>(
+    read_i444_impl::<__m256, B, Vis>(
         src_width,
         src_height,
         y,
-        uv,
+        u,
+        v,
         bits_per_channel,
         window,
         visitor,
@@ -120,18 +127,19 @@ unsafe fn read_nv12_avx2<B, Vis>(
 }
 
 #[inline(always)]
-unsafe fn read_nv12_impl<V, B, Vis>(
+unsafe fn read_i444_impl<V, B, Vis>(
     src_width: usize,
     src_height: usize,
     src_y: &[B::Primitive],
-    src_uv: &[B::Primitive],
+    src_u: &[B::Primitive],
+    src_v: &[B::Primitive],
     bits_per_channel: usize,
     window: Option<Rect>,
     mut visitor: Vis,
 ) where
     V: Vector,
     B: BitsInternal,
-    Vis: I420Visitor + I420VisitorImpl<V>,
+    Vis: I444Visitor + I444VisitorImpl<V>,
 {
     let max_value = max_value_for_bits(bits_per_channel);
 
@@ -153,12 +161,12 @@ unsafe fn read_nv12_impl<V, B, Vis>(
     let vectored_pixels_per_row = window.width - non_vectored_pixels_per_row;
 
     let y_ptr = src_y.as_ptr();
-    let uv_ptr = src_uv.as_ptr();
+    let u_ptr = src_u.as_ptr();
+    let v_ptr = src_v.as_ptr();
 
     // Process 2 rows of pixels for iteration of this loop
     for y in (0..window.height).step_by(2) {
         let y = window.y + y;
-        let hy = y / 2;
 
         // Process V::LEN amount of U/V pixel per loop
         // This requires to process V::LEN * 2 Y pixels row since one U/V pixel
@@ -166,20 +174,18 @@ unsafe fn read_nv12_impl<V, B, Vis>(
         for x in (0..vectored_pixels_per_row).step_by(V::LEN * 2) {
             let x = window.x + x;
 
-            let uv_offset = hy * (src_width / 2) + (x / 2);
-
-            let y00_offset = (y * src_width) + x;
-            let y10_offset = ((y + 1) * src_width) + x;
+            let px00_offset = (y * src_width) + x;
+            let px10_offset = ((y + 1) * src_width) + x;
 
             load_and_visit_block::<V, B, Vis>(
                 &mut visitor,
                 x - window.x,
                 y - window.y,
                 y_ptr,
-                uv_ptr,
-                y00_offset,
-                y10_offset,
-                uv_offset * 2,
+                u_ptr,
+                v_ptr,
+                px00_offset,
+                px10_offset,
                 max_value,
             );
         }
@@ -188,20 +194,18 @@ unsafe fn read_nv12_impl<V, B, Vis>(
         for x in (0..non_vectored_pixels_per_row).step_by(2) {
             let x = window.x + x + vectored_pixels_per_row;
 
-            let uv_offset = hy * (src_width / 2) + (x / 2);
-
-            let y00_offset = (y * src_width) + x;
-            let y10_offset = ((y + 1) * src_width) + x;
+            let px00_offset = (y * src_width) + x;
+            let px10_offset = ((y + 1) * src_width) + x;
 
             load_and_visit_block::<f32, B, Vis>(
                 &mut visitor,
                 x - window.x,
                 y - window.y,
                 y_ptr,
-                uv_ptr,
-                y00_offset,
-                y10_offset,
-                uv_offset * 2,
+                u_ptr,
+                v_ptr,
+                px00_offset,
+                px10_offset,
                 max_value,
             );
         }
@@ -214,27 +218,33 @@ unsafe fn load_and_visit_block<V, B, Vis>(
     x: usize,
     y: usize,
     y_ptr: *const B::Primitive,
-    uv_ptr: *const B::Primitive,
-    y00_offset: usize,
-    y10_offset: usize,
-    uv_offset: usize,
+    u_ptr: *const B::Primitive,
+    v_ptr: *const B::Primitive,
+    px00_offset: usize,
+    px10_offset: usize,
     max_value: f32,
 ) where
     V: Vector,
-    Vis: I420VisitorImpl<V>,
+    Vis: I444VisitorImpl<V>,
     B: BitsInternal,
 {
     // Load Y pixels
-    let y00 = B::load::<V>(y_ptr.add(y00_offset));
-    let y01 = B::load::<V>(y_ptr.add(y00_offset + V::LEN));
-    let y10 = B::load::<V>(y_ptr.add(y10_offset));
-    let y11 = B::load::<V>(y_ptr.add(y10_offset + V::LEN));
+    let y00 = B::load::<V>(y_ptr.add(px00_offset));
+    let y01 = B::load::<V>(y_ptr.add(px00_offset + V::LEN));
+    let y10 = B::load::<V>(y_ptr.add(px10_offset));
+    let y11 = B::load::<V>(y_ptr.add(px10_offset + V::LEN));
 
-    // Load U and V
-    let uv0 = B::load::<V>(uv_ptr.add(uv_offset));
-    let uv1 = B::load::<V>(uv_ptr.add(uv_offset + V::LEN));
+    // Load U pixels
+    let u00 = B::load::<V>(u_ptr.add(px00_offset));
+    let u01 = B::load::<V>(u_ptr.add(px00_offset + V::LEN));
+    let u10 = B::load::<V>(u_ptr.add(px10_offset));
+    let u11 = B::load::<V>(u_ptr.add(px10_offset + V::LEN));
 
-    let (u, v) = uv0.unzip(uv1);
+    // Load V pixels
+    let v00 = B::load::<V>(v_ptr.add(px00_offset));
+    let v01 = B::load::<V>(v_ptr.add(px00_offset + V::LEN));
+    let v10 = B::load::<V>(v_ptr.add(px10_offset));
+    let v11 = B::load::<V>(v_ptr.add(px10_offset + V::LEN));
 
     // Convert to analog 0..=1.0
     let y00 = y00.vdivf(max_value);
@@ -242,19 +252,40 @@ unsafe fn load_and_visit_block<V, B, Vis>(
     let y10 = y10.vdivf(max_value);
     let y11 = y11.vdivf(max_value);
 
-    let u = u.vdivf(max_value);
-    let v = v.vdivf(max_value);
+    let u00 = u00.vdivf(max_value);
+    let u01 = u01.vdivf(max_value);
+    let u10 = u10.vdivf(max_value);
+    let u11 = u11.vdivf(max_value);
+
+    let v00 = v00.vdivf(max_value);
+    let v01 = v01.vdivf(max_value);
+    let v10 = v10.vdivf(max_value);
+    let v11 = v11.vdivf(max_value);
 
     visitor.visit(
         x,
         y,
-        I420Block {
-            y00,
-            y01,
-            y10,
-            y11,
-            u,
-            v,
+        I444Block {
+            px00: I444Pixel {
+                y: y00,
+                u: u00,
+                v: v00,
+            },
+            px01: I444Pixel {
+                y: y01,
+                u: u01,
+                v: v01,
+            },
+            px10: I444Pixel {
+                y: y10,
+                u: u10,
+                v: v10,
+            },
+            px11: I444Pixel {
+                y: y11,
+                u: u11,
+                v: v11,
+            },
         },
     );
 }

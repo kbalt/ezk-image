@@ -17,6 +17,8 @@ pub(crate) fn read_i420<B, Vis>(
     B: BitsInternal,
     Vis: I420Visitor,
 {
+    assert!(src_planes.bounds_check(src_width, src_height));
+
     let PixelFormatPlanes::I420 { y, u, v } = src_planes else {
         panic!("Invalid PixelFormatPlanes for read_i420");
     };

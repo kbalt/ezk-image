@@ -70,7 +70,7 @@ fn verify_input_windows_same_size<SB: Bits, DB: Bits>(
     (src_window, dst_window)
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum PixelFormat {
     /// 3 Planes, Y, U, V
     ///
@@ -91,11 +91,12 @@ pub enum PixelFormat {
     // ////
     // /// 4x Y, 2x U, 2x V, 4x A
     // I422A
+    //
+    /// 3 Planes, Y, U, V
+    ///
+    /// 1x Y, 1x U, 1x V
+    I444,
 
-    // /// 3 Planes, Y, U, V
-    // ///
-    // /// 1x Y, 1x U, 1x V
-    // I444,
     /// 2 Planes, Y, U & V interleaved
     ///
     /// 4x Y, 1x U & V
@@ -117,6 +118,7 @@ impl PixelFormat {
 
         match self {
             I420 | NV12 => (width * height * 12).div_ceil(8),
+            I444 => width * height * 3,
             RGBA | BGRA => width * height * 4,
             RGB | BGR => width * height * 3,
         }
@@ -128,6 +130,21 @@ macro_rules! write_i420 {
         RgbToI420Visitor::new(
             &$dst.color,
             I420Writer::<DB>::new(
+                $dst.width,
+                $dst.height,
+                $dst.planes,
+                $dst.bits_per_channel,
+                $dst.window,
+            ),
+        )
+    };
+}
+
+macro_rules! write_i444 {
+    ($dst:ident) => {
+        RgbToI444Visitor::new(
+            &$dst.color,
+            I444Writer::<DB>::new(
                 $dst.width,
                 $dst.height,
                 $dst.planes,
@@ -205,6 +222,7 @@ macro_rules! match_dst_format {
     ($src:ident, $dst:ident, $read_to_rgb:ident) => {
         match $dst.format {
             PixelFormat::I420 => $read_to_rgb!($src, $dst, write_i420!($dst)),
+            PixelFormat::I444 => $read_to_rgb!($src, $dst, write_i444!($dst)),
             PixelFormat::NV12 => $read_to_rgb!($src, $dst, write_nv12!($dst)),
             PixelFormat::RGBA => $read_to_rgb!($src, $dst, write_rgba!($dst)),
             PixelFormat::BGRA => $read_to_rgb!($src, $dst, write_bgra!($dst)),
@@ -224,6 +242,7 @@ where
 
     match src.format {
         PixelFormat::I420 => convert_i420::<SB, DB>(src, dst),
+        PixelFormat::I444 => convert_i444::<SB, DB>(src, dst),
         PixelFormat::NV12 => convert_nv12::<SB, DB>(src, dst),
         PixelFormat::RGBA => convert_rgba::<false, SB, DB>(src, dst),
         PixelFormat::BGRA => convert_rgba::<true, SB, DB>(src, dst),
@@ -253,6 +272,29 @@ where
         };
     }
     match_dst_format!(src, dst, read_i420_to_rgb);
+}
+
+fn convert_i444<SB, DB>(src: Source<'_, SB>, dst: Destination<'_, DB>)
+where
+    SB: BitsInternal,
+    DB: BitsInternal,
+{
+    macro_rules! read_i444_to_rgb {
+        ($src:ident, $dst:ident, $writer:expr $(,)?) => {
+            read_i444::<SB, _>(
+                $src.width,
+                $src.height,
+                $src.planes,
+                $src.bits_per_channel,
+                $src.window,
+                I444ToRgbVisitor::new(
+                    &$src.color,
+                    TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
+                ),
+            )
+        };
+    }
+    match_dst_format!(src, dst, read_i444_to_rgb);
 }
 
 fn convert_nv12<SB, DB>(src: Source<'_, SB>, dst: Destination<'_, DB>)

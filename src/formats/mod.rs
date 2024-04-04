@@ -24,12 +24,14 @@ macro_rules! platform_trait {
 }
 
 mod i420;
+mod i444;
 mod nv12;
 mod rgb;
 mod rgba;
 mod transfer_and_primaries_convert;
 
 pub(crate) use i420::*;
+pub(crate) use i444::*;
 pub(crate) use nv12::*;
 pub(crate) use rgb::*;
 pub(crate) use rgba::*;

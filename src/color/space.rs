@@ -448,9 +448,12 @@ make_impl!(ICtCpHLG:
     |transfer, rgb_to_xyz, r, g, b| bt2100_rgbx4_to_yx4_uv(bt2100::hlg_rgb_to_yuv, transfer, rgb_to_xyz, r, g, b),
 );
 
+type BT2100ConvertFn<V> =
+    unsafe fn(&dyn ColorTransferImpl<V>, &[[f32; 3]; 3], V, V, V) -> (V, V, V);
+
 #[inline(always)]
 unsafe fn bt2100_yx4_uv_to_rgb<V: Vector>(
-    f: unsafe fn(&dyn ColorTransferImpl<V>, &[[f32; 3]; 3], V, V, V) -> (V, V, V),
+    f: BT2100ConvertFn<V>,
     transfer: &dyn ColorTransferImpl<V>,
     xyz_to_rgb: &[[f32; 3]; 3],
     y00: V,
@@ -478,7 +481,7 @@ unsafe fn bt2100_yx4_uv_to_rgb<V: Vector>(
 
 #[inline(always)]
 unsafe fn bt2100_rgbx4_to_yx4_uv<V: Vector>(
-    f: unsafe fn(&dyn ColorTransferImpl<V>, &[[f32; 3]; 3], V, V, V) -> (V, V, V),
+    f: BT2100ConvertFn<V>,
     transfer: &dyn ColorTransferImpl<V>,
     rgb_to_xyz: &[[f32; 3]; 3],
     r: [V; 4],

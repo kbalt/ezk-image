@@ -1,10 +1,13 @@
 use crate::Rect;
 use std::mem::take;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum PixelFormatPlanes<S: AnySlice> {
     /// See [PixelFormat::I420]
     I420 { y: S, u: S, v: S },
+
+    /// See [PixelFormat::I444]
+    I444 { y: S, u: S, v: S },
 
     /// See [PixelFormat::NV12]
     NV12 { y: S, uv: S },
@@ -28,6 +31,9 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
                 n_pixels <= y.slice_len()
                     && uv_req_len <= u.slice_len()
                     && uv_req_len <= v.slice_len()
+            }
+            Self::I444 { y, u, v } => {
+                n_pixels <= y.slice_len() && n_pixels <= u.slice_len() && n_pixels <= v.slice_len()
             }
             Self::NV12 { y, uv } => {
                 let uv_req_len = n_pixels / 2;
@@ -62,6 +68,18 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
         assert!(uv.slice_len() >= (width * height) / 2);
 
         Self::NV12 { y, uv }
+    }
+
+    /// Infer the planes for a full I444 image using the given dimensions
+    ///
+    /// # Panics
+    ///
+    /// If `buf` is too small for the given dimensions this function will panic
+    pub fn infer_i444(buf: S, width: usize, height: usize) -> Self {
+        let (y, tmp) = buf.slice_split_at(width * height);
+        let (u, v) = tmp.slice_split_at(width * height);
+
+        Self::I444 { y, u, v }
     }
 
     /// Split the planes into multiple planes, where
@@ -112,6 +130,29 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
 
                     ret.push((
                         Self::I420 {
+                            y: y_,
+                            u: u_,
+                            v: v_,
+                        },
+                        Rect {
+                            x: rect.x,
+                            y: 0,
+                            width: rect.width,
+                            height: rect.height,
+                        },
+                    ));
+                }
+                Self::I444 { y, u, v } => {
+                    let (y_, y_remaining) = take(y).slice_split_at(width * rect.height);
+                    let (u_, u_remaining) = take(u).slice_split_at(width * rect.height);
+                    let (v_, v_remaining) = take(v).slice_split_at(width * rect.height);
+
+                    *y = y_remaining;
+                    *u = u_remaining;
+                    *v = v_remaining;
+
+                    ret.push((
+                        Self::I444 {
                             y: y_,
                             u: u_,
                             v: v_,

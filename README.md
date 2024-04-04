@@ -18,6 +18,7 @@ convert parts of an image, or write the converted image into a part of the desti
 Bit depth of up to 16 bit per component is supported.
 
 - I420
+- I444
 - NV12
 - RGBA, BGRA
 - RGB, BGR
@@ -58,7 +59,7 @@ let (width, height) = (1920, 1080);
 // Our source image, an RGB buffer
 let rgb_image = vec![0u8; PixelFormat::RGB.buffer_size(width, height)];
 
-// Our destination image, NV12 is a format that stores the image's luminosity and colors in the YUV format
+// Our destination image, NV12 is a format that stores the image's luminosity and colors in the YUV space
 let mut nv12_image = vec![0u8; PixelFormat::NV12.buffer_size(width, height)];
 
 // Create a Source with the rgb_image buffer and specify the image we're converting from
