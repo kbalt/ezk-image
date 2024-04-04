@@ -304,7 +304,7 @@ where
 {
     macro_rules! read_nv12_to_rgb {
         ($src:ident, $dst:ident, $writer:expr $(,)?) => {
-            read_nv12::<SB, _>(
+            NV12Reader::<SB, _>::read(
                 $src.width,
                 $src.height,
                 $src.planes,

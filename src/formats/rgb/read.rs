@@ -72,9 +72,8 @@ where
             rgb10offset,
             self.max_value,
             &mut self.visitor,
-            x,
-            window,
-            y,
+            x - window.x,
+            y - window.y,
         );
     }
 }
@@ -88,7 +87,6 @@ unsafe fn load_and_visit_block<const REVERSE: bool, B, V, Vis>(
     max_value: f32,
     visitor: &mut Vis,
     x: usize,
-    window: Rect,
     y: usize,
 ) where
     B: BitsInternal,
@@ -128,5 +126,5 @@ unsafe fn load_and_visit_block<const REVERSE: bool, B, V, Vis>(
         rgb11: px11,
     };
 
-    visitor.visit(x - window.x, y - window.y, block);
+    visitor.visit(x, y, block);
 }
