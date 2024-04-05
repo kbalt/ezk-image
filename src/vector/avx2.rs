@@ -352,18 +352,13 @@ mod math {
         let z = _mm256_mul_ps(x, x);
 
         let y = P0;
-        let y = _mm256_mul_ps(y, x);
-        let y = _mm256_add_ps(y, P1);
-        let y = _mm256_mul_ps(y, x);
-        let y = _mm256_add_ps(y, P2);
-        let y = _mm256_mul_ps(y, x);
-        let y = _mm256_add_ps(y, P3);
-        let y = _mm256_mul_ps(y, x);
-        let y = _mm256_add_ps(y, P4);
-        let y = _mm256_mul_ps(y, x);
-        let y = _mm256_add_ps(y, P5);
-        let y = _mm256_mul_ps(y, z);
-        let y = _mm256_add_ps(y, x);
+        let y = _mm256_fmadd_ps(y, x, P1);
+        let y = _mm256_fmadd_ps(y, x, P2);
+        let y = _mm256_fmadd_ps(y, x, P3);
+        let y = _mm256_fmadd_ps(y, x, P4);
+        let y = _mm256_fmadd_ps(y, x, P5);
+        let y = _mm256_fmadd_ps(y, z, x);
+
         let y = _mm256_add_ps(y, ONE);
 
         /* build 2^n */
