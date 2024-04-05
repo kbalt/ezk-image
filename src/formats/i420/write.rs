@@ -23,7 +23,7 @@ impl<'a, B: BitsInternal> I420Writer<'a, B> {
         dst_width: usize,
         dst_height: usize,
         dst_planes: PixelFormatPlanes<&'a mut [B::Primitive]>,
-        bits_per_channel: usize,
+        bits_per_component: usize,
         window: Option<Rect>,
     ) -> Self {
         let window = window.unwrap_or(Rect {
@@ -48,7 +48,7 @@ impl<'a, B: BitsInternal> I420Writer<'a, B> {
             y: y.as_mut_ptr(),
             u: u.as_mut_ptr(),
             v: v.as_mut_ptr(),
-            max_value: crate::max_value_for_bits(bits_per_channel),
+            max_value: crate::max_value_for_bits(bits_per_component),
             _m: PhantomData,
             _b: PhantomData,
         }

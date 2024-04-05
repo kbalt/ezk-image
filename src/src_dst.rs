@@ -9,7 +9,7 @@ pub struct Source<'a, B: Bits> {
     pub(crate) height: usize,
 
     pub(crate) color: ColorInfo,
-    pub(crate) bits_per_channel: usize,
+    pub(crate) bits_per_component: usize,
 
     pub(crate) window: Option<Rect>,
 }
@@ -21,7 +21,7 @@ impl<'a, B: Bits> Source<'a, B> {
         width: usize,
         height: usize,
         color: ColorInfo,
-        bits_per_channel: usize,
+        bits_per_component: usize,
     ) -> Self {
         assert!(planes.bounds_check(width, height));
 
@@ -31,7 +31,7 @@ impl<'a, B: Bits> Source<'a, B> {
             width,
             height,
             color,
-            bits_per_channel,
+            bits_per_component,
             window: None,
         }
     }
@@ -57,7 +57,7 @@ pub struct Destination<'a, B: Bits> {
     pub(crate) height: usize,
 
     pub(crate) color: ColorInfo,
-    pub(crate) bits_per_channel: usize,
+    pub(crate) bits_per_component: usize,
 
     pub(crate) window: Option<Rect>,
 }
@@ -69,7 +69,7 @@ impl<'a, B: Bits> Destination<'a, B> {
         width: usize,
         height: usize,
         color: ColorInfo,
-        bits_per_channel: usize,
+        bits_per_component: usize,
     ) -> Self {
         assert!(planes.bounds_check(width, height));
 
@@ -79,7 +79,7 @@ impl<'a, B: Bits> Destination<'a, B> {
             width,
             height,
             color,
-            bits_per_channel,
+            bits_per_component,
             window: None,
         }
     }

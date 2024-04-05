@@ -124,7 +124,7 @@ macro_rules! write_i420 {
                 $dst.width,
                 $dst.height,
                 $dst.planes,
-                $dst.bits_per_channel,
+                $dst.bits_per_component,
                 $dst.window,
             ),
         )
@@ -139,7 +139,7 @@ macro_rules! write_i422 {
                 $dst.width,
                 $dst.height,
                 $dst.planes,
-                $dst.bits_per_channel,
+                $dst.bits_per_component,
                 $dst.window,
             ),
         )
@@ -154,7 +154,7 @@ macro_rules! write_i444 {
                 $dst.width,
                 $dst.height,
                 $dst.planes,
-                $dst.bits_per_channel,
+                $dst.bits_per_component,
                 $dst.window,
             ),
         )
@@ -169,7 +169,7 @@ macro_rules! write_nv12 {
                 $dst.width,
                 $dst.height,
                 $dst.planes,
-                $dst.bits_per_channel,
+                $dst.bits_per_component,
                 $dst.window,
             ),
         )
@@ -182,7 +182,7 @@ macro_rules! write_rgb {
             $dst.width,
             $dst.height,
             $dst.planes,
-            $dst.bits_per_channel,
+            $dst.bits_per_component,
             $dst.window,
         )
     };
@@ -194,7 +194,7 @@ macro_rules! write_bgr {
             $dst.width,
             $dst.height,
             $dst.planes,
-            $dst.bits_per_channel,
+            $dst.bits_per_component,
             $dst.window,
         )
     };
@@ -206,7 +206,7 @@ macro_rules! write_rgba {
             $dst.width,
             $dst.height,
             $dst.planes,
-            $dst.bits_per_channel,
+            $dst.bits_per_component,
             $dst.window,
         )
     };
@@ -218,7 +218,7 @@ macro_rules! write_bgra {
             $dst.width,
             $dst.height,
             $dst.planes,
-            $dst.bits_per_channel,
+            $dst.bits_per_component,
             $dst.window,
         )
     };
@@ -270,7 +270,7 @@ where
                 $src.width,
                 $src.height,
                 $src.planes,
-                $src.bits_per_channel,
+                $src.bits_per_component,
                 $src.window,
                 I420ToRgbVisitor::new(
                     &$src.color,
@@ -293,7 +293,7 @@ where
                 $src.width,
                 $src.height,
                 $src.planes,
-                $src.bits_per_channel,
+                $src.bits_per_component,
                 $src.window,
                 I422ToRgbVisitor::new(
                     &$src.color,
@@ -316,7 +316,7 @@ where
                 $src.width,
                 $src.height,
                 $src.planes,
-                $src.bits_per_channel,
+                $src.bits_per_component,
                 $src.window,
                 I444ToRgbVisitor::new(
                     &$src.color,
@@ -339,7 +339,7 @@ where
                 $src.width,
                 $src.height,
                 $src.planes,
-                $src.bits_per_channel,
+                $src.bits_per_component,
                 $src.window,
                 I420ToRgbVisitor::new(
                     &$src.color,
@@ -362,7 +362,7 @@ where
                 $src.width,
                 $src.height,
                 $src.planes,
-                $src.bits_per_channel,
+                $src.bits_per_component,
                 $src.window,
                 TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
             )
@@ -383,7 +383,7 @@ where
                 $src.width,
                 $src.height,
                 $src.planes,
-                $src.bits_per_channel,
+                $src.bits_per_component,
                 $src.window,
                 TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
             )

@@ -26,7 +26,7 @@ pub fn convert_multi_thread<SB: BitsInternal, DB: BitsInternal>(
                 src.width,
                 src_window.y + src_window.height,
                 src.color,
-                src.bits_per_channel,
+                src.bits_per_component,
             )
             .with_window(src_window);
 
@@ -36,7 +36,7 @@ pub fn convert_multi_thread<SB: BitsInternal, DB: BitsInternal>(
                 dst.width,
                 dst_window.y + dst_window.height,
                 dst.color,
-                dst.bits_per_channel,
+                dst.bits_per_component,
             )
             .with_window(dst_window);
 
