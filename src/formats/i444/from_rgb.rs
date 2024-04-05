@@ -74,7 +74,7 @@ pub(crate) unsafe fn convert_rgb_to_yuv<V: Vector>(
     let color_ops = V::color_ops(color);
 
     let (mut y, mut u, mut v) =
-        color_ops
+        color
             .space
             .rgb_to_yuv(color_ops.transfer, color.rgb_to_xyz, px.r, px.g, px.b);
 

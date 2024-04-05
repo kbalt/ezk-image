@@ -1,7 +1,6 @@
-#![allow(clippy::too_many_arguments, clippy::redundant_closure_call)]
+#![allow(clippy::too_many_arguments)]
 
 use super::transfer::ColorTransferImpl;
-use crate::arch::*;
 use crate::color::mat_idxs::*;
 use crate::vector::Vector;
 
@@ -24,34 +23,25 @@ pub enum ColorSpace {
 }
 
 impl ColorSpace {
-    pub(super) fn dispatch<V: Vector>(&self) -> &'static dyn ColorSpaceImpl<V>
-    where
-        BT601: ColorSpaceImpl<V>,
-        BT709: ColorSpaceImpl<V>,
-        BT2020: ColorSpaceImpl<V>,
-        ICtCpPQ: ColorSpaceImpl<V>,
-        ICtCpHLG: ColorSpaceImpl<V>,
-    {
-        match self {
-            ColorSpace::BT601 => &BT601,
-            ColorSpace::BT709 => &BT709,
-            ColorSpace::BT2020 => &BT2020,
-            ColorSpace::ICtCpPQ => &ICtCpPQ,
-            ColorSpace::ICtCpHLG => &ICtCpHLG,
-        }
-    }
-}
-
-pub(crate) trait ColorSpaceImpl<V: Vector>: 'static {
-    unsafe fn yuv_to_rgb(
+    #[inline(always)]
+    pub(crate) unsafe fn yuv_to_rgb<V: Vector>(
         &self,
         transfer: &'static dyn ColorTransferImpl<V>,
         xyz_to_rgb: &'static [[f32; 3]; 3],
         y: V,
         u: V,
         v: V,
-    ) -> (V, V, V);
-    unsafe fn yx4_uv_to_rgb(
+    ) -> (V, V, V) {
+        match self {
+            ColorSpace::BT601 => convert_yuv_to_rgb_matrix(&BT601_YUV_TO_RGB, y, u, v),
+            ColorSpace::BT709 => convert_yuv_to_rgb_matrix(&BT709_YUV_TO_RGB, y, u, v),
+            ColorSpace::BT2020 => convert_yuv_to_rgb_matrix(&BT2020_YUV_TO_RGB, y, u, v),
+            ColorSpace::ICtCpPQ => bt2100::pq_yuv_to_rgb(transfer, xyz_to_rgb, y, u, v),
+            ColorSpace::ICtCpHLG => bt2100::hlg_yuv_to_rgb(transfer, xyz_to_rgb, y, u, v),
+        }
+    }
+    #[inline(always)]
+    pub(crate) unsafe fn yx4_uv_to_rgb<V: Vector>(
         &self,
         transfer: &'static dyn ColorTransferImpl<V>,
         xyz_to_rgb: &'static [[f32; 3]; 3],
@@ -61,209 +51,81 @@ pub(crate) trait ColorSpaceImpl<V: Vector>: 'static {
         y11: V,
         u: V,
         v: V,
-    ) -> [[V; 3]; 4];
+    ) -> [[V; 3]; 4] {
+        match self {
+            ColorSpace::BT601 => {
+                convert_yx4_uv_to_rgb_matrix(&BT601_YUV_TO_RGB, y00, y01, y10, y11, u, v)
+            }
+            ColorSpace::BT709 => {
+                convert_yx4_uv_to_rgb_matrix(&BT709_YUV_TO_RGB, y00, y01, y10, y11, u, v)
+            }
+            ColorSpace::BT2020 => {
+                convert_yx4_uv_to_rgb_matrix(&BT2020_YUV_TO_RGB, y00, y01, y10, y11, u, v)
+            }
+            ColorSpace::ICtCpPQ => bt2100_yx4_uv_to_rgb(
+                bt2100::pq_yuv_to_rgb,
+                transfer,
+                xyz_to_rgb,
+                y00,
+                y01,
+                y10,
+                y11,
+                u,
+                v,
+            ),
+            ColorSpace::ICtCpHLG => bt2100_yx4_uv_to_rgb(
+                bt2100::hlg_yuv_to_rgb,
+                transfer,
+                xyz_to_rgb,
+                y00,
+                y01,
+                y10,
+                y11,
+                u,
+                v,
+            ),
+        }
+    }
 
-    unsafe fn rgb_to_yuv(
+    #[inline(always)]
+    pub(crate) unsafe fn rgb_to_yuv<V: Vector>(
         &self,
         transfer: &'static dyn ColorTransferImpl<V>,
         rgb_to_xyz: &'static [[f32; 3]; 3],
         r: V,
         g: V,
         b: V,
-    ) -> (V, V, V);
-    unsafe fn rgbx4_to_yx4_uv(
+    ) -> (V, V, V) {
+        match self {
+            ColorSpace::BT601 => convert_rgb_to_yuv_matrix(&BT601_RGB_TO_YUV, r, g, b),
+            ColorSpace::BT709 => convert_rgb_to_yuv_matrix(&BT709_RGB_TO_YUV, r, g, b),
+            ColorSpace::BT2020 => convert_rgb_to_yuv_matrix(&BT2020_RGB_TO_YUV, r, g, b),
+            ColorSpace::ICtCpPQ => bt2100::pq_rgb_to_yuv(transfer, rgb_to_xyz, r, g, b),
+            ColorSpace::ICtCpHLG => bt2100::hlg_rgb_to_yuv(transfer, rgb_to_xyz, r, g, b),
+        }
+    }
+    #[inline(always)]
+    pub(crate) unsafe fn rgbx4_to_yx4_uv<V: Vector>(
         &self,
         transfer: &'static dyn ColorTransferImpl<V>,
         rgb_to_xyz: &'static [[f32; 3]; 3],
         r: [V; 4],
         g: [V; 4],
         b: [V; 4],
-    ) -> ([V; 4], V, V);
+    ) -> ([V; 4], V, V) {
+        match self {
+            ColorSpace::BT601 => rgbx4_to_yx4_uv_matrix(&BT601_RGB_TO_YUV, r, g, b),
+            ColorSpace::BT709 => rgbx4_to_yx4_uv_matrix(&BT709_RGB_TO_YUV, r, g, b),
+            ColorSpace::BT2020 => rgbx4_to_yx4_uv_matrix(&BT2020_RGB_TO_YUV, r, g, b),
+            ColorSpace::ICtCpPQ => {
+                bt2100_rgbx4_to_yx4_uv(bt2100::pq_rgb_to_yuv, transfer, rgb_to_xyz, r, g, b)
+            }
+            ColorSpace::ICtCpHLG => {
+                bt2100_rgbx4_to_yx4_uv(bt2100::hlg_rgb_to_yuv, transfer, rgb_to_xyz, r, g, b)
+            }
+        }
+    }
 }
-
-macro_rules! make_impl {
-    ($name:ident:
-        $yuv_to_rgb:expr,
-        $yx4_uv_to_rgb:expr,
-
-        $rgb_to_yuv:expr,
-        $rgbx4_to_yx4_uv:expr,
-    ) => {
-        pub(crate) struct $name;
-
-        impl ColorSpaceImpl<f32> for $name {
-            unsafe fn yuv_to_rgb(
-                &self,
-                transfer: &'static dyn ColorTransferImpl<f32>,
-                xyz_to_rgb: &'static [[f32; 3]; 3],
-                y: f32,
-                u: f32,
-                v: f32,
-            ) -> (f32, f32, f32) {
-                ($yuv_to_rgb)(transfer, xyz_to_rgb, y, u, v)
-            }
-            unsafe fn yx4_uv_to_rgb(
-                &self,
-                transfer: &'static dyn ColorTransferImpl<f32>,
-                xyz_to_rgb: &'static [[f32; 3]; 3],
-                y00: f32,
-                y01: f32,
-                y10: f32,
-                y11: f32,
-                u: f32,
-                v: f32,
-            ) -> [[f32; 3]; 4] {
-                ($yx4_uv_to_rgb)(transfer, xyz_to_rgb, y00, y01, y10, y11, u, v)
-            }
-
-            unsafe fn rgb_to_yuv(
-                &self,
-                transfer: &'static dyn ColorTransferImpl<f32>,
-                rgb_to_xyz: &'static [[f32; 3]; 3],
-                r: f32,
-                g: f32,
-                b: f32,
-            ) -> (f32, f32, f32) {
-                ($rgb_to_yuv)(transfer, rgb_to_xyz, r, g, b)
-            }
-            unsafe fn rgbx4_to_yx4_uv(
-                &self,
-                transfer: &'static dyn ColorTransferImpl<f32>,
-                rgb_to_xyz: &'static [[f32; 3]; 3],
-                r: [f32; 4],
-                g: [f32; 4],
-                b: [f32; 4],
-            ) -> ([f32; 4], f32, f32) {
-                ($rgbx4_to_yx4_uv)(transfer, rgb_to_xyz, r, g, b)
-            }
-        }
-
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        impl ColorSpaceImpl<__m256> for $name {
-            #[target_feature(enable = "avx2")]
-            unsafe fn yuv_to_rgb(
-                &self,
-                transfer: &'static dyn ColorTransferImpl<__m256>,
-                xyz_to_rgb: &'static [[f32; 3]; 3],
-                y: __m256,
-                u: __m256,
-                v: __m256,
-            ) -> (__m256, __m256, __m256) {
-                ($yuv_to_rgb)(transfer, xyz_to_rgb, y, u, v)
-            }
-            #[target_feature(enable = "avx2")]
-            unsafe fn yx4_uv_to_rgb(
-                &self,
-                transfer: &'static dyn ColorTransferImpl<__m256>,
-                xyz_to_rgb: &'static [[f32; 3]; 3],
-                y00: __m256,
-                y01: __m256,
-                y10: __m256,
-                y11: __m256,
-                u: __m256,
-                v: __m256,
-            ) -> [[__m256; 3]; 4] {
-                ($yx4_uv_to_rgb)(transfer, xyz_to_rgb, y00, y01, y10, y11, u, v)
-            }
-
-            #[target_feature(enable = "avx2")]
-            unsafe fn rgb_to_yuv(
-                &self,
-                transfer: &'static dyn ColorTransferImpl<__m256>,
-                rgb_to_xyz: &'static [[f32; 3]; 3],
-                r: __m256,
-                g: __m256,
-                b: __m256,
-            ) -> (__m256, __m256, __m256) {
-                ($rgb_to_yuv)(transfer, rgb_to_xyz, r, g, b)
-            }
-            #[target_feature(enable = "avx2")]
-            unsafe fn rgbx4_to_yx4_uv(
-                &self,
-                transfer: &'static dyn ColorTransferImpl<__m256>,
-                rgb_to_xyz: &'static [[f32; 3]; 3],
-                r: [__m256; 4],
-                g: [__m256; 4],
-                b: [__m256; 4],
-            ) -> ([__m256; 4], __m256, __m256) {
-                ($rgbx4_to_yx4_uv)(transfer, rgb_to_xyz, r, g, b)
-            }
-        }
-
-        #[cfg(target_arch = "aarch64")]
-        impl ColorSpaceImpl<float32x4_t> for $name {
-            #[target_feature(enable = "neon")]
-            unsafe fn yuv_to_rgb(
-                &self,
-                transfer: &'static dyn ColorTransferImpl<float32x4_t>,
-                xyz_to_rgb: &'static [[f32; 3]; 3],
-                y: float32x4_t,
-                u: float32x4_t,
-                v: float32x4_t,
-            ) -> (float32x4_t, float32x4_t, float32x4_t) {
-                ($yuv_to_rgb)(transfer, xyz_to_rgb, y, u, v)
-            }
-            #[target_feature(enable = "neon")]
-            unsafe fn yx4_uv_to_rgb(
-                &self,
-                transfer: &'static dyn ColorTransferImpl<float32x4_t>,
-                xyz_to_rgb: &'static [[f32; 3]; 3],
-                y00: float32x4_t,
-                y01: float32x4_t,
-                y10: float32x4_t,
-                y11: float32x4_t,
-                u: float32x4_t,
-                v: float32x4_t,
-            ) -> [[float32x4_t; 3]; 4] {
-                ($yx4_uv_to_rgb)(transfer, xyz_to_rgb, y00, y01, y10, y11, u, v)
-            }
-
-            #[target_feature(enable = "neon")]
-            unsafe fn rgb_to_yuv(
-                &self,
-                transfer: &'static dyn ColorTransferImpl<float32x4_t>,
-                rgb_to_xyz: &'static [[f32; 3]; 3],
-                r: float32x4_t,
-                g: float32x4_t,
-                b: float32x4_t,
-            ) -> (float32x4_t, float32x4_t, float32x4_t) {
-                ($rgb_to_yuv)(transfer, rgb_to_xyz, r, g, b)
-            }
-            #[target_feature(enable = "neon")]
-            unsafe fn rgbx4_to_yx4_uv(
-                &self,
-                transfer: &'static dyn ColorTransferImpl<float32x4_t>,
-                rgb_to_xyz: &'static [[f32; 3]; 3],
-                r: [float32x4_t; 4],
-                g: [float32x4_t; 4],
-                b: [float32x4_t; 4],
-            ) -> ([float32x4_t; 4], float32x4_t, float32x4_t) {
-                ($rgbx4_to_yx4_uv)(transfer, rgb_to_xyz, r, g, b)
-            }
-        }
-    };
-}
-
-make_impl!(BT601:
-    |_, _, y, u, v| convert_yuv_to_rgb_matrix(&BT601_YUV_TO_RGB, y, u, v),
-    |_, _, y00, y01, y10, y11, u, v| convert_yx4_uv_to_rgb_matrix(&BT601_YUV_TO_RGB, y00, y01, y10, y11, u, v),
-    |_, _, r, g, b| convert_rgb_to_yuv_matrix(&BT601_RGB_TO_YUV, r, g, b),
-    |_, _, r, g, b| rgbx4_to_yx4_uv_matrix(&BT601_RGB_TO_YUV, r, g, b),
-);
-
-make_impl!(BT709:
-    |_, _, y, u, v| convert_yuv_to_rgb_matrix(&BT709_YUV_TO_RGB, y, u, v),
-    |_, _, y00, y01, y10, y11, u, v| convert_yx4_uv_to_rgb_matrix(&BT709_YUV_TO_RGB, y00, y01, y10, y11, u, v),
-    |_, _, r, g, b| convert_rgb_to_yuv_matrix(&BT709_RGB_TO_YUV, r, g, b),
-    |_, _, r, g, b| rgbx4_to_yx4_uv_matrix(&BT709_RGB_TO_YUV, r, g, b),
-);
-
-make_impl!(BT2020:
-    |_, _, y, u, v| convert_yuv_to_rgb_matrix(&BT2020_YUV_TO_RGB, y, u, v),
-    |_, _, y00, y01, y10, y11, u, v| convert_yx4_uv_to_rgb_matrix(&BT2020_YUV_TO_RGB, y00, y01, y10, y11, u, v),
-    |_, _, r, g, b| convert_rgb_to_yuv_matrix(&BT2020_RGB_TO_YUV, r, g, b),
-    |_, _, r, g, b| rgbx4_to_yx4_uv_matrix(&BT2020_RGB_TO_YUV, r, g, b),
-);
 
 #[inline(always)]
 unsafe fn convert_yuv_to_rgb_matrix<V: Vector>(mat: &[[f32; 3]; 3], y: V, u: V, v: V) -> (V, V, V) {
@@ -429,24 +291,6 @@ make_matrices! {
     BT709_YUV_TO_RGB, BT709_RGB_TO_YUV: 0.2126, 0.7152, 0.0722;
     BT2020_YUV_TO_RGB, BT2020_RGB_TO_YUV: 0.2627, 0.322, 0.0593;
 }
-
-make_impl!(ICtCpPQ:
-    bt2100::pq_yuv_to_rgb,
-    |transfer, xyz_to_rgb, y00, y01, y10, y11, u, v| {
-        bt2100_yx4_uv_to_rgb(bt2100::pq_yuv_to_rgb, transfer, xyz_to_rgb, y00, y01, y10,y11, u, v)
-    },
-    bt2100::pq_rgb_to_yuv,
-    |transfer, rgb_to_xyz, r, g, b| {
-        bt2100_rgbx4_to_yx4_uv(bt2100::pq_rgb_to_yuv, transfer, rgb_to_xyz, r, g, b)
-    },
-);
-
-make_impl!(ICtCpHLG:
-    bt2100::hlg_yuv_to_rgb,
-    |transfer, xyz_to_rgb, y00, y01, y10, y11, u, v| bt2100_yx4_uv_to_rgb(bt2100::hlg_yuv_to_rgb, transfer, xyz_to_rgb, y00, y01, y10,y11, u, v),
-    bt2100::hlg_rgb_to_yuv,
-    |transfer, rgb_to_xyz, r, g, b| bt2100_rgbx4_to_yx4_uv(bt2100::hlg_rgb_to_yuv, transfer, rgb_to_xyz, r, g, b),
-);
 
 type BT2100ConvertFn<V> =
     unsafe fn(&dyn ColorTransferImpl<V>, &[[f32; 3]; 3], V, V, V) -> (V, V, V);

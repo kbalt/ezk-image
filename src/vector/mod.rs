@@ -175,10 +175,11 @@ unsafe impl Vector for f32 {
         f32::sqrt(self)
     }
 
+    #[inline(always)]
     unsafe fn vpow(self, pow: Self) -> Self {
         self.powf(pow)
     }
-
+    #[inline(always)]
     unsafe fn vln(self) -> Self {
         self.ln()
     }

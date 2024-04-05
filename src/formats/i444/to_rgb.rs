@@ -79,7 +79,7 @@ unsafe fn convert_yuv_to_rgb<V: Vector>(
     u = u.vsubf(0.5);
     v = v.vsubf(0.5);
 
-    let (r, g, b) = color_ops
+    let (r, g, b) = color
         .space
         .yuv_to_rgb(color_ops.transfer, color.xyz_to_rgb, y, u, v);
 

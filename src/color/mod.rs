@@ -1,4 +1,3 @@
-use self::space::ColorSpaceImpl;
 use self::transfer::ColorTransferImpl;
 use crate::arch::*;
 use crate::vector::Vector;
@@ -33,6 +32,8 @@ pub(crate) struct ColorOps {
     pub(crate) rgb_to_xyz: &'static [[f32; 3]; 3],
     pub(crate) xyz_to_rgb: &'static [[f32; 3]; 3],
 
+    pub(crate) space: ColorSpace,
+
     pub(crate) f32: ColorOpsPart<f32>,
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     pub(crate) avx2: ColorOpsPart<__m256>,
@@ -41,7 +42,6 @@ pub(crate) struct ColorOps {
 }
 
 pub(crate) struct ColorOpsPart<V: Vector> {
-    pub(crate) space: &'static dyn ColorSpaceImpl<V>,
     pub(crate) transfer: &'static dyn ColorTransferImpl<V>,
 }
 
@@ -52,7 +52,6 @@ impl ColorOps {
 
         let f32 = {
             ColorOpsPart {
-                space: info.space.dispatch(),
                 transfer: info.transfer.dispatch(),
             }
         };
@@ -60,7 +59,6 @@ impl ColorOps {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         let avx2 = {
             ColorOpsPart {
-                space: info.space.dispatch(),
                 transfer: info.transfer.dispatch(),
             }
         };
@@ -68,7 +66,6 @@ impl ColorOps {
         #[cfg(target_arch = "aarch64")]
         let neon = {
             ColorOpsPart {
-                space: info.space.dispatch(),
                 transfer: info.transfer.dispatch(),
             }
         };
@@ -76,6 +73,8 @@ impl ColorOps {
         Self {
             rgb_to_xyz,
             xyz_to_rgb,
+
+            space: info.space,
 
             f32,
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]

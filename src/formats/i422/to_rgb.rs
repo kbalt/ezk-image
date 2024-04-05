@@ -76,20 +76,20 @@ impl<Vis: RgbBlockVisitor> I422Visitor for I422ToRgbVisitor<Vis> {
         v1 = v1.vsubf(0.5);
 
         let (r00, g00, b00) =
-            color
+            self.color
                 .space
                 .yuv_to_rgb(color.transfer, self.color.xyz_to_rgb, y00, u0, v0);
         let (r01, g01, b01) =
-            color
+            self.color
                 .space
                 .yuv_to_rgb(color.transfer, self.color.xyz_to_rgb, y01, u0, v0);
 
         let (r10, g10, b10) =
-            color
+            self.color
                 .space
                 .yuv_to_rgb(color.transfer, self.color.xyz_to_rgb, y10, u1, v1);
         let (r11, g11, b11) =
-            color
+            self.color
                 .space
                 .yuv_to_rgb(color.transfer, self.color.xyz_to_rgb, y11, u1, v1);
 

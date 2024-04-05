@@ -60,7 +60,7 @@ impl<Vis: I420Visitor> RgbBlockVisitor for RgbToI420Visitor<Vis> {
             rgb11,
         } = block;
 
-        let ([y00, y01, y10, y11], u, v) = color.space.rgbx4_to_yx4_uv(
+        let ([y00, y01, y10, y11], u, v) = self.color.space.rgbx4_to_yx4_uv(
             color.transfer,
             self.color.rgb_to_xyz,
             [rgb00.r, rgb01.r, rgb10.r, rgb11.r],
