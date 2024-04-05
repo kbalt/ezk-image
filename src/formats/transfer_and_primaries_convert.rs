@@ -8,9 +8,14 @@ pub(crate) struct TransferAndPrimariesConvert<Vis> {
     src_color: ColorOps,
     dst_color: ColorOps,
 
-    passthrough: bool,
-
     visitor: Vis,
+}
+
+pub(crate) fn need_transfer_and_primaries_convert(
+    src_color: &ColorInfo,
+    dst_color: &ColorInfo,
+) -> bool {
+    src_color.transfer != dst_color.transfer || src_color.primaries != dst_color.primaries
 }
 
 impl<Vis> TransferAndPrimariesConvert<Vis> {
@@ -18,8 +23,6 @@ impl<Vis> TransferAndPrimariesConvert<Vis> {
         Self {
             src_color: ColorOps::from_info(src_color),
             dst_color: ColorOps::from_info(dst_color),
-            passthrough: src_color.transfer == dst_color.transfer
-                && src_color.primaries == dst_color.primaries,
             visitor,
         }
     }
@@ -66,11 +69,6 @@ impl<Vis> TransferAndPrimariesConvert<Vis> {
 impl<Vis: RgbBlockVisitor> RgbBlockVisitor for TransferAndPrimariesConvert<Vis> {
     #[inline(always)]
     unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, mut block: RgbBlock<V>) {
-        if self.passthrough {
-            self.visitor.visit(x, y, block);
-            return;
-        }
-
         let i = [
             &mut block.rgb00.r,
             &mut block.rgb00.g,
@@ -95,11 +93,6 @@ impl<Vis: RgbBlockVisitor> RgbBlockVisitor for TransferAndPrimariesConvert<Vis> 
 impl<Vis: RgbaBlockVisitor> RgbaBlockVisitor for TransferAndPrimariesConvert<Vis> {
     #[inline(always)]
     unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, mut block: RgbaBlock<V>) {
-        if self.passthrough {
-            self.visitor.visit(x, y, block);
-            return;
-        }
-
         let i = [
             &mut block.rgba00.r,
             &mut block.rgba00.g,

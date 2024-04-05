@@ -266,17 +266,28 @@ where
 {
     macro_rules! read_i420_to_rgb {
         ($src:ident, $dst:ident, $writer:expr $(,)?) => {
-            I420Reader::<SB, _>::read(
-                $src.width,
-                $src.height,
-                $src.planes,
-                $src.bits_per_component,
-                $src.window,
-                I420ToRgbVisitor::new(
-                    &$src.color,
-                    TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
-                ),
-            )
+            if need_transfer_and_primaries_convert(&$src.color, &$dst.color) {
+                I420Reader::<SB, _>::read(
+                    $src.width,
+                    $src.height,
+                    $src.planes,
+                    $src.bits_per_component,
+                    $src.window,
+                    I420ToRgbVisitor::new(
+                        &$src.color,
+                        TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
+                    ),
+                )
+            } else {
+                I420Reader::<SB, _>::read(
+                    $src.width,
+                    $src.height,
+                    $src.planes,
+                    $src.bits_per_component,
+                    $src.window,
+                    I420ToRgbVisitor::new(&$src.color, $writer),
+                )
+            }
         };
     }
     match_dst_format!(src, dst, read_i420_to_rgb);
@@ -289,17 +300,28 @@ where
 {
     macro_rules! read_i422_to_rgb {
         ($src:ident, $dst:ident, $writer:expr $(,)?) => {
-            I422Reader::<SB, _>::read(
-                $src.width,
-                $src.height,
-                $src.planes,
-                $src.bits_per_component,
-                $src.window,
-                I422ToRgbVisitor::new(
-                    &$src.color,
-                    TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
-                ),
-            )
+            if need_transfer_and_primaries_convert(&$src.color, &$dst.color) {
+                I422Reader::<SB, _>::read(
+                    $src.width,
+                    $src.height,
+                    $src.planes,
+                    $src.bits_per_component,
+                    $src.window,
+                    I422ToRgbVisitor::new(
+                        &$src.color,
+                        TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
+                    ),
+                )
+            } else {
+                I422Reader::<SB, _>::read(
+                    $src.width,
+                    $src.height,
+                    $src.planes,
+                    $src.bits_per_component,
+                    $src.window,
+                    I422ToRgbVisitor::new(&$src.color, $writer),
+                )
+            }
         };
     }
     match_dst_format!(src, dst, read_i422_to_rgb);
@@ -312,17 +334,28 @@ where
 {
     macro_rules! read_i444_to_rgb {
         ($src:ident, $dst:ident, $writer:expr $(,)?) => {
-            I444Reader::<SB, _>::read(
-                $src.width,
-                $src.height,
-                $src.planes,
-                $src.bits_per_component,
-                $src.window,
-                I444ToRgbVisitor::new(
-                    &$src.color,
-                    TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
-                ),
-            )
+            if need_transfer_and_primaries_convert(&$src.color, &$dst.color) {
+                I444Reader::<SB, _>::read(
+                    $src.width,
+                    $src.height,
+                    $src.planes,
+                    $src.bits_per_component,
+                    $src.window,
+                    I444ToRgbVisitor::new(
+                        &$src.color,
+                        TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
+                    ),
+                )
+            } else {
+                I444Reader::<SB, _>::read(
+                    $src.width,
+                    $src.height,
+                    $src.planes,
+                    $src.bits_per_component,
+                    $src.window,
+                    I444ToRgbVisitor::new(&$src.color, $writer),
+                )
+            }
         };
     }
     match_dst_format!(src, dst, read_i444_to_rgb);
@@ -335,17 +368,28 @@ where
 {
     macro_rules! read_nv12_to_rgb {
         ($src:ident, $dst:ident, $writer:expr $(,)?) => {
-            NV12Reader::<SB, _>::read(
-                $src.width,
-                $src.height,
-                $src.planes,
-                $src.bits_per_component,
-                $src.window,
-                I420ToRgbVisitor::new(
-                    &$src.color,
-                    TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
-                ),
-            )
+            if need_transfer_and_primaries_convert(&$src.color, &$dst.color) {
+                NV12Reader::<SB, _>::read(
+                    $src.width,
+                    $src.height,
+                    $src.planes,
+                    $src.bits_per_component,
+                    $src.window,
+                    I420ToRgbVisitor::new(
+                        &$src.color,
+                        TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
+                    ),
+                )
+            } else {
+                NV12Reader::<SB, _>::read(
+                    $src.width,
+                    $src.height,
+                    $src.planes,
+                    $src.bits_per_component,
+                    $src.window,
+                    I420ToRgbVisitor::new(&$src.color, $writer),
+                )
+            }
         };
     }
     match_dst_format!(src, dst, read_nv12_to_rgb);
@@ -358,14 +402,25 @@ where
 {
     macro_rules! read_rgb_to_rgb {
         ($src:ident, $dst:ident, $writer:expr $(,)?) => {
-            RgbReader::<REVERSE, SB, _>::read(
-                $src.width,
-                $src.height,
-                $src.planes,
-                $src.bits_per_component,
-                $src.window,
-                TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
-            )
+            if need_transfer_and_primaries_convert(&$src.color, &$dst.color) {
+                RgbReader::<REVERSE, SB, _>::read(
+                    $src.width,
+                    $src.height,
+                    $src.planes,
+                    $src.bits_per_component,
+                    $src.window,
+                    TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
+                )
+            } else {
+                RgbReader::<REVERSE, SB, _>::read(
+                    $src.width,
+                    $src.height,
+                    $src.planes,
+                    $src.bits_per_component,
+                    $src.window,
+                    $writer,
+                )
+            }
         };
     }
 
@@ -379,14 +434,25 @@ where
 {
     macro_rules! read_rgba_to_rgb {
         ($src:ident, $dst:ident, $writer:expr $(,)?) => {
-            RgbaReader::<REVERSE, SB, _>::read(
-                $src.width,
-                $src.height,
-                $src.planes,
-                $src.bits_per_component,
-                $src.window,
-                TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
-            )
+            if need_transfer_and_primaries_convert(&$src.color, &$dst.color) {
+                RgbaReader::<REVERSE, SB, _>::read(
+                    $src.width,
+                    $src.height,
+                    $src.planes,
+                    $src.bits_per_component,
+                    $src.window,
+                    TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
+                )
+            } else {
+                RgbaReader::<REVERSE, SB, _>::read(
+                    $src.width,
+                    $src.height,
+                    $src.planes,
+                    $src.bits_per_component,
+                    $src.window,
+                    $writer,
+                )
+            }
         };
     }
 
