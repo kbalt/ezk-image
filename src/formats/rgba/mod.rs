@@ -26,10 +26,10 @@ impl<V: Vector> RgbaPixel<V> {
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct RgbaBlock<V> {
-    pub(crate) rgba00: RgbaPixel<V>,
-    pub(crate) rgba01: RgbaPixel<V>,
-    pub(crate) rgba10: RgbaPixel<V>,
-    pub(crate) rgba11: RgbaPixel<V>,
+    pub(crate) px00: RgbaPixel<V>,
+    pub(crate) px01: RgbaPixel<V>,
+    pub(crate) px10: RgbaPixel<V>,
+    pub(crate) px11: RgbaPixel<V>,
 }
 
 pub(crate) trait RgbaSrc {

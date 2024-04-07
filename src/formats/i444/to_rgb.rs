@@ -1,6 +1,5 @@
 use super::{I444Block, I444Pixel, I444Src};
 use crate::color::{ColorInfo, ColorOps};
-use crate::formats::rgb::{RgbBlock, RgbPixel, RgbSrc};
 use crate::formats::rgba::{RgbaBlock, RgbaPixel, RgbaSrc};
 use crate::vector::Vector;
 
@@ -21,9 +20,9 @@ impl<S: I444Src> I444ToRgb<S> {
     }
 }
 
-impl<S: I444Src> RgbSrc for I444ToRgb<S> {
+impl<S: I444Src> RgbaSrc for I444ToRgb<S> {
     #[inline(always)]
-    unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbBlock<V> {
+    unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbaBlock<V> {
         let I444Block {
             px00,
             px01,
@@ -31,11 +30,11 @@ impl<S: I444Src> RgbSrc for I444ToRgb<S> {
             px11,
         } = self.i444_src.read::<V>(x, y);
 
-        RgbBlock {
-            rgb00: convert_yuv_to_rgb(&self.color, self.full_range, px00),
-            rgb01: convert_yuv_to_rgb(&self.color, self.full_range, px01),
-            rgb10: convert_yuv_to_rgb(&self.color, self.full_range, px10),
-            rgb11: convert_yuv_to_rgb(&self.color, self.full_range, px11),
+        RgbaBlock {
+            px00: convert_yuv_to_rgb(&self.color, self.full_range, px00),
+            px01: convert_yuv_to_rgb(&self.color, self.full_range, px01),
+            px10: convert_yuv_to_rgb(&self.color, self.full_range, px10),
+            px11: convert_yuv_to_rgb(&self.color, self.full_range, px11),
         }
     }
 }
@@ -45,7 +44,7 @@ unsafe fn convert_yuv_to_rgb<V: Vector>(
     color: &ColorOps,
     full_range: bool,
     px: I444Pixel<V>,
-) -> RgbPixel<V> {
+) -> RgbaPixel<V> {
     let color_ops = V::color_ops(color);
 
     let I444Pixel {
@@ -79,9 +78,10 @@ unsafe fn convert_yuv_to_rgb<V: Vector>(
         .space
         .yuv_to_rgb(color_ops.transfer, color.xyz_to_rgb, y, u, v);
 
-    RgbPixel { r, g, b }
-}
-
-impl<S: I444Src> RgbaSrc for I444ToRgb<S> {
-    forward_rgb_rgba!();
+    RgbaPixel {
+        r,
+        g,
+        b,
+        a: V::splat(1.0),
+    }
 }

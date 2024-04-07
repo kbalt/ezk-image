@@ -1,21 +1,20 @@
-use super::{RgbPixel, RgbSrc};
 use crate::bits::BitsInternal;
 use crate::formats::reader::{read, ImageReader};
 use crate::vector::Vector;
-use crate::{PixelFormatPlanes, Rect};
+use crate::{PixelFormatPlanes, Rect, RgbaPixel, RgbaSrc};
 use std::marker::PhantomData;
 
 pub(crate) struct RgbWriter<const REVERSE: bool, B, S>
 where
     B: BitsInternal,
-    S: RgbSrc,
+    S: RgbaSrc,
 {
     dst_width: usize,
     dst: *mut B::Primitive,
 
     max_value: f32,
 
-    rgb_src: S,
+    rgba_src: S,
 
     _b: PhantomData<B>,
 }
@@ -23,7 +22,7 @@ where
 impl<const REVERSE: bool, B, S> RgbWriter<REVERSE, B, S>
 where
     B: BitsInternal,
-    S: RgbSrc,
+    S: RgbaSrc,
 {
     pub(crate) fn read(
         dst_width: usize,
@@ -47,7 +46,7 @@ where
                 dst_width,
                 dst: dst.as_mut_ptr(),
                 max_value: crate::max_value_for_bits(bits_per_component),
-                rgb_src,
+                rgba_src: rgb_src,
                 _b: PhantomData,
             },
         )
@@ -57,11 +56,11 @@ where
 impl<const REVERSE: bool, B, S> ImageReader for RgbWriter<REVERSE, B, S>
 where
     B: BitsInternal,
-    S: RgbSrc,
+    S: RgbaSrc,
 {
     #[inline(always)]
     unsafe fn read_at<V: Vector>(&mut self, x: usize, y: usize) {
-        let block = self.rgb_src.read::<V>(x, y);
+        let block = self.rgba_src.read::<V>(x, y);
 
         let offset00 = y * self.dst_width + x;
         let offset10 = (y + 1) * self.dst_width + x;
@@ -69,16 +68,16 @@ where
         B::write_interleaved_3x_2x(
             self.dst.add(offset00 * 3),
             [
-                multiply_and_reverse::<REVERSE, V>(block.rgb00, self.max_value),
-                multiply_and_reverse::<REVERSE, V>(block.rgb01, self.max_value),
+                multiply_and_reverse::<REVERSE, V>(block.px00, self.max_value),
+                multiply_and_reverse::<REVERSE, V>(block.px01, self.max_value),
             ],
         );
 
         B::write_interleaved_3x_2x(
             self.dst.add(offset10 * 3),
             [
-                multiply_and_reverse::<REVERSE, V>(block.rgb10, self.max_value),
-                multiply_and_reverse::<REVERSE, V>(block.rgb11, self.max_value),
+                multiply_and_reverse::<REVERSE, V>(block.px10, self.max_value),
+                multiply_and_reverse::<REVERSE, V>(block.px11, self.max_value),
             ],
         );
     }
@@ -86,7 +85,7 @@ where
 
 #[inline(always)]
 unsafe fn multiply_and_reverse<const REVERSE: bool, V: Vector>(
-    px: RgbPixel<V>,
+    px: RgbaPixel<V>,
     max_value: f32,
 ) -> [V; 3] {
     let r = px.r.vmulf(max_value);

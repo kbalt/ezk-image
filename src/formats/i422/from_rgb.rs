@@ -1,6 +1,6 @@
 use super::{I422Block, I422Src};
 use crate::color::{ColorInfo, ColorOps};
-use crate::formats::rgb::{RgbBlock, RgbPixel, RgbSrc};
+use crate::formats::rgba::{RgbaBlock, RgbaPixel, RgbaSrc};
 use crate::vector::Vector;
 
 pub(crate) struct RgbToI422<S> {
@@ -9,7 +9,7 @@ pub(crate) struct RgbToI422<S> {
     full_range: bool,
 }
 
-impl<S: RgbSrc> RgbToI422<S> {
+impl<S: RgbaSrc> RgbToI422<S> {
     pub(crate) fn new(color: &ColorInfo, rgb_src: S) -> Self {
         Self {
             rgb_src,
@@ -19,18 +19,18 @@ impl<S: RgbSrc> RgbToI422<S> {
     }
 }
 
-impl<S: RgbSrc> I422Src for RgbToI422<S> {
+impl<S: RgbaSrc> I422Src for RgbToI422<S> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> I422Block<V> {
-        let RgbBlock {
-            rgb00,
-            rgb01,
-            rgb10,
-            rgb11,
+        let RgbaBlock {
+            px00,
+            px01,
+            px10,
+            px11,
         } = self.rgb_src.read(x, y);
 
-        let ([y00, y01], u0, v0) = convert_rgb_to_yuv(&self.color, self.full_range, rgb00, rgb01);
-        let ([y10, y11], u1, v1) = convert_rgb_to_yuv(&self.color, self.full_range, rgb10, rgb11);
+        let ([y00, y01], u0, v0) = convert_rgb_to_yuv(&self.color, self.full_range, px00, px01);
+        let ([y10, y11], u1, v1) = convert_rgb_to_yuv(&self.color, self.full_range, px10, px11);
 
         I422Block {
             y00,
@@ -49,8 +49,8 @@ impl<S: RgbSrc> I422Src for RgbToI422<S> {
 unsafe fn convert_rgb_to_yuv<V: Vector>(
     color: &ColorOps,
     full_range: bool,
-    px0: RgbPixel<V>,
-    px1: RgbPixel<V>,
+    px0: RgbaPixel<V>,
+    px1: RgbaPixel<V>,
 ) -> ([V; 2], V, V) {
     let color_ops = V::color_ops(color);
 

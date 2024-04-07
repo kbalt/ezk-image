@@ -1,4 +1,3 @@
-use super::rgb::{RgbBlock, RgbSrc};
 use super::rgba::{RgbaBlock, RgbaSrc};
 use crate::color::primaries::{rgb_to_xyz, xyz_to_rgb};
 use crate::color::{ColorInfo, ColorOps};
@@ -66,50 +65,24 @@ impl<S> TransferAndPrimariesConvert<S> {
     }
 }
 
-impl<S: RgbSrc> RgbSrc for TransferAndPrimariesConvert<S> {
-    #[inline(always)]
-    unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbBlock<V> {
-        let mut block = self.src.read(x, y);
-
-        let i = [
-            &mut block.rgb00.r,
-            &mut block.rgb00.g,
-            &mut block.rgb00.b,
-            &mut block.rgb01.r,
-            &mut block.rgb01.g,
-            &mut block.rgb01.b,
-            &mut block.rgb10.r,
-            &mut block.rgb10.g,
-            &mut block.rgb10.b,
-            &mut block.rgb11.r,
-            &mut block.rgb11.g,
-            &mut block.rgb11.b,
-        ];
-
-        self.convert_rgb(i);
-
-        block
-    }
-}
-
 impl<S: RgbaSrc> RgbaSrc for TransferAndPrimariesConvert<S> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbaBlock<V> {
         let mut block = self.src.read(x, y);
 
         let i = [
-            &mut block.rgba00.r,
-            &mut block.rgba00.g,
-            &mut block.rgba00.b,
-            &mut block.rgba01.r,
-            &mut block.rgba01.g,
-            &mut block.rgba01.b,
-            &mut block.rgba10.r,
-            &mut block.rgba10.g,
-            &mut block.rgba10.b,
-            &mut block.rgba11.r,
-            &mut block.rgba11.g,
-            &mut block.rgba11.b,
+            &mut block.px00.r,
+            &mut block.px00.g,
+            &mut block.px00.b,
+            &mut block.px01.r,
+            &mut block.px01.g,
+            &mut block.px01.b,
+            &mut block.px10.r,
+            &mut block.px10.g,
+            &mut block.px10.b,
+            &mut block.px11.r,
+            &mut block.px11.g,
+            &mut block.px11.b,
         ];
 
         self.convert_rgb(i);

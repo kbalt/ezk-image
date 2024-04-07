@@ -1,6 +1,5 @@
 use super::{RgbaBlock, RgbaPixel, RgbaSrc};
 use crate::bits::BitsInternal;
-use crate::formats::rgb::{RgbBlock, RgbPixel, RgbSrc};
 use crate::vector::Vector;
 use crate::{PixelFormatPlanes, Rect};
 use std::marker::PhantomData;
@@ -48,32 +47,6 @@ impl<'a, const REVERSE: bool, B: BitsInternal> RgbaReader<'a, REVERSE, B> {
             max_value: crate::max_value_for_bits(bits_per_component),
             _m: PhantomData,
             _b: PhantomData,
-        }
-    }
-}
-
-impl<const REVERSE: bool, B> RgbSrc for RgbaReader<'_, REVERSE, B>
-where
-    Self: RgbaSrc,
-    B: BitsInternal,
-{
-    #[inline(always)]
-    unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbBlock<V> {
-        unsafe fn conv<V: Vector>(px: RgbaPixel<V>) -> RgbPixel<V> {
-            RgbPixel {
-                r: px.r,
-                g: px.g,
-                b: px.b,
-            }
-        }
-
-        let block = RgbaSrc::read(self, x, y);
-
-        RgbBlock {
-            rgb00: conv(block.rgba00),
-            rgb01: conv(block.rgba01),
-            rgb10: conv(block.rgba10),
-            rgb11: conv(block.rgba11),
         }
     }
 }
@@ -134,9 +107,9 @@ where
     let px11 = RgbaPixel::from_loaded::<REVERSE>(r11, g11, b11, a11);
 
     RgbaBlock {
-        rgba00: px00,
-        rgba01: px01,
-        rgba10: px10,
-        rgba11: px11,
+        px00,
+        px01,
+        px10,
+        px11,
     }
 }

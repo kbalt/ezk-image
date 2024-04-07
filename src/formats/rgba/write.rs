@@ -69,16 +69,16 @@ where
         B::write_interleaved_4x_2x(
             self.dst.add(offset00 * 4),
             [
-                multiply_and_reverse::<REVERSE, V>(block.rgba00, self.max_value),
-                multiply_and_reverse::<REVERSE, V>(block.rgba01, self.max_value),
+                multiply_and_reverse::<REVERSE, V>(block.px00, self.max_value),
+                multiply_and_reverse::<REVERSE, V>(block.px01, self.max_value),
             ],
         );
 
         B::write_interleaved_4x_2x(
             self.dst.add(offset10 * 4),
             [
-                multiply_and_reverse::<REVERSE, V>(block.rgba10, self.max_value),
-                multiply_and_reverse::<REVERSE, V>(block.rgba11, self.max_value),
+                multiply_and_reverse::<REVERSE, V>(block.px10, self.max_value),
+                multiply_and_reverse::<REVERSE, V>(block.px11, self.max_value),
             ],
         );
     }

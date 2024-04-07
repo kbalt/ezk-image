@@ -1,6 +1,5 @@
 use super::{I422Block, I422Src};
 use crate::color::{ColorInfo, ColorOps};
-use crate::formats::rgb::{RgbBlock, RgbPixel, RgbSrc};
 use crate::formats::rgba::{RgbaBlock, RgbaPixel, RgbaSrc};
 use crate::vector::Vector;
 
@@ -21,9 +20,9 @@ impl<S: I422Src> I422ToRgb<S> {
     }
 }
 
-impl<S: I422Src> RgbSrc for I422ToRgb<S> {
+impl<S: I422Src> RgbaSrc for I422ToRgb<S> {
     #[inline(always)]
-    unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbBlock<V> {
+    unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbaBlock<V> {
         let color = V::color_ops(&self.color);
 
         let I422Block {
@@ -91,31 +90,31 @@ impl<S: I422Src> RgbSrc for I422ToRgb<S> {
                 .space
                 .yuv_to_rgb(color.transfer, self.color.xyz_to_rgb, y11, u1, v1);
 
-        RgbBlock {
-            rgb00: RgbPixel {
+        RgbaBlock {
+            px00: RgbaPixel {
                 r: r00,
                 g: g00,
                 b: b00,
+                a: V::splat(1.0),
             },
-            rgb01: RgbPixel {
+            px01: RgbaPixel {
                 r: r01,
                 g: g01,
                 b: b01,
+                a: V::splat(1.0),
             },
-            rgb10: RgbPixel {
+            px10: RgbaPixel {
                 r: r10,
                 g: g10,
                 b: b10,
+                a: V::splat(1.0),
             },
-            rgb11: RgbPixel {
+            px11: RgbaPixel {
                 r: r11,
                 g: g11,
                 b: b11,
+                a: V::splat(1.0),
             },
         }
     }
-}
-
-impl<S: I422Src> RgbaSrc for I422ToRgb<S> {
-    forward_rgb_rgba!();
 }
