@@ -5,15 +5,15 @@ use crate::formats::rgba::{RgbaPixel, RgbaSrc};
 use crate::vector::Vector;
 
 pub(crate) struct RgbToI444<S> {
-    rgb_src: S,
+    rgba_src: S,
     color: ColorOps,
     full_range: bool,
 }
 
 impl<S: RgbaSrc> RgbToI444<S> {
-    pub(crate) fn new(color: &ColorInfo, rgb_src: S) -> Self {
+    pub(crate) fn new(color: &ColorInfo, rgba_src: S) -> Self {
         Self {
-            rgb_src,
+            rgba_src,
             color: ColorOps::from_info(color),
             full_range: color.full_range,
         }
@@ -23,7 +23,7 @@ impl<S: RgbaSrc> RgbToI444<S> {
 impl<S: RgbaSrc> I444Src for RgbToI444<S> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> I444Block<V> {
-        let block = self.rgb_src.read(x, y);
+        let block = self.rgba_src.read(x, y);
 
         I444Block {
             px00: convert_rgb_to_yuv(&self.color, self.full_range, block.px00),

@@ -30,7 +30,7 @@ where
         dst_planes: PixelFormatPlanes<&mut [B::Primitive]>,
         bits_per_component: usize,
         window: Option<Rect>,
-        rgb_src: S,
+        rgba_src: S,
     ) {
         assert!(dst_planes.bounds_check(dst_width, dst_height));
 
@@ -46,7 +46,7 @@ where
                 dst_width,
                 dst: dst.as_mut_ptr(),
                 max_value: crate::max_value_for_bits(bits_per_component),
-                rgba_src: rgb_src,
+                rgba_src: rgba_src,
                 _b: PhantomData,
             },
         )

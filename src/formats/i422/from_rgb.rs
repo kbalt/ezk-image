@@ -4,15 +4,15 @@ use crate::formats::rgba::{RgbaBlock, RgbaPixel, RgbaSrc};
 use crate::vector::Vector;
 
 pub(crate) struct RgbToI422<S> {
-    rgb_src: S,
+    rgba_src: S,
     color: ColorOps,
     full_range: bool,
 }
 
 impl<S: RgbaSrc> RgbToI422<S> {
-    pub(crate) fn new(color: &ColorInfo, rgb_src: S) -> Self {
+    pub(crate) fn new(color: &ColorInfo, rgba_src: S) -> Self {
         Self {
-            rgb_src,
+            rgba_src,
             color: ColorOps::from_info(color),
             full_range: color.full_range,
         }
@@ -27,7 +27,7 @@ impl<S: RgbaSrc> I422Src for RgbToI422<S> {
             px01,
             px10,
             px11,
-        } = self.rgb_src.read(x, y);
+        } = self.rgba_src.read(x, y);
 
         let ([y00, y01], u0, v0) = convert_rgb_to_yuv(&self.color, self.full_range, px00, px01);
         let ([y10, y11], u1, v1) = convert_rgb_to_yuv(&self.color, self.full_range, px10, px11);

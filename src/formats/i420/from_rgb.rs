@@ -4,15 +4,15 @@ use crate::formats::rgba::{RgbaBlock, RgbaSrc};
 use crate::vector::Vector;
 
 pub(crate) struct RgbToI420<S> {
-    rgb_src: S,
+    rgba_src: S,
     color: ColorOps,
     full_range: bool,
 }
 
 impl<S: RgbaSrc> RgbToI420<S> {
-    pub(crate) fn new(color: &ColorInfo, rgb_src: S) -> Self {
+    pub(crate) fn new(color: &ColorInfo, rgba_src: S) -> Self {
         Self {
-            rgb_src,
+            rgba_src,
             color: ColorOps::from_info(color),
             full_range: color.full_range,
         }
@@ -29,7 +29,7 @@ impl<S: RgbaSrc> I420Src for RgbToI420<S> {
             px01,
             px10,
             px11,
-        } = self.rgb_src.read(x, y);
+        } = self.rgba_src.read(x, y);
 
         let ([y00, y01, y10, y11], u, v) = self.color.space.rgbx4_to_yx4_uv(
             color.transfer,
