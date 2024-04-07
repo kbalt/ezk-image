@@ -23,8 +23,6 @@ impl<S: I422Src> I422ToRgb<S> {
 impl<S: I422Src> RgbaSrc for I422ToRgb<S> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbaBlock<V> {
-        let color = V::color_ops(&self.color);
-
         let I422Block {
             mut y00,
             mut y01,
@@ -75,20 +73,20 @@ impl<S: I422Src> RgbaSrc for I422ToRgb<S> {
         let (r00, g00, b00) =
             self.color
                 .space
-                .yuv_to_rgb(color.transfer, self.color.xyz_to_rgb, y00, u0, v0);
+                .yuv_to_rgb(self.color.transfer, self.color.xyz_to_rgb, y00, u0, v0);
         let (r01, g01, b01) =
             self.color
                 .space
-                .yuv_to_rgb(color.transfer, self.color.xyz_to_rgb, y01, u0, v0);
+                .yuv_to_rgb(self.color.transfer, self.color.xyz_to_rgb, y01, u0, v0);
 
         let (r10, g10, b10) =
             self.color
                 .space
-                .yuv_to_rgb(color.transfer, self.color.xyz_to_rgb, y10, u1, v1);
+                .yuv_to_rgb(self.color.transfer, self.color.xyz_to_rgb, y10, u1, v1);
         let (r11, g11, b11) =
             self.color
                 .space
-                .yuv_to_rgb(color.transfer, self.color.xyz_to_rgb, y11, u1, v1);
+                .yuv_to_rgb(self.color.transfer, self.color.xyz_to_rgb, y11, u1, v1);
 
         RgbaBlock {
             px00: RgbaPixel {

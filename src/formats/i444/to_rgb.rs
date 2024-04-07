@@ -45,8 +45,6 @@ unsafe fn convert_yuv_to_rgb<V: Vector>(
     full_range: bool,
     px: I444Pixel<V>,
 ) -> RgbaPixel<V> {
-    let color_ops = V::color_ops(color);
-
     let I444Pixel {
         mut y,
         mut u,
@@ -76,7 +74,7 @@ unsafe fn convert_yuv_to_rgb<V: Vector>(
 
     let (r, g, b) = color
         .space
-        .yuv_to_rgb(color_ops.transfer, color.xyz_to_rgb, y, u, v);
+        .yuv_to_rgb(color.transfer, color.xyz_to_rgb, y, u, v);
 
     RgbaPixel {
         r,

@@ -1,5 +1,4 @@
-use crate::arch::*;
-use std::convert::identity;
+use crate::vector::Vector;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColorTransfer {
@@ -21,210 +20,92 @@ pub enum ColorTransfer {
 }
 
 impl ColorTransfer {
-    pub fn linear_to_scaled(&self, i: f32) -> f32 {
-        // Safety f32 is safe vector type
-        unsafe { self.dispatch().linear_to_scaled(i) }
+    pub fn linear_to_scaled(&self, mut i: f32) -> f32 {
+        unsafe { self.linear_to_scaled_v(&mut [&mut i]) }
+
+        i
     }
 
-    pub fn scaled_to_linear(&self, i: f32) -> f32 {
-        // Safety f32 is safe vector type
-        unsafe { self.dispatch().scaled_to_linear(i) }
+    pub fn scaled_to_linear(&self, mut i: f32) -> f32 {
+        unsafe { self.scaled_to_linear_v(&mut [&mut i]) }
+
+        i
     }
 
-    pub(super) fn dispatch<V>(&self) -> &'static dyn ColorTransferImpl<V>
-    where
-        Linear: ColorTransferImpl<V>,
-        Gamma22: ColorTransferImpl<V>,
-        Gamma28: ColorTransferImpl<V>,
-        Srgb: ColorTransferImpl<V>,
-        Sdr: ColorTransferImpl<V>,
-        BT2100PQ: ColorTransferImpl<V>,
-        BT2100HLG: ColorTransferImpl<V>,
-    {
+    #[inline(always)]
+    pub(crate) unsafe fn linear_to_scaled_v<const N: usize, V: Vector>(&self, i: &mut [&mut V; N]) {
         match self {
-            Self::Linear => &Linear,
-            Self::Gamma22 => &Gamma22,
-            Self::Gamma28 => &Gamma28,
-            Self::SRGB => &Srgb,
-            Self::SDR => &Sdr,
-            Self::BT2100PQ => &BT2100PQ,
-            Self::BT2100HLG => &BT2100HLG,
+            ColorTransfer::Linear => {}
+            ColorTransfer::Gamma22 => {
+                for v in i {
+                    **v = gamma::linear_to_scaled::<22, V>(**v)
+                }
+            }
+            ColorTransfer::Gamma28 => {
+                for v in i {
+                    **v = gamma::linear_to_scaled::<28, V>(**v)
+                }
+            }
+            ColorTransfer::SRGB => {
+                for v in i {
+                    **v = srgb::linear_to_scaled(**v)
+                }
+            }
+            ColorTransfer::SDR => {
+                for v in i {
+                    **v = sdr::linear_to_scaled(**v)
+                }
+            }
+            ColorTransfer::BT2100PQ => {
+                for v in i {
+                    **v = bt2100_pq::linear_to_scaled(**v)
+                }
+            }
+            ColorTransfer::BT2100HLG => {
+                for v in i {
+                    **v = bt2100_hlg::linear_to_scaled(**v)
+                }
+            }
+        }
+    }
+
+    #[inline(always)]
+    pub(crate) unsafe fn scaled_to_linear_v<const N: usize, V: Vector>(&self, i: &mut [&mut V; N]) {
+        match self {
+            ColorTransfer::Linear => {}
+            ColorTransfer::Gamma22 => {
+                for v in i {
+                    **v = gamma::scaled_to_linear::<22, V>(**v)
+                }
+            }
+            ColorTransfer::Gamma28 => {
+                for v in i {
+                    **v = gamma::scaled_to_linear::<28, V>(**v)
+                }
+            }
+            ColorTransfer::SRGB => {
+                for v in i {
+                    **v = srgb::scaled_to_linear(**v)
+                }
+            }
+            ColorTransfer::SDR => {
+                for v in i {
+                    **v = sdr::scaled_to_linear(**v)
+                }
+            }
+            ColorTransfer::BT2100PQ => {
+                for v in i {
+                    **v = bt2100_pq::scaled_to_linear(**v)
+                }
+            }
+            ColorTransfer::BT2100HLG => {
+                for v in i {
+                    **v = bt2100_hlg::scaled_to_linear(**v)
+                }
+            }
         }
     }
 }
-
-pub(crate) trait ColorTransferImpl<V> {
-    unsafe fn linear_to_scaled(&self, i: V) -> V;
-    unsafe fn linear_to_scaled3(&self, i: &mut [&mut V; 3]);
-    unsafe fn linear_to_scaled12(&self, i: &mut [&mut V; 12]);
-
-    unsafe fn scaled_to_linear(&self, i: V) -> V;
-    unsafe fn scaled_to_linear3(&self, i: &mut [&mut V; 3]);
-    unsafe fn scaled_to_linear12(&self, i: &mut [&mut V; 12]);
-}
-
-macro_rules! make_impls {
-    ($($name:ident: $linear_to_scaled:expr, $scaled_to_linear:expr;)*) => {
-        $(
-        pub(crate) struct $name;
-
-        impl ColorTransferImpl<f32> for $name {
-            unsafe fn linear_to_scaled(&self, i: f32) -> f32 {
-                $linear_to_scaled(i)
-            }
-            unsafe fn linear_to_scaled3(&self, i: &mut [&mut f32; 3]) {
-                for id in 0..3 {
-                    *i[id] = $linear_to_scaled(*i[id]);
-                }
-            }
-            unsafe fn linear_to_scaled12(&self, i: &mut [&mut f32; 12]) {
-                for id in 0..12 {
-                    *i[id] = $linear_to_scaled(*i[id]);
-                }
-            }
-
-            unsafe fn scaled_to_linear(&self, i: f32) -> f32 {
-                $scaled_to_linear(i)
-            }
-            unsafe fn scaled_to_linear3(&self, i: &mut [&mut f32; 3]) {
-                for id in 0..3 {
-                    *i[id] = $scaled_to_linear(*i[id]);
-                }
-            }
-            unsafe fn scaled_to_linear12(&self, i: &mut [&mut f32; 12]) {
-                for id in 0..12 {
-                    *i[id] = $scaled_to_linear(*i[id]);
-                }
-            }
-        }
-
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        impl ColorTransferImpl<__m256> for $name {
-            #[target_feature(enable = "avx2")]
-            unsafe fn linear_to_scaled(&self, i: __m256) -> __m256 {
-                $linear_to_scaled(i)
-            }
-            #[target_feature(enable = "avx2")]
-            unsafe fn linear_to_scaled3(&self, i: &mut [&mut __m256; 3]) {
-                for id in 0..3 {
-                    *i[id] = $linear_to_scaled(*i[id]);
-                }
-            }
-            #[target_feature(enable = "avx2")]
-            unsafe fn linear_to_scaled12(&self, i: &mut [&mut __m256; 12]) {
-                for id in 0..12 {
-                    *i[id] = $linear_to_scaled(*i[id]);
-                }
-            }
-
-            #[target_feature(enable = "avx2")]
-            unsafe fn scaled_to_linear(&self, i: __m256) -> __m256 {
-                $scaled_to_linear(i)
-            }
-            #[target_feature(enable = "avx2")]
-            unsafe fn scaled_to_linear3(&self, i: &mut [&mut __m256; 3]) {
-                for id in 0..3 {
-                    *i[id] = $scaled_to_linear(*i[id]);
-                }
-            }
-            #[target_feature(enable = "avx2")]
-            unsafe fn scaled_to_linear12(&self, i: &mut [&mut __m256; 12]) {
-                for id in 0..12 {
-                    *i[id] = $scaled_to_linear(*i[id]);
-                }
-            }
-        }
-
-        #[cfg(target_arch = "aarch64")]
-        impl ColorTransferImpl<float32x4_t> for $name {
-            #[target_feature(enable = "neon")]
-            unsafe fn linear_to_scaled(&self, i: float32x4_t) -> float32x4_t {
-                $linear_to_scaled(i)
-            }
-            #[target_feature(enable = "neon")]
-            unsafe fn linear_to_scaled3(&self, i: &mut [&mut float32x4_t; 3]) {
-                for id in 0..3 {
-                    *i[id] = $linear_to_scaled(*i[id]);
-                }
-            }
-            #[target_feature(enable = "neon")]
-            unsafe fn linear_to_scaled12(&self, i: &mut [&mut float32x4_t; 12]) {
-                for id in 0..12 {
-                    *i[id] = $linear_to_scaled(*i[id]);
-                }
-            }
-
-            #[target_feature(enable = "neon")]
-            unsafe fn scaled_to_linear(&self, i: float32x4_t) -> float32x4_t {
-                $scaled_to_linear(i)
-            }
-            #[target_feature(enable = "neon")]
-            unsafe fn scaled_to_linear3(&self, i: &mut [&mut float32x4_t; 3]) {
-                for id in 0..3 {
-                    *i[id] = $scaled_to_linear(*i[id]);
-                }
-            }
-            #[target_feature(enable = "neon")]
-            unsafe fn scaled_to_linear12(&self, i: &mut [&mut float32x4_t; 12]) {
-                for id in 0..12 {
-                    *i[id] = $scaled_to_linear(*i[id]);
-                }
-            }
-        }
-        )*
-
-        #[cfg(test)]
-        mod self_tests {
-            use super::*;
-
-            $(
-            #[allow(non_snake_case, unused_unsafe)]
-            #[test]
-            fn $name() {
-                for i in 0..10000 {
-                    let i = (i as f32) / 10000.0;
-
-                    let v0 = unsafe { $linear_to_scaled($scaled_to_linear(i)) };
-                    let v1 = unsafe { $scaled_to_linear($linear_to_scaled(i)) };
-
-                    assert!((i - v0).abs() < 0.001);
-                    assert!((i - v1).abs() < 0.001);
-                }
-            }
-            )*
-        }
-    };
-}
-
-make_impls!(
-    Linear:
-    identity,
-    identity;
-
-    Gamma22:
-    gamma::linear_to_scaled::<22, _>,
-    gamma::scaled_to_linear::<22, _>;
-
-    Gamma28:
-    gamma::linear_to_scaled::<28, _>,
-    gamma::scaled_to_linear::<28, _>;
-
-    Srgb:
-    srgb::linear_to_scaled,
-    srgb::scaled_to_linear;
-
-    Sdr:
-    sdr::linear_to_scaled,
-    sdr::scaled_to_linear;
-
-    BT2100PQ:
-    bt2100_pq::linear_to_scaled,
-    bt2100_pq::scaled_to_linear;
-
-    BT2100HLG:
-    bt2100_hlg::linear_to_scaled,
-    bt2100_hlg::scaled_to_linear;
-);
 
 mod gamma {
     use crate::vector::Vector;

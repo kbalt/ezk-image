@@ -1,6 +1,5 @@
 use super::Vector;
 use crate::arch::*;
-use crate::color::{ColorOps, ColorOpsPart};
 use crate::endian::Endian;
 use std::mem::transmute;
 
@@ -249,11 +248,6 @@ unsafe impl Vector for __m256 {
             util::interleave_f32x8x4_to_u16x32::<E>(this[1][0], this[1][1], this[1][2], this[1][3]);
 
         ptr.cast::<[[u16; 32]; 2]>().write_unaligned([a, b])
-    }
-
-    #[inline(always)]
-    fn color_ops(c: &ColorOps) -> &ColorOpsPart<Self> {
-        &c.avx2
     }
 }
 

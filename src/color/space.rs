@@ -1,8 +1,8 @@
 #![allow(clippy::too_many_arguments)]
 
-use super::transfer::ColorTransferImpl;
 use crate::color::mat_idxs::*;
 use crate::vector::Vector;
+use crate::ColorTransfer;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColorSpace {
@@ -26,7 +26,7 @@ impl ColorSpace {
     #[inline(always)]
     pub(crate) unsafe fn yuv_to_rgb<V: Vector>(
         &self,
-        transfer: &'static dyn ColorTransferImpl<V>,
+        transfer: ColorTransfer,
         xyz_to_rgb: &'static [[f32; 3]; 3],
         y: V,
         u: V,
@@ -43,7 +43,7 @@ impl ColorSpace {
     #[inline(always)]
     pub(crate) unsafe fn yx4_uv_to_rgb<V: Vector>(
         &self,
-        transfer: &'static dyn ColorTransferImpl<V>,
+        transfer: ColorTransfer,
         xyz_to_rgb: &'static [[f32; 3]; 3],
         y00: V,
         y01: V,
@@ -90,7 +90,7 @@ impl ColorSpace {
     #[inline(always)]
     pub(crate) unsafe fn rgb_to_yuv<V: Vector>(
         &self,
-        transfer: &'static dyn ColorTransferImpl<V>,
+        transfer: ColorTransfer,
         rgb_to_xyz: &'static [[f32; 3]; 3],
         r: V,
         g: V,
@@ -107,7 +107,7 @@ impl ColorSpace {
     #[inline(always)]
     pub(crate) unsafe fn rgbx4_to_yx4_uv<V: Vector>(
         &self,
-        transfer: &'static dyn ColorTransferImpl<V>,
+        transfer: ColorTransfer,
         rgb_to_xyz: &'static [[f32; 3]; 3],
         r: [V; 4],
         g: [V; 4],
@@ -292,13 +292,12 @@ make_matrices! {
     BT2020_YUV_TO_RGB, BT2020_RGB_TO_YUV: 0.2627, 0.322, 0.0593;
 }
 
-type BT2100ConvertFn<V> =
-    unsafe fn(&dyn ColorTransferImpl<V>, &[[f32; 3]; 3], V, V, V) -> (V, V, V);
+type BT2100ConvertFn<V> = unsafe fn(ColorTransfer, &[[f32; 3]; 3], V, V, V) -> (V, V, V);
 
 #[inline(always)]
 unsafe fn bt2100_yx4_uv_to_rgb<V: Vector>(
     f: BT2100ConvertFn<V>,
-    transfer: &dyn ColorTransferImpl<V>,
+    transfer: ColorTransfer,
     xyz_to_rgb: &[[f32; 3]; 3],
     y00: V,
     y01: V,
@@ -326,7 +325,7 @@ unsafe fn bt2100_yx4_uv_to_rgb<V: Vector>(
 #[inline(always)]
 unsafe fn bt2100_rgbx4_to_yx4_uv<V: Vector>(
     f: BT2100ConvertFn<V>,
-    transfer: &dyn ColorTransferImpl<V>,
+    transfer: ColorTransfer,
     rgb_to_xyz: &[[f32; 3]; 3],
     r: [V; 4],
     g: [V; 4],
@@ -348,8 +347,9 @@ unsafe fn bt2100_rgbx4_to_yx4_uv<V: Vector>(
 
 mod bt2100 {
     use crate::color::primaries::{rgb_to_xyz, xyz_to_rgb};
-    use crate::color::transfer::{bt2100_hlg, bt2100_pq, ColorTransferImpl};
+    use crate::color::transfer::{bt2100_hlg, bt2100_pq};
     use crate::vector::Vector;
+    use crate::ColorTransfer;
 
     #[inline(always)]
     unsafe fn xyz_to_lms<V: Vector>(x: V, y: V, z: V) -> (V, V, V) {
@@ -379,13 +379,13 @@ mod bt2100 {
 
     #[inline(always)]
     pub(super) unsafe fn pq_rgb_to_yuv<V: Vector>(
-        transfer: &dyn ColorTransferImpl<V>,
+        transfer: ColorTransfer,
         rgb_to_xyz_mat: &[[f32; 3]; 3],
         mut r: V,
         mut g: V,
         mut b: V,
     ) -> (V, V, V) {
-        transfer.scaled_to_linear3(&mut [&mut r, &mut g, &mut b]);
+        transfer.scaled_to_linear_v(&mut [&mut r, &mut g, &mut b]);
 
         let [x, y, z] = rgb_to_xyz(rgb_to_xyz_mat, r, g, b);
 
@@ -417,7 +417,7 @@ mod bt2100 {
 
     #[inline(always)]
     pub(super) unsafe fn pq_yuv_to_rgb<V: Vector>(
-        transfer: &dyn ColorTransferImpl<V>,
+        transfer: ColorTransfer,
         xyz_to_rgb_mat: &[[f32; 3]; 3],
         y: V,
         u: V,
@@ -440,20 +440,20 @@ mod bt2100 {
 
         let [mut r, mut g, mut b] = xyz_to_rgb(xyz_to_rgb_mat, x, y, z);
 
-        transfer.linear_to_scaled3(&mut [&mut r, &mut g, &mut b]);
+        transfer.linear_to_scaled_v(&mut [&mut r, &mut g, &mut b]);
 
         (r, g, b)
     }
 
     #[inline(always)]
     pub(super) unsafe fn hlg_rgb_to_yuv<V: Vector>(
-        transfer: &dyn ColorTransferImpl<V>,
+        transfer: ColorTransfer,
         rgb_to_xyz_mat: &[[f32; 3]; 3],
         mut r: V,
         mut g: V,
         mut b: V,
     ) -> (V, V, V) {
-        transfer.scaled_to_linear3(&mut [&mut r, &mut g, &mut b]);
+        transfer.scaled_to_linear_v(&mut [&mut r, &mut g, &mut b]);
 
         let [x, y, z] = rgb_to_xyz(rgb_to_xyz_mat, r, g, b);
 
@@ -483,7 +483,7 @@ mod bt2100 {
 
     #[inline(always)]
     pub(super) unsafe fn hlg_yuv_to_rgb<V: Vector>(
-        transfer: &dyn ColorTransferImpl<V>,
+        transfer: ColorTransfer,
         xyz_to_rgb_mat: &[[f32; 3]; 3],
         y: V,
         u: V,
@@ -512,7 +512,7 @@ mod bt2100 {
 
         let [mut r, mut g, mut b] = xyz_to_rgb(xyz_to_rgb_mat, x, y, z);
 
-        transfer.linear_to_scaled3(&mut [&mut r, &mut g, &mut b]);
+        transfer.linear_to_scaled_v(&mut [&mut r, &mut g, &mut b]);
 
         (r, g, b)
     }

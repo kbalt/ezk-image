@@ -52,17 +52,15 @@ unsafe fn convert_rgb_to_yuv<V: Vector>(
     px0: RgbaPixel<V>,
     px1: RgbaPixel<V>,
 ) -> ([V; 2], V, V) {
-    let color_ops = V::color_ops(color);
-
     let (mut y0, u0, v0) =
         color
             .space
-            .rgb_to_yuv(color_ops.transfer, color.rgb_to_xyz, px0.r, px0.g, px0.b);
+            .rgb_to_yuv(color.transfer, color.rgb_to_xyz, px0.r, px0.g, px0.b);
 
     let (mut y1, u1, v1) =
         color
             .space
-            .rgb_to_yuv(color_ops.transfer, color.rgb_to_xyz, px1.r, px1.g, px1.b);
+            .rgb_to_yuv(color.transfer, color.rgb_to_xyz, px1.r, px1.g, px1.b);
 
     let mut u = u0.vadd(u1).vdivf(2.0);
     let mut v = v0.vadd(v1).vdivf(2.0);

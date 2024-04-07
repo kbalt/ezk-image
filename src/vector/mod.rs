@@ -1,4 +1,3 @@
-use crate::color::{ColorOps, ColorOpsPart};
 use crate::endian::Endian;
 use std::fmt::Debug;
 
@@ -117,8 +116,6 @@ pub(crate) unsafe trait Vector: Debug + Copy + 'static {
 
     unsafe fn write_interleaved_4x_2x_u8(this: [[Self; 4]; 2], ptr: *mut u8);
     unsafe fn write_interleaved_4x_2x_u16<E: Endian>(this: [[Self; 4]; 2], ptr: *mut u16);
-
-    fn color_ops(c: &ColorOps) -> &ColorOpsPart<Self>;
 }
 
 unsafe impl Vector for f32 {
@@ -307,10 +304,5 @@ unsafe impl Vector for f32 {
                 }
             })
         }));
-    }
-
-    #[inline(always)]
-    fn color_ops(c: &ColorOps) -> &ColorOpsPart<Self> {
-        &c.f32
     }
 }

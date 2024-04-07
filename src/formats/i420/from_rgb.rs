@@ -22,17 +22,15 @@ impl<S: RgbaSrc> RgbToI420<S> {
 impl<S: RgbaSrc> I420Src for RgbToI420<S> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> I420Block<V> {
-        let color = V::color_ops(&self.color);
-
         let RgbaBlock {
             px00,
             px01,
             px10,
             px11,
-        } = self.rgba_src.read(x, y);
+        } = self.rgba_src.read::<V>(x, y);
 
         let ([y00, y01, y10, y11], u, v) = self.color.space.rgbx4_to_yx4_uv(
-            color.transfer,
+            self.color.transfer,
             self.color.rgb_to_xyz,
             [px00.r, px01.r, px10.r, px11.r],
             [px00.g, px01.g, px10.g, px11.g],

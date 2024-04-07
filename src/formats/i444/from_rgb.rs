@@ -40,12 +40,10 @@ pub(crate) unsafe fn convert_rgb_to_yuv<V: Vector>(
     full_range: bool,
     px: RgbaPixel<V>,
 ) -> I444Pixel<V> {
-    let color_ops = V::color_ops(color);
-
     let (mut y, mut u, mut v) =
         color
             .space
-            .rgb_to_yuv(color_ops.transfer, color.rgb_to_xyz, px.r, px.g, px.b);
+            .rgb_to_yuv(color.transfer, color.rgb_to_xyz, px.r, px.g, px.b);
 
     // U & V scales from -0.5..=0.5, so bring that up into 0..=1
     u = u.vaddf(0.5);

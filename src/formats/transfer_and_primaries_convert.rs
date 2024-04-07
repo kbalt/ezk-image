@@ -53,15 +53,11 @@ impl<S> TransferAndPrimariesConvert<S> {
     where
         V: Vector,
     {
-        V::color_ops(&self.src_color)
-            .transfer
-            .scaled_to_linear12(&mut i);
+        self.src_color.transfer.scaled_to_linear_v(&mut i);
 
         self.convert_primaries(&mut i);
 
-        V::color_ops(&self.dst_color)
-            .transfer
-            .linear_to_scaled12(&mut i);
+        self.dst_color.transfer.linear_to_scaled_v(&mut i);
     }
 }
 
