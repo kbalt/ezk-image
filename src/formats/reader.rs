@@ -2,7 +2,7 @@ use crate::arch::*;
 use crate::{vector::Vector, Rect};
 
 pub(crate) trait ImageReader {
-    unsafe fn read_at<V: Vector>(&mut self, window: Rect, x: usize, y: usize);
+    unsafe fn read_at<V: Vector>(&mut self, x: usize, y: usize);
 }
 
 #[inline(never)]
@@ -76,14 +76,14 @@ unsafe fn read_impl<V: Vector, R: ImageReader>(window: Rect, mut reader: R) {
         for x in (0..vectored_pixels_per_row).step_by(V::LEN * 2) {
             let x = window.x + x;
 
-            reader.read_at::<V>(window, x, y);
+            reader.read_at::<V>(x, y);
         }
 
         // Process remaining pixels that couldn't be vectorized
         for x in (0..non_vectored_pixels_per_row).step_by(2) {
             let x = window.x + x + vectored_pixels_per_row;
 
-            reader.read_at::<f32>(window, x, y);
+            reader.read_at::<f32>(x, y);
         }
     }
 }

@@ -1,66 +1,74 @@
-use super::{I422Block, I422Visitor};
+#![allow(clippy::too_many_arguments)]
+
+use super::{I422Block, I422Src};
 use crate::bits::BitsInternal;
+use crate::formats::reader::{read, ImageReader};
 use crate::vector::Vector;
 use crate::{PixelFormatPlanes, Rect};
 use std::marker::PhantomData;
 
-pub(crate) struct I422Writer<'a, B: BitsInternal> {
-    window: Rect,
-
+pub(crate) struct I422Writer<'a, B, S>
+where
+    B: BitsInternal,
+    S: I422Src,
+{
     dst_width: usize,
-    y: *mut B::Primitive,
-    u: *mut B::Primitive,
-    v: *mut B::Primitive,
+    dst_y: *mut B::Primitive,
+    dst_u: *mut B::Primitive,
+    dst_v: *mut B::Primitive,
 
     max_value: f32,
 
-    _m: PhantomData<&'a mut [B::Primitive]>,
-    _b: PhantomData<fn() -> B>,
+    i422_src: S,
+
+    _b: PhantomData<B>,
+    _m: PhantomData<&'a u8>,
 }
 
-impl<'a, B: BitsInternal> I422Writer<'a, B> {
-    pub(crate) fn new(
+impl<'a, B, S> I422Writer<'a, B, S>
+where
+    B: BitsInternal,
+    S: I422Src,
+{
+    pub(crate) fn read(
         dst_width: usize,
         dst_height: usize,
-        dst_planes: PixelFormatPlanes<&'a mut [B::Primitive]>,
+        dst_planes: PixelFormatPlanes<&mut [B::Primitive]>,
         bits_per_component: usize,
         window: Option<Rect>,
-    ) -> Self {
-        let window = window.unwrap_or(Rect {
-            x: 0,
-            y: 0,
-            width: dst_width,
-            height: dst_height,
-        });
-
+        i422_src: S,
+    ) {
         assert!(dst_planes.bounds_check(dst_width, dst_height));
 
         let PixelFormatPlanes::I422 { y, u, v } = dst_planes else {
             panic!("Invalid PixelFormatPlanes for I422Writer");
         };
 
-        assert!((window.x + window.width) <= dst_width);
-        assert!((window.y + window.height) <= dst_height);
-
-        Self {
-            window,
+        read(
             dst_width,
-            y: y.as_mut_ptr(),
-            u: u.as_mut_ptr(),
-            v: v.as_mut_ptr(),
-            max_value: crate::max_value_for_bits(bits_per_component),
-            _m: PhantomData,
-            _b: PhantomData,
-        }
+            dst_height,
+            window,
+            Self {
+                dst_width,
+                dst_y: y.as_mut_ptr(),
+                dst_u: u.as_mut_ptr(),
+                dst_v: v.as_mut_ptr(),
+                max_value: crate::max_value_for_bits(bits_per_component),
+                i422_src,
+                _b: PhantomData,
+                _m: PhantomData,
+            },
+        )
     }
 }
 
-impl<'a, B: BitsInternal> I422Visitor for I422Writer<'a, B> {
+impl<B, S> ImageReader for I422Writer<'_, B, S>
+where
+    B: BitsInternal,
+    S: I422Src,
+{
     #[inline(always)]
-    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, block: I422Block<V>) {
-        let x = self.window.x + x;
-        let y = self.window.y + y;
-
+    unsafe fn read_at<V: Vector>(&mut self, x: usize, y: usize) {
         let I422Block {
             y00,
             y01,
@@ -70,7 +78,7 @@ impl<'a, B: BitsInternal> I422Visitor for I422Writer<'a, B> {
             u1,
             v0,
             v1,
-        } = block;
+        } = self.i422_src.read::<V>(x, y);
 
         let y00 = y00.vmulf(self.max_value);
         let y01 = y01.vmulf(self.max_value);
@@ -83,8 +91,8 @@ impl<'a, B: BitsInternal> I422Visitor for I422Writer<'a, B> {
 
         let offset0 = y * self.dst_width + x;
         let offset1 = (y + 1) * self.dst_width + x;
-        B::write_2x(self.y.add(offset0), y00, y01);
-        B::write_2x(self.y.add(offset1), y10, y11);
+        B::write_2x(self.dst_y.add(offset0), y00, y01);
+        B::write_2x(self.dst_y.add(offset1), y10, y11);
 
         let hx = x / 2;
         let hw = self.dst_width / 2;
@@ -92,10 +100,10 @@ impl<'a, B: BitsInternal> I422Visitor for I422Writer<'a, B> {
         let uv0_offset = (y * hw) + hx;
         let uv1_offset = ((y + 1) * hw) + hx;
 
-        B::write(self.u.add(uv0_offset), u0);
-        B::write(self.u.add(uv1_offset), u1);
+        B::write(self.dst_u.add(uv0_offset), u0);
+        B::write(self.dst_u.add(uv1_offset), u1);
 
-        B::write(self.v.add(uv0_offset), v0);
-        B::write(self.v.add(uv1_offset), v1);
+        B::write(self.dst_v.add(uv0_offset), v0);
+        B::write(self.dst_v.add(uv1_offset), v1);
     }
 }

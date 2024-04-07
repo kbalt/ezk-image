@@ -1,10 +1,11 @@
+#[macro_use]
+mod rgba;
 mod i420;
 mod i422;
 mod i444;
 mod nv12;
 mod reader;
 mod rgb;
-mod rgba;
 mod transfer_and_primaries_convert;
 
 pub(crate) use i420::*;

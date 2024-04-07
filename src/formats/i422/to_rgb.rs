@@ -1,31 +1,29 @@
-use super::{I422Block, I422Visitor};
+use super::{I422Block, I422Src};
 use crate::color::{ColorInfo, ColorOps};
-use crate::formats::rgb::{RgbBlock, RgbBlockVisitor, RgbPixel};
+use crate::formats::rgb::{RgbBlock, RgbPixel, RgbSrc};
+use crate::formats::rgba::{RgbaBlock, RgbaPixel, RgbaSrc};
 use crate::vector::Vector;
 
-pub(crate) struct I422ToRgbVisitor<Vis> {
-    visitor: Vis,
+pub(crate) struct I422ToRgb<S> {
+    i422_src: S,
 
     color: ColorOps,
     full_range: bool,
 }
 
-impl<Vis> I422ToRgbVisitor<Vis>
-where
-    Vis: RgbBlockVisitor,
-{
-    pub(crate) fn new(color: &ColorInfo, visitor: Vis) -> Self {
+impl<S: I422Src> I422ToRgb<S> {
+    pub(crate) fn new(color: &ColorInfo, i422_src: S) -> Self {
         Self {
-            visitor,
+            i422_src,
             color: ColorOps::from_info(color),
             full_range: color.full_range,
         }
     }
 }
 
-impl<Vis: RgbBlockVisitor> I422Visitor for I422ToRgbVisitor<Vis> {
+impl<S: I422Src> RgbSrc for I422ToRgb<S> {
     #[inline(always)]
-    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, block: I422Block<V>) {
+    unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbBlock<V> {
         let color = V::color_ops(&self.color);
 
         let I422Block {
@@ -37,7 +35,7 @@ impl<Vis: RgbBlockVisitor> I422Visitor for I422ToRgbVisitor<Vis> {
             mut u1,
             mut v0,
             mut v1,
-        } = block;
+        } = self.i422_src.read::<V>(x, y);
 
         // If the YUV components don't use the full range of u8 scale them to the full range
         // Y  16..=235 -> 0..255 Y  = (1.164 * (Y  - 16))
@@ -93,7 +91,7 @@ impl<Vis: RgbBlockVisitor> I422Visitor for I422ToRgbVisitor<Vis> {
                 .space
                 .yuv_to_rgb(color.transfer, self.color.xyz_to_rgb, y11, u1, v1);
 
-        let block = RgbBlock {
+        RgbBlock {
             rgb00: RgbPixel {
                 r: r00,
                 g: g00,
@@ -114,8 +112,10 @@ impl<Vis: RgbBlockVisitor> I422Visitor for I422ToRgbVisitor<Vis> {
                 g: g11,
                 b: b11,
             },
-        };
-
-        self.visitor.visit(x, y, block)
+        }
     }
+}
+
+impl<S: I422Src> RgbaSrc for I422ToRgb<S> {
+    forward_rgb_rgba!();
 }

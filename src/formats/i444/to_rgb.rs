@@ -1,46 +1,42 @@
-use super::{I444Block, I444Pixel, I444Visitor};
+use super::{I444Block, I444Pixel, I444Src};
 use crate::color::{ColorInfo, ColorOps};
-use crate::formats::rgb::{RgbBlock, RgbBlockVisitor, RgbPixel};
+use crate::formats::rgb::{RgbBlock, RgbPixel, RgbSrc};
+use crate::formats::rgba::{RgbaBlock, RgbaPixel, RgbaSrc};
 use crate::vector::Vector;
 
-pub(crate) struct I444ToRgbVisitor<Vis> {
-    visitor: Vis,
+pub(crate) struct I444ToRgb<S> {
+    i444_src: S,
 
     color: ColorOps,
     full_range: bool,
 }
 
-impl<Vis> I444ToRgbVisitor<Vis>
-where
-    Vis: RgbBlockVisitor,
-{
-    pub(crate) fn new(color: &ColorInfo, visitor: Vis) -> Self {
+impl<S: I444Src> I444ToRgb<S> {
+    pub(crate) fn new(color: &ColorInfo, i444_src: S) -> Self {
         Self {
-            visitor,
+            i444_src,
             color: ColorOps::from_info(color),
             full_range: color.full_range,
         }
     }
 }
 
-impl<Vis: RgbBlockVisitor> I444Visitor for I444ToRgbVisitor<Vis> {
+impl<S: I444Src> RgbSrc for I444ToRgb<S> {
     #[inline(always)]
-    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, block: I444Block<V>) {
+    unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbBlock<V> {
         let I444Block {
             px00,
             px01,
             px10,
             px11,
-        } = block;
+        } = self.i444_src.read::<V>(x, y);
 
-        let block = RgbBlock {
+        RgbBlock {
             rgb00: convert_yuv_to_rgb(&self.color, self.full_range, px00),
             rgb01: convert_yuv_to_rgb(&self.color, self.full_range, px01),
             rgb10: convert_yuv_to_rgb(&self.color, self.full_range, px10),
             rgb11: convert_yuv_to_rgb(&self.color, self.full_range, px11),
-        };
-
-        self.visitor.visit(x, y, block)
+        }
     }
 }
 
@@ -84,4 +80,8 @@ unsafe fn convert_yuv_to_rgb<V: Vector>(
         .yuv_to_rgb(color_ops.transfer, color.xyz_to_rgb, y, u, v);
 
     RgbPixel { r, g, b }
+}
+
+impl<S: I444Src> RgbaSrc for I444ToRgb<S> {
+    forward_rgb_rgba!();
 }

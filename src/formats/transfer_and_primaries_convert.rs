@@ -1,14 +1,14 @@
-use super::rgb::{RgbBlock, RgbBlockVisitor};
-use super::rgba::{RgbaBlock, RgbaBlockVisitor};
+use super::rgb::{RgbBlock, RgbSrc};
+use super::rgba::{RgbaBlock, RgbaSrc};
 use crate::color::primaries::{rgb_to_xyz, xyz_to_rgb};
 use crate::color::{ColorInfo, ColorOps};
 use crate::vector::Vector;
 
-pub(crate) struct TransferAndPrimariesConvert<Vis> {
+pub(crate) struct TransferAndPrimariesConvert<S> {
     src_color: ColorOps,
     dst_color: ColorOps,
 
-    visitor: Vis,
+    src: S,
 }
 
 pub(crate) fn need_transfer_and_primaries_convert(
@@ -18,12 +18,12 @@ pub(crate) fn need_transfer_and_primaries_convert(
     src_color.transfer != dst_color.transfer || src_color.primaries != dst_color.primaries
 }
 
-impl<Vis> TransferAndPrimariesConvert<Vis> {
-    pub(crate) fn new(src_color: &ColorInfo, dst_color: &ColorInfo, visitor: Vis) -> Self {
+impl<S> TransferAndPrimariesConvert<S> {
+    pub(crate) fn new(src_color: &ColorInfo, dst_color: &ColorInfo, src: S) -> Self {
         Self {
             src_color: ColorOps::from_info(src_color),
             dst_color: ColorOps::from_info(dst_color),
-            visitor,
+            src,
         }
     }
 
@@ -66,9 +66,11 @@ impl<Vis> TransferAndPrimariesConvert<Vis> {
     }
 }
 
-impl<Vis: RgbBlockVisitor> RgbBlockVisitor for TransferAndPrimariesConvert<Vis> {
+impl<S: RgbSrc> RgbSrc for TransferAndPrimariesConvert<S> {
     #[inline(always)]
-    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, mut block: RgbBlock<V>) {
+    unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbBlock<V> {
+        let mut block = self.src.read(x, y);
+
         let i = [
             &mut block.rgb00.r,
             &mut block.rgb00.g,
@@ -86,13 +88,15 @@ impl<Vis: RgbBlockVisitor> RgbBlockVisitor for TransferAndPrimariesConvert<Vis> 
 
         self.convert_rgb(i);
 
-        self.visitor.visit(x, y, block);
+        block
     }
 }
 
-impl<Vis: RgbaBlockVisitor> RgbaBlockVisitor for TransferAndPrimariesConvert<Vis> {
+impl<S: RgbaSrc> RgbaSrc for TransferAndPrimariesConvert<S> {
     #[inline(always)]
-    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, mut block: RgbaBlock<V>) {
+    unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbaBlock<V> {
+        let mut block = self.src.read(x, y);
+
         let i = [
             &mut block.rgba00.r,
             &mut block.rgba00.g,
@@ -110,6 +114,6 @@ impl<Vis: RgbaBlockVisitor> RgbaBlockVisitor for TransferAndPrimariesConvert<Vis
 
         self.convert_rgb(i);
 
-        self.visitor.visit(x, y, block);
+        block
     }
 }

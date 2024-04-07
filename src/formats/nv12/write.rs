@@ -1,64 +1,72 @@
+#![allow(clippy::too_many_arguments)]
+
 use crate::bits::BitsInternal;
-use crate::formats::{I420Block, I420Visitor};
+use crate::formats::reader::{read, ImageReader};
+use crate::formats::{I420Block, I420Src};
 use crate::vector::Vector;
 use crate::{PixelFormatPlanes, Rect};
 use std::marker::PhantomData;
 
-pub(crate) struct NV12Writer<'a, B: BitsInternal> {
-    window: Rect,
-
+pub(crate) struct NV12Writer<'a, B, S>
+where
+    B: BitsInternal,
+    S: I420Src,
+{
     dst_width: usize,
-    y: *mut B::Primitive,
-    uv: *mut B::Primitive,
+    dst_y: *mut B::Primitive,
+    dst_uv: *mut B::Primitive,
 
     max_value: f32,
 
-    _m: PhantomData<&'a mut [B::Primitive]>,
-    _b: PhantomData<fn() -> B>,
+    i420_src: S,
+
+    _b: PhantomData<B>,
+    _m: PhantomData<&'a u8>,
 }
 
-impl<'a, B: BitsInternal> NV12Writer<'a, B> {
-    pub(crate) fn new(
+impl<'a, B, S> NV12Writer<'a, B, S>
+where
+    B: BitsInternal,
+    S: I420Src,
+{
+    pub(crate) fn read(
         dst_width: usize,
         dst_height: usize,
         dst_planes: PixelFormatPlanes<&'a mut [B::Primitive]>,
         bits_per_component: usize,
         window: Option<Rect>,
-    ) -> Self {
-        let window = window.unwrap_or(Rect {
-            x: 0,
-            y: 0,
-            width: dst_width,
-            height: dst_height,
-        });
-
+        i420_src: S,
+    ) {
         assert!(dst_planes.bounds_check(dst_width, dst_height));
 
         let PixelFormatPlanes::NV12 { y, uv } = dst_planes else {
-            panic!("Invalid PixelFormatPlanes for NV12Writer");
+            panic!("Invalid PixelFormatPlanes for read_nv12");
         };
 
-        assert!((window.x + window.width) <= dst_width);
-        assert!((window.y + window.height) <= dst_height);
-
-        Self {
-            window,
+        read(
             dst_width,
-            y: y.as_mut_ptr(),
-            uv: uv.as_mut_ptr(),
-            max_value: crate::max_value_for_bits(bits_per_component),
-            _m: PhantomData,
-            _b: PhantomData,
-        }
+            dst_height,
+            window,
+            Self {
+                dst_width,
+                dst_y: y.as_mut_ptr(),
+                dst_uv: uv.as_mut_ptr(),
+                max_value: crate::max_value_for_bits(bits_per_component),
+                i420_src,
+                _b: PhantomData,
+                _m: PhantomData,
+            },
+        )
     }
 }
 
-impl<'a, B: BitsInternal> I420Visitor for NV12Writer<'a, B> {
+impl<B, S> ImageReader for NV12Writer<'_, B, S>
+where
+    B: BitsInternal,
+    S: I420Src,
+{
     #[inline(always)]
-    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, block: I420Block<V>) {
-        let x = self.window.x + x;
-        let y = self.window.y + y;
-
+    unsafe fn read_at<V: Vector>(&mut self, x: usize, y: usize) {
         let I420Block {
             y00,
             y01,
@@ -66,7 +74,7 @@ impl<'a, B: BitsInternal> I420Visitor for NV12Writer<'a, B> {
             y11,
             u,
             v,
-        } = block;
+        } = self.i420_src.read::<V>(x, y);
 
         let y00 = y00.vmulf(self.max_value);
         let y01 = y01.vmulf(self.max_value);
@@ -77,8 +85,8 @@ impl<'a, B: BitsInternal> I420Visitor for NV12Writer<'a, B> {
 
         let offset0 = y * self.dst_width + x;
         let offset1 = (y + 1) * self.dst_width + x;
-        B::write_2x(self.y.add(offset0), y00, y01);
-        B::write_2x(self.y.add(offset1), y10, y11);
+        B::write_2x(self.dst_y.add(offset0), y00, y01);
+        B::write_2x(self.dst_y.add(offset1), y10, y11);
 
         let hx = x / 2;
         let hy = y / 2;
@@ -87,6 +95,6 @@ impl<'a, B: BitsInternal> I420Visitor for NV12Writer<'a, B> {
         let (uv0, uv1) = u.zip(v);
 
         let uv_offset = (hy * hw) + hx;
-        B::write_2x(self.uv.add(uv_offset * 2), uv0, uv1);
+        B::write_2x(self.dst_uv.add(uv_offset * 2), uv0, uv1);
     }
 }

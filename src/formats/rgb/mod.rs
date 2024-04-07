@@ -4,7 +4,7 @@ mod read;
 mod write;
 
 pub(crate) use read::RgbReader;
-pub(crate) use write::RGBWriter;
+pub(crate) use write::RgbWriter;
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct RgbPixel<V> {
@@ -31,6 +31,6 @@ pub(crate) struct RgbBlock<V> {
     pub(crate) rgb11: RgbPixel<V>,
 }
 
-pub(crate) trait RgbBlockVisitor {
-    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, block: RgbBlock<V>);
+pub(crate) trait RgbSrc {
+    unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbBlock<V>;
 }

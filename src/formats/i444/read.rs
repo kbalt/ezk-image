@@ -1,104 +1,91 @@
-#![allow(clippy::too_many_arguments)]
-
+use super::{I444Block, I444Src};
+use crate::bits::BitsInternal;
+use crate::vector::Vector;
+use crate::{I444Pixel, PixelFormatPlanes, Rect};
 use std::marker::PhantomData;
 
-use super::{I444Block, I444Pixel, I444Visitor};
-use crate::bits::BitsInternal;
-use crate::formats::reader::{read, ImageReader};
-use crate::vector::Vector;
-use crate::{PixelFormatPlanes, Rect};
+pub(crate) struct I444Reader<'a, B: BitsInternal> {
+    window: Rect,
 
-pub(crate) struct I444Reader<B, Vis>
-where
-    B: BitsInternal,
-    Vis: I444Visitor,
-{
     src_width: usize,
-    src_y: *const B::Primitive,
-    src_u: *const B::Primitive,
-    src_v: *const B::Primitive,
+    y: *const B::Primitive,
+    u: *const B::Primitive,
+    v: *const B::Primitive,
 
     max_value: f32,
 
-    visitor: Vis,
-
-    _b: PhantomData<B>,
+    _m: PhantomData<&'a mut [B::Primitive]>,
+    _b: PhantomData<fn() -> B>,
 }
 
-impl<B, Vis> I444Reader<B, Vis>
-where
-    B: BitsInternal,
-    Vis: I444Visitor,
-{
-    pub(crate) fn read(
+impl<'a, B: BitsInternal> I444Reader<'a, B> {
+    pub(crate) fn new(
         src_width: usize,
         src_height: usize,
-        src_planes: PixelFormatPlanes<&[B::Primitive]>,
+        src_planes: PixelFormatPlanes<&'a [B::Primitive]>,
         bits_per_component: usize,
         window: Option<Rect>,
-        visitor: Vis,
-    ) {
+    ) -> Self {
+        let window = window.unwrap_or(Rect {
+            x: 0,
+            y: 0,
+            width: src_width,
+            height: src_height,
+        });
+
         assert!(src_planes.bounds_check(src_width, src_height));
 
         let PixelFormatPlanes::I444 { y, u, v } = src_planes else {
-            panic!("Invalid PixelFormatPlanes for read_i444");
+            panic!("Invalid PixelFormatPlanes for I444Reader");
         };
 
-        read(
-            src_width,
-            src_height,
+        assert!((window.x + window.width) <= src_width);
+        assert!((window.y + window.height) <= src_height);
+
+        Self {
             window,
-            Self {
-                src_width,
-                src_y: y.as_ptr(),
-                src_u: u.as_ptr(),
-                src_v: v.as_ptr(),
-                max_value: crate::max_value_for_bits(bits_per_component),
-                visitor,
-                _b: PhantomData,
-            },
+            src_width,
+            y: y.as_ptr(),
+            u: u.as_ptr(),
+            v: v.as_ptr(),
+            max_value: crate::max_value_for_bits(bits_per_component),
+            _m: PhantomData,
+            _b: PhantomData,
+        }
+    }
+}
+
+impl<'a, B: BitsInternal> I444Src for I444Reader<'a, B> {
+    #[inline(always)]
+    unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> I444Block<V> {
+        let x = self.window.x + x;
+        let y = self.window.y + y;
+
+        let px00_offset = (y * self.src_width) + x;
+        let px10_offset = ((y + 1) * self.src_width) + x;
+
+        load_and_visit_block::<V, B>(
+            self.y,
+            self.u,
+            self.v,
+            px00_offset,
+            px10_offset,
+            self.max_value,
         )
     }
 }
 
-impl<B, Vis> ImageReader for I444Reader<B, Vis>
-where
-    B: BitsInternal,
-    Vis: I444Visitor,
-{
-    #[inline(always)]
-    unsafe fn read_at<V: Vector>(&mut self, window: Rect, x: usize, y: usize) {
-        let px00_offset = (y * self.src_width) + x;
-        let px10_offset = ((y + 1) * self.src_width) + x;
-
-        load_and_visit_block::<V, B, Vis>(
-            &mut self.visitor,
-            x - window.x,
-            y - window.y,
-            self.src_y,
-            self.src_u,
-            self.src_v,
-            px00_offset,
-            px10_offset,
-            self.max_value,
-        );
-    }
-}
-
 #[inline(always)]
-unsafe fn load_and_visit_block<V, B, Vis>(
-    visitor: &mut Vis,
-    x: usize,
-    y: usize,
+unsafe fn load_and_visit_block<V, B>(
     y_ptr: *const B::Primitive,
     u_ptr: *const B::Primitive,
     v_ptr: *const B::Primitive,
     px00_offset: usize,
     px10_offset: usize,
     max_value: f32,
-) where
+) -> I444Block<V>
+where
     V: Vector,
-    Vis: I444Visitor,
     B: BitsInternal,
 {
     // Load Y pixels
@@ -135,30 +122,26 @@ unsafe fn load_and_visit_block<V, B, Vis>(
     let v10 = v10.vdivf(max_value);
     let v11 = v11.vdivf(max_value);
 
-    visitor.visit(
-        x,
-        y,
-        I444Block {
-            px00: I444Pixel {
-                y: y00,
-                u: u00,
-                v: v00,
-            },
-            px01: I444Pixel {
-                y: y01,
-                u: u01,
-                v: v01,
-            },
-            px10: I444Pixel {
-                y: y10,
-                u: u10,
-                v: v10,
-            },
-            px11: I444Pixel {
-                y: y11,
-                u: u11,
-                v: v11,
-            },
+    I444Block {
+        px00: I444Pixel {
+            y: y00,
+            u: u00,
+            v: v00,
         },
-    );
+        px01: I444Pixel {
+            y: y01,
+            u: u01,
+            v: v01,
+        },
+        px10: I444Pixel {
+            y: y10,
+            u: u10,
+            v: v10,
+        },
+        px11: I444Pixel {
+            y: y11,
+            u: u11,
+            v: v11,
+        },
+    }
 }

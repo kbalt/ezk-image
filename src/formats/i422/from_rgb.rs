@@ -1,80 +1,47 @@
-use super::{I422Block, I422Visitor};
+use super::{I422Block, I422Src};
 use crate::color::{ColorInfo, ColorOps};
-use crate::formats::rgb::{RgbBlock, RgbBlockVisitor, RgbPixel};
-use crate::formats::rgba::{RgbaBlock, RgbaBlockVisitor, RgbaPixel};
+use crate::formats::rgb::{RgbBlock, RgbPixel, RgbSrc};
 use crate::vector::Vector;
 
-pub(crate) struct RgbToI422Visitor<Vis> {
-    visitor: Vis,
+pub(crate) struct RgbToI422<S> {
+    rgb_src: S,
     color: ColorOps,
     full_range: bool,
 }
 
-impl<Vis> RgbToI422Visitor<Vis>
-where
-    Vis: I422Visitor,
-{
-    pub(crate) fn new(color: &ColorInfo, visitor: Vis) -> Self {
+impl<S: RgbSrc> RgbToI422<S> {
+    pub(crate) fn new(color: &ColorInfo, rgb_src: S) -> Self {
         Self {
-            visitor,
+            rgb_src,
             color: ColorOps::from_info(color),
             full_range: color.full_range,
         }
     }
 }
 
-impl<Vis: I422Visitor> RgbaBlockVisitor for RgbToI422Visitor<Vis> {
+impl<S: RgbSrc> I422Src for RgbToI422<S> {
     #[inline(always)]
-    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, block: RgbaBlock<V>) {
-        fn conv<V>(px: RgbaPixel<V>) -> RgbPixel<V> {
-            RgbPixel {
-                r: px.r,
-                g: px.g,
-                b: px.b,
-            }
-        }
-
-        RgbBlockVisitor::visit(
-            self,
-            x,
-            y,
-            RgbBlock {
-                rgb00: conv(block.rgba00),
-                rgb01: conv(block.rgba01),
-                rgb10: conv(block.rgba10),
-                rgb11: conv(block.rgba11),
-            },
-        )
-    }
-}
-
-impl<Vis: I422Visitor> RgbBlockVisitor for RgbToI422Visitor<Vis> {
-    #[inline(always)]
-    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, block: RgbBlock<V>) {
+    unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> I422Block<V> {
         let RgbBlock {
             rgb00,
             rgb01,
             rgb10,
             rgb11,
-        } = block;
+        } = self.rgb_src.read(x, y);
 
         let ([y00, y01], u0, v0) = convert_rgb_to_yuv(&self.color, self.full_range, rgb00, rgb01);
         let ([y10, y11], u1, v1) = convert_rgb_to_yuv(&self.color, self.full_range, rgb10, rgb11);
 
-        self.visitor.visit(
-            x,
-            y,
-            I422Block {
-                y00,
-                y01,
-                y10,
-                y11,
-                u0,
-                u1,
-                v0,
-                v1,
-            },
-        );
+        I422Block {
+            y00,
+            y01,
+            y10,
+            y11,
+            u0,
+            u1,
+            v0,
+            v1,
+        }
     }
 }
 

@@ -1,87 +1,67 @@
-use super::{RgbBlock, RgbBlockVisitor, RgbPixel};
+use super::{RgbPixel, RgbSrc};
 use crate::bits::BitsInternal;
-use crate::formats::rgba::{RgbaBlock, RgbaBlockVisitor, RgbaPixel};
+use crate::formats::reader::{read, ImageReader};
 use crate::vector::Vector;
 use crate::{PixelFormatPlanes, Rect};
 use std::marker::PhantomData;
 
-/// Writes 3 Bytes for every visited pixel in R G B order
-pub(crate) struct RGBWriter<'a, const REVERSE: bool, B: BitsInternal> {
-    window: Rect,
-
+pub(crate) struct RgbWriter<const REVERSE: bool, B, S>
+where
+    B: BitsInternal,
+    S: RgbSrc,
+{
     dst_width: usize,
     dst: *mut B::Primitive,
+
     max_value: f32,
 
-    _m: PhantomData<&'a mut [u8]>,
-    _b: PhantomData<fn() -> B>,
+    rgb_src: S,
+
+    _b: PhantomData<B>,
 }
 
-impl<'a, const REVERSE: bool, B: BitsInternal> RGBWriter<'a, REVERSE, B> {
-    pub(crate) fn new(
+impl<const REVERSE: bool, B, S> RgbWriter<REVERSE, B, S>
+where
+    B: BitsInternal,
+    S: RgbSrc,
+{
+    pub(crate) fn read(
         dst_width: usize,
         dst_height: usize,
-        dst_planes: PixelFormatPlanes<&'a mut [B::Primitive]>,
+        dst_planes: PixelFormatPlanes<&mut [B::Primitive]>,
         bits_per_component: usize,
         window: Option<Rect>,
-    ) -> Self {
+        rgb_src: S,
+    ) {
         assert!(dst_planes.bounds_check(dst_width, dst_height));
 
         let PixelFormatPlanes::RGB(dst) = dst_planes else {
-            panic!("Invalid PixelFormatPlanes for RGBWriter");
+            panic!("Invalid PixelFormatPlanes for RgbWriter");
         };
 
-        let window = window.unwrap_or(Rect {
-            x: 0,
-            y: 0,
-            width: dst_width,
-            height: dst_height,
-        });
-
-        assert!((window.x + window.width) <= dst_width);
-        assert!((window.y + window.height) <= dst_height);
-
-        Self {
-            window,
+        read(
             dst_width,
-            dst: dst.as_mut_ptr(),
-            max_value: crate::max_value_for_bits(bits_per_component),
-            _m: PhantomData,
-            _b: PhantomData,
-        }
-    }
-}
-
-impl<const REVERSE: bool, B: BitsInternal> RgbaBlockVisitor for RGBWriter<'_, REVERSE, B> {
-    #[inline(always)]
-    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, block: RgbaBlock<V>) {
-        unsafe fn conv<V: Vector>(px: RgbaPixel<V>) -> RgbPixel<V> {
-            RgbPixel {
-                r: px.r,
-                g: px.g,
-                b: px.b,
-            }
-        }
-
-        RgbBlockVisitor::visit(
-            self,
-            x,
-            y,
-            RgbBlock {
-                rgb00: conv(block.rgba00),
-                rgb01: conv(block.rgba01),
-                rgb10: conv(block.rgba10),
-                rgb11: conv(block.rgba11),
+            dst_height,
+            window,
+            Self {
+                dst_width,
+                dst: dst.as_mut_ptr(),
+                max_value: crate::max_value_for_bits(bits_per_component),
+                rgb_src,
+                _b: PhantomData,
             },
-        );
+        )
     }
 }
 
-impl<const REVERSE: bool, B: BitsInternal> RgbBlockVisitor for RGBWriter<'_, REVERSE, B> {
+impl<const REVERSE: bool, B, S> ImageReader for RgbWriter<REVERSE, B, S>
+where
+    B: BitsInternal,
+    S: RgbSrc,
+{
     #[inline(always)]
-    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, block: RgbBlock<V>) {
-        let x = self.window.x + x;
-        let y = self.window.y + y;
+    unsafe fn read_at<V: Vector>(&mut self, x: usize, y: usize) {
+        let block = self.rgb_src.read::<V>(x, y);
 
         let offset00 = y * self.dst_width + x;
         let offset10 = (y + 1) * self.dst_width + x;
@@ -89,23 +69,23 @@ impl<const REVERSE: bool, B: BitsInternal> RgbBlockVisitor for RGBWriter<'_, REV
         B::write_interleaved_3x_2x(
             self.dst.add(offset00 * 3),
             [
-                divide_and_reverse::<REVERSE, _>(block.rgb00, self.max_value),
-                divide_and_reverse::<REVERSE, _>(block.rgb01, self.max_value),
+                multiply_and_reverse::<REVERSE, V>(block.rgb00, self.max_value),
+                multiply_and_reverse::<REVERSE, V>(block.rgb01, self.max_value),
             ],
         );
 
         B::write_interleaved_3x_2x(
             self.dst.add(offset10 * 3),
             [
-                divide_and_reverse::<REVERSE, _>(block.rgb10, self.max_value),
-                divide_and_reverse::<REVERSE, _>(block.rgb11, self.max_value),
+                multiply_and_reverse::<REVERSE, V>(block.rgb10, self.max_value),
+                multiply_and_reverse::<REVERSE, V>(block.rgb11, self.max_value),
             ],
         );
     }
 }
 
 #[inline(always)]
-unsafe fn divide_and_reverse<const REVERSE: bool, V: Vector>(
+unsafe fn multiply_and_reverse<const REVERSE: bool, V: Vector>(
     px: RgbPixel<V>,
     max_value: f32,
 ) -> [V; 3] {

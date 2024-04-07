@@ -2,6 +2,7 @@ use crate::bits::BitsInternal;
 use crate::{convert, verify_input_windows_same_size, Destination, Source};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
+#[inline(never)]
 #[allow(private_bounds)]
 pub fn convert_multi_thread<SB: BitsInternal, DB: BitsInternal>(
     src: Source<'_, SB>,

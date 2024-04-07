@@ -116,130 +116,131 @@ impl PixelFormat {
     }
 }
 
-macro_rules! write_i420 {
-    ($dst:ident) => {
-        RgbToI420Visitor::new(
-            &$dst.color,
-            I420Writer::<DB>::new(
-                $dst.width,
-                $dst.height,
-                $dst.planes,
-                $dst.bits_per_component,
-                $dst.window,
+macro_rules! read_i420 {
+    ($src:ident) => {
+        I420ToRgb::new(
+            &$src.color,
+            I420Reader::<SB>::new(
+                $src.width,
+                $src.height,
+                $src.planes,
+                $src.bits_per_component,
+                $src.window,
             ),
         )
     };
 }
 
-macro_rules! write_i422 {
-    ($dst:ident) => {
-        RgbToI422Visitor::new(
-            &$dst.color,
-            I422Writer::<DB>::new(
-                $dst.width,
-                $dst.height,
-                $dst.planes,
-                $dst.bits_per_component,
-                $dst.window,
+macro_rules! read_i422 {
+    ($src:ident) => {
+        I422ToRgb::new(
+            &$src.color,
+            I422Reader::<SB>::new(
+                $src.width,
+                $src.height,
+                $src.planes,
+                $src.bits_per_component,
+                $src.window,
             ),
         )
     };
 }
 
-macro_rules! write_i444 {
-    ($dst:ident) => {
-        RgbToI444Visitor::new(
-            &$dst.color,
-            I444Writer::<DB>::new(
-                $dst.width,
-                $dst.height,
-                $dst.planes,
-                $dst.bits_per_component,
-                $dst.window,
+macro_rules! read_i444 {
+    ($src:ident) => {
+        I444ToRgb::new(
+            &$src.color,
+            I444Reader::<SB>::new(
+                $src.width,
+                $src.height,
+                $src.planes,
+                $src.bits_per_component,
+                $src.window,
             ),
         )
     };
 }
 
-macro_rules! write_nv12 {
-    ($dst:ident) => {
-        RgbToI420Visitor::new(
-            &$dst.color,
-            NV12Writer::<DB>::new(
-                $dst.width,
-                $dst.height,
-                $dst.planes,
-                $dst.bits_per_component,
-                $dst.window,
+macro_rules! read_nv12 {
+    ($src:ident) => {
+        I420ToRgb::new(
+            &$src.color,
+            NV12Reader::<SB>::new(
+                $src.width,
+                $src.height,
+                $src.planes,
+                $src.bits_per_component,
+                $src.window,
             ),
         )
     };
 }
 
-macro_rules! write_rgb {
-    ($dst:ident) => {
-        RGBWriter::<false, DB>::new(
-            $dst.width,
-            $dst.height,
-            $dst.planes,
-            $dst.bits_per_component,
-            $dst.window,
+macro_rules! read_rgb {
+    ($src:ident) => {
+        RgbReader::<false, SB>::new(
+            $src.width,
+            $src.height,
+            $src.planes,
+            $src.bits_per_component,
+            $src.window,
         )
     };
 }
 
-macro_rules! write_bgr {
-    ($dst:ident) => {
-        RGBWriter::<true, DB>::new(
-            $dst.width,
-            $dst.height,
-            $dst.planes,
-            $dst.bits_per_component,
-            $dst.window,
+macro_rules! read_bgr {
+    ($src:ident) => {
+        RgbReader::<true, SB>::new(
+            $src.width,
+            $src.height,
+            $src.planes,
+            $src.bits_per_component,
+            $src.window,
         )
     };
 }
 
-macro_rules! write_rgba {
-    ($dst:ident) => {
-        RGBAWriter::<false, DB>::new(
-            $dst.width,
-            $dst.height,
-            $dst.planes,
-            $dst.bits_per_component,
-            $dst.window,
+macro_rules! read_rgba {
+    ($src:ident) => {
+        RgbaReader::<false, SB>::new(
+            $src.width,
+            $src.height,
+            $src.planes,
+            $src.bits_per_component,
+            $src.window,
         )
     };
 }
 
-macro_rules! write_bgra {
-    ($dst:ident) => {
-        RGBAWriter::<true, DB>::new(
-            $dst.width,
-            $dst.height,
-            $dst.planes,
-            $dst.bits_per_component,
-            $dst.window,
+macro_rules! read_bgra {
+    ($src:ident) => {
+        RgbaReader::<true, SB>::new(
+            $src.width,
+            $src.height,
+            $src.planes,
+            $src.bits_per_component,
+            $src.window,
         )
     };
 }
 
-macro_rules! match_dst_format {
+macro_rules! match_src_format {
     ($src:ident, $dst:ident, $read_to_rgb:ident) => {
-        match $dst.format {
-            PixelFormat::I420 => $read_to_rgb!($src, $dst, write_i420!($dst)),
-            PixelFormat::I422 => $read_to_rgb!($src, $dst, write_i422!($dst)),
-            PixelFormat::I444 => $read_to_rgb!($src, $dst, write_i444!($dst)),
-            PixelFormat::NV12 => $read_to_rgb!($src, $dst, write_nv12!($dst)),
-            PixelFormat::RGBA => $read_to_rgb!($src, $dst, write_rgba!($dst)),
-            PixelFormat::BGRA => $read_to_rgb!($src, $dst, write_bgra!($dst)),
-            PixelFormat::RGB => $read_to_rgb!($src, $dst, write_rgb!($dst)),
-            PixelFormat::BGR => $read_to_rgb!($src, $dst, write_bgr!($dst)),
+        match $src.format {
+            PixelFormat::I420 => $read_to_rgb!($src, $dst, read_i420!($src)),
+            PixelFormat::I422 => $read_to_rgb!($src, $dst, read_i422!($src)),
+            PixelFormat::I444 => $read_to_rgb!($src, $dst, read_i444!($src)),
+            PixelFormat::NV12 => $read_to_rgb!($src, $dst, read_nv12!($src)),
+            PixelFormat::RGBA => $read_to_rgb!($src, $dst, read_rgba!($src)),
+            PixelFormat::BGRA => $read_to_rgb!($src, $dst, read_bgra!($src)),
+            PixelFormat::RGB => $read_to_rgb!($src, $dst, read_rgb!($src)),
+            PixelFormat::BGR => $read_to_rgb!($src, $dst, read_bgr!($src)),
         }
     };
 }
 
 #[allow(private_bounds)]
+#[inline(never)]
 pub fn convert<SB, DB>(src: Source<'_, SB>, dst: Destination<'_, DB>)
 where
     SB: BitsInternal,
@@ -247,7 +248,7 @@ where
 {
     verify_input_windows_same_size(&src, &dst);
 
-    match src.format {
+    match dst.format {
         PixelFormat::I420 => convert_i420::<SB, DB>(src, dst),
         PixelFormat::I422 => convert_i422::<SB, DB>(src, dst),
         PixelFormat::I444 => convert_i444::<SB, DB>(src, dst),
@@ -258,203 +259,137 @@ where
         PixelFormat::BGR => convert_rgb::<true, SB, DB>(src, dst),
     }
 }
-
+#[inline(never)]
 fn convert_i420<SB, DB>(src: Source<'_, SB>, dst: Destination<'_, DB>)
 where
     SB: BitsInternal,
     DB: BitsInternal,
 {
-    macro_rules! read_i420_to_rgb {
-        ($src:ident, $dst:ident, $writer:expr $(,)?) => {
-            if need_transfer_and_primaries_convert(&$src.color, &$dst.color) {
-                I420Reader::<SB, _>::read(
-                    $src.width,
-                    $src.height,
-                    $src.planes,
-                    $src.bits_per_component,
-                    $src.window,
-                    I420ToRgbVisitor::new(
-                        &$src.color,
-                        TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
-                    ),
-                )
-            } else {
-                I420Reader::<SB, _>::read(
-                    $src.width,
-                    $src.height,
-                    $src.planes,
-                    $src.bits_per_component,
-                    $src.window,
-                    I420ToRgbVisitor::new(&$src.color, $writer),
-                )
-            }
+    macro_rules! write_i420_from_rgb {
+        ($src:ident, $dst:ident, $reader:expr $(,)?) => {
+            I420Writer::<DB, _>::read(
+                $dst.width,
+                $dst.height,
+                $dst.planes,
+                $dst.bits_per_component,
+                $dst.window,
+                RgbToI420::new(
+                    &$dst.color,
+                    TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $reader),
+                ),
+            )
         };
     }
-    match_dst_format!(src, dst, read_i420_to_rgb);
+    match_src_format!(src, dst, write_i420_from_rgb);
 }
-
+#[inline(never)]
 fn convert_i422<SB, DB>(src: Source<'_, SB>, dst: Destination<'_, DB>)
 where
     SB: BitsInternal,
     DB: BitsInternal,
 {
-    macro_rules! read_i422_to_rgb {
-        ($src:ident, $dst:ident, $writer:expr $(,)?) => {
-            if need_transfer_and_primaries_convert(&$src.color, &$dst.color) {
-                I422Reader::<SB, _>::read(
-                    $src.width,
-                    $src.height,
-                    $src.planes,
-                    $src.bits_per_component,
-                    $src.window,
-                    I422ToRgbVisitor::new(
-                        &$src.color,
-                        TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
-                    ),
-                )
-            } else {
-                I422Reader::<SB, _>::read(
-                    $src.width,
-                    $src.height,
-                    $src.planes,
-                    $src.bits_per_component,
-                    $src.window,
-                    I422ToRgbVisitor::new(&$src.color, $writer),
-                )
-            }
+    macro_rules! write_i422_from_rgb {
+        ($src:ident, $dst:ident, $reader:expr $(,)?) => {
+            I422Writer::<DB, _>::read(
+                $dst.width,
+                $dst.height,
+                $dst.planes,
+                $dst.bits_per_component,
+                $dst.window,
+                RgbToI422::new(
+                    &$dst.color,
+                    TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $reader),
+                ),
+            )
         };
     }
-    match_dst_format!(src, dst, read_i422_to_rgb);
+    match_src_format!(src, dst, write_i422_from_rgb);
 }
-
+#[inline(never)]
 fn convert_i444<SB, DB>(src: Source<'_, SB>, dst: Destination<'_, DB>)
 where
     SB: BitsInternal,
     DB: BitsInternal,
 {
-    macro_rules! read_i444_to_rgb {
-        ($src:ident, $dst:ident, $writer:expr $(,)?) => {
-            if need_transfer_and_primaries_convert(&$src.color, &$dst.color) {
-                I444Reader::<SB, _>::read(
-                    $src.width,
-                    $src.height,
-                    $src.planes,
-                    $src.bits_per_component,
-                    $src.window,
-                    I444ToRgbVisitor::new(
-                        &$src.color,
-                        TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
-                    ),
-                )
-            } else {
-                I444Reader::<SB, _>::read(
-                    $src.width,
-                    $src.height,
-                    $src.planes,
-                    $src.bits_per_component,
-                    $src.window,
-                    I444ToRgbVisitor::new(&$src.color, $writer),
-                )
-            }
+    macro_rules! write_i444_from_rgb {
+        ($src:ident, $dst:ident, $reader:expr $(,)?) => {
+            I444Writer::<DB, _>::read(
+                $dst.width,
+                $dst.height,
+                $dst.planes,
+                $dst.bits_per_component,
+                $dst.window,
+                RgbToI444::new(
+                    &$src.color,
+                    TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $reader),
+                ),
+            )
         };
     }
-    match_dst_format!(src, dst, read_i444_to_rgb);
+    match_src_format!(src, dst, write_i444_from_rgb);
 }
-
+#[inline(never)]
 fn convert_nv12<SB, DB>(src: Source<'_, SB>, dst: Destination<'_, DB>)
 where
     SB: BitsInternal,
     DB: BitsInternal,
 {
-    macro_rules! read_nv12_to_rgb {
-        ($src:ident, $dst:ident, $writer:expr $(,)?) => {
-            if need_transfer_and_primaries_convert(&$src.color, &$dst.color) {
-                NV12Reader::<SB, _>::read(
-                    $src.width,
-                    $src.height,
-                    $src.planes,
-                    $src.bits_per_component,
-                    $src.window,
-                    I420ToRgbVisitor::new(
-                        &$src.color,
-                        TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
-                    ),
-                )
-            } else {
-                NV12Reader::<SB, _>::read(
-                    $src.width,
-                    $src.height,
-                    $src.planes,
-                    $src.bits_per_component,
-                    $src.window,
-                    I420ToRgbVisitor::new(&$src.color, $writer),
-                )
-            }
+    macro_rules! write_nv12_from_rgb {
+        ($src:ident, $dst:ident, $reader:expr $(,)?) => {
+            NV12Writer::<DB, _>::read(
+                $dst.width,
+                $dst.height,
+                $dst.planes,
+                $dst.bits_per_component,
+                $dst.window,
+                RgbToI420::new(
+                    &$dst.color,
+                    TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $reader),
+                ),
+            )
         };
     }
-    match_dst_format!(src, dst, read_nv12_to_rgb);
+    match_src_format!(src, dst, write_nv12_from_rgb);
 }
-
+#[inline(never)]
 fn convert_rgb<const REVERSE: bool, SB, DB>(src: Source<'_, SB>, dst: Destination<'_, DB>)
 where
     SB: BitsInternal,
     DB: BitsInternal,
 {
-    macro_rules! read_rgb_to_rgb {
-        ($src:ident, $dst:ident, $writer:expr $(,)?) => {
-            if need_transfer_and_primaries_convert(&$src.color, &$dst.color) {
-                RgbReader::<REVERSE, SB, _>::read(
-                    $src.width,
-                    $src.height,
-                    $src.planes,
-                    $src.bits_per_component,
-                    $src.window,
-                    TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
-                )
-            } else {
-                RgbReader::<REVERSE, SB, _>::read(
-                    $src.width,
-                    $src.height,
-                    $src.planes,
-                    $src.bits_per_component,
-                    $src.window,
-                    $writer,
-                )
-            }
+    macro_rules! write_rgb_from_rgb {
+        ($src:ident, $dst:ident, $reader:expr $(,)?) => {
+            RgbWriter::<REVERSE, DB, _>::read(
+                $dst.width,
+                $dst.height,
+                $dst.planes,
+                $dst.bits_per_component,
+                $dst.window,
+                TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $reader),
+            )
         };
     }
 
-    match_dst_format!(src, dst, read_rgb_to_rgb);
+    match_src_format!(src, dst, write_rgb_from_rgb);
 }
-
+#[inline(never)]
 fn convert_rgba<const REVERSE: bool, SB, DB>(src: Source<'_, SB>, dst: Destination<'_, DB>)
 where
     SB: BitsInternal,
     DB: BitsInternal,
 {
-    macro_rules! read_rgba_to_rgb {
-        ($src:ident, $dst:ident, $writer:expr $(,)?) => {
-            if need_transfer_and_primaries_convert(&$src.color, &$dst.color) {
-                RgbaReader::<REVERSE, SB, _>::read(
-                    $src.width,
-                    $src.height,
-                    $src.planes,
-                    $src.bits_per_component,
-                    $src.window,
-                    TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $writer),
-                )
-            } else {
-                RgbaReader::<REVERSE, SB, _>::read(
-                    $src.width,
-                    $src.height,
-                    $src.planes,
-                    $src.bits_per_component,
-                    $src.window,
-                    $writer,
-                )
-            }
+    macro_rules! write_rgba_from_rgb {
+        ($src:ident, $dst:ident, $reader:expr $(,)?) => {
+            RgbaWriter::<REVERSE, DB, _>::read(
+                $dst.width,
+                $dst.height,
+                $dst.planes,
+                $dst.bits_per_component,
+                $dst.window,
+                TransferAndPrimariesConvert::new(&$src.color, &$dst.color, $reader),
+            )
         };
     }
 
-    match_dst_format!(src, dst, read_rgba_to_rgb);
+    match_src_format!(src, dst, write_rgba_from_rgb);
 }

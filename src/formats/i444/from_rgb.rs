@@ -1,67 +1,36 @@
-use super::{I444Block, I444Visitor};
+use super::{I444Block, I444Src};
 use crate::color::{ColorInfo, ColorOps};
 use crate::formats::i444::I444Pixel;
-use crate::formats::rgb::{RgbBlock, RgbBlockVisitor, RgbPixel};
-use crate::formats::rgba::{RgbaBlock, RgbaBlockVisitor, RgbaPixel};
+use crate::formats::rgb::{RgbPixel, RgbSrc};
 use crate::vector::Vector;
 
-pub(crate) struct RgbToI444Visitor<Vis> {
-    visitor: Vis,
+pub(crate) struct RgbToI444<S> {
+    rgb_src: S,
     color: ColorOps,
     full_range: bool,
 }
 
-impl<Vis> RgbToI444Visitor<Vis>
-where
-    Vis: I444Visitor,
-{
-    pub(crate) fn new(color: &ColorInfo, visitor: Vis) -> Self {
+impl<S: RgbSrc> RgbToI444<S> {
+    pub(crate) fn new(color: &ColorInfo, rgb_src: S) -> Self {
         Self {
-            visitor,
+            rgb_src,
             color: ColorOps::from_info(color),
             full_range: color.full_range,
         }
     }
 }
 
-impl<Vis: I444Visitor> RgbaBlockVisitor for RgbToI444Visitor<Vis> {
+impl<S: RgbSrc> I444Src for RgbToI444<S> {
     #[inline(always)]
-    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, block: RgbaBlock<V>) {
-        fn conv<V>(px: RgbaPixel<V>) -> RgbPixel<V> {
-            RgbPixel {
-                r: px.r,
-                g: px.g,
-                b: px.b,
-            }
+    unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> I444Block<V> {
+        let block = self.rgb_src.read(x, y);
+
+        I444Block {
+            px00: convert_rgb_to_yuv(&self.color, self.full_range, block.rgb00),
+            px01: convert_rgb_to_yuv(&self.color, self.full_range, block.rgb01),
+            px10: convert_rgb_to_yuv(&self.color, self.full_range, block.rgb10),
+            px11: convert_rgb_to_yuv(&self.color, self.full_range, block.rgb11),
         }
-
-        RgbBlockVisitor::visit(
-            self,
-            x,
-            y,
-            RgbBlock {
-                rgb00: conv(block.rgba00),
-                rgb01: conv(block.rgba01),
-                rgb10: conv(block.rgba10),
-                rgb11: conv(block.rgba11),
-            },
-        )
-    }
-}
-
-impl<Vis: I444Visitor> RgbBlockVisitor for RgbToI444Visitor<Vis> {
-    #[inline(always)]
-    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, block: RgbBlock<V>) {
-        self.visitor.visit(
-            x,
-            y,
-            I444Block {
-                px00: convert_rgb_to_yuv(&self.color, self.full_range, block.rgb00),
-                px01: convert_rgb_to_yuv(&self.color, self.full_range, block.rgb01),
-                px10: convert_rgb_to_yuv(&self.color, self.full_range, block.rgb10),
-                px11: convert_rgb_to_yuv(&self.color, self.full_range, block.rgb11),
-            },
-        );
     }
 }
 

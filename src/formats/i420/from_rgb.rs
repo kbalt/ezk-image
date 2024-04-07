@@ -1,56 +1,27 @@
-use super::{I420Block, I420Visitor};
+use super::{I420Block, I420Src};
 use crate::color::{ColorInfo, ColorOps};
-use crate::formats::rgb::{RgbBlock, RgbBlockVisitor, RgbPixel};
-use crate::formats::rgba::{RgbaBlock, RgbaBlockVisitor, RgbaPixel};
+use crate::formats::rgb::{RgbBlock, RgbSrc};
 use crate::vector::Vector;
 
-pub(crate) struct RgbToI420Visitor<Vis> {
-    visitor: Vis,
+pub(crate) struct RgbToI420<S> {
+    rgb_src: S,
     color: ColorOps,
     full_range: bool,
 }
 
-impl<Vis> RgbToI420Visitor<Vis>
-where
-    Vis: I420Visitor,
-{
-    pub(crate) fn new(color: &ColorInfo, visitor: Vis) -> Self {
+impl<S: RgbSrc> RgbToI420<S> {
+    pub(crate) fn new(color: &ColorInfo, rgb_src: S) -> Self {
         Self {
-            visitor,
+            rgb_src,
             color: ColorOps::from_info(color),
             full_range: color.full_range,
         }
     }
 }
 
-impl<Vis: I420Visitor> RgbaBlockVisitor for RgbToI420Visitor<Vis> {
+impl<S: RgbSrc> I420Src for RgbToI420<S> {
     #[inline(always)]
-    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, block: RgbaBlock<V>) {
-        fn conv<V>(px: RgbaPixel<V>) -> RgbPixel<V> {
-            RgbPixel {
-                r: px.r,
-                g: px.g,
-                b: px.b,
-            }
-        }
-
-        RgbBlockVisitor::visit(
-            self,
-            x,
-            y,
-            RgbBlock {
-                rgb00: conv(block.rgba00),
-                rgb01: conv(block.rgba01),
-                rgb10: conv(block.rgba10),
-                rgb11: conv(block.rgba11),
-            },
-        )
-    }
-}
-
-impl<Vis: I420Visitor> RgbBlockVisitor for RgbToI420Visitor<Vis> {
-    #[inline(always)]
-    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, block: RgbBlock<V>) {
+    unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> I420Block<V> {
         let color = V::color_ops(&self.color);
 
         let RgbBlock {
@@ -58,7 +29,7 @@ impl<Vis: I420Visitor> RgbBlockVisitor for RgbToI420Visitor<Vis> {
             rgb01,
             rgb10,
             rgb11,
-        } = block;
+        } = self.rgb_src.read(x, y);
 
         let ([y00, y01, y10, y11], u, v) = self.color.space.rgbx4_to_yx4_uv(
             color.transfer,
@@ -91,17 +62,13 @@ impl<Vis: I420Visitor> RgbBlockVisitor for RgbToI420Visitor<Vis> {
             (y00, y01, y10, y11, u, v)
         };
 
-        self.visitor.visit(
-            x,
-            y,
-            I420Block {
-                y00,
-                y01,
-                y10,
-                y11,
-                u,
-                v,
-            },
-        );
+        I420Block {
+            y00,
+            y01,
+            y10,
+            y11,
+            u,
+            v,
+        }
     }
 }

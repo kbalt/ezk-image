@@ -1,31 +1,29 @@
-use super::{I420Block, I420Visitor};
+use super::{I420Block, I420Src};
 use crate::color::{ColorInfo, ColorOps};
-use crate::formats::rgb::{RgbBlock, RgbBlockVisitor, RgbPixel};
+use crate::formats::rgb::{RgbBlock, RgbPixel, RgbSrc};
+use crate::formats::rgba::{RgbaBlock, RgbaPixel, RgbaSrc};
 use crate::vector::Vector;
 
-pub(crate) struct I420ToRgbVisitor<Vis> {
-    visitor: Vis,
+pub(crate) struct I420ToRgb<S> {
+    i420_src: S,
 
     color: ColorOps,
     full_range: bool,
 }
 
-impl<Vis> I420ToRgbVisitor<Vis>
-where
-    Vis: RgbBlockVisitor,
-{
-    pub(crate) fn new(color: &ColorInfo, visitor: Vis) -> Self {
+impl<S: I420Src> I420ToRgb<S> {
+    pub(crate) fn new(color: &ColorInfo, i420_src: S) -> Self {
         Self {
-            visitor,
+            i420_src,
             color: ColorOps::from_info(color),
             full_range: color.full_range,
         }
     }
 }
 
-impl<Vis: RgbBlockVisitor> I420Visitor for I420ToRgbVisitor<Vis> {
+impl<S: I420Src> RgbSrc for I420ToRgb<S> {
     #[inline(always)]
-    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize, block: I420Block<V>) {
+    unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbBlock<V> {
         let color = V::color_ops(&self.color);
 
         let I420Block {
@@ -35,7 +33,7 @@ impl<Vis: RgbBlockVisitor> I420Visitor for I420ToRgbVisitor<Vis> {
             mut y11,
             mut u,
             mut v,
-        } = block;
+        } = self.i420_src.read::<V>(x, y);
 
         // If the YUV components don't use the full range of u8 scale them to the full range
         // Y  16..=235 -> 0..255 Y  = (1.164 * (Y  - 16))
@@ -77,7 +75,7 @@ impl<Vis: RgbBlockVisitor> I420Visitor for I420ToRgbVisitor<Vis> {
                 v,
             );
 
-        let block = RgbBlock {
+        RgbBlock {
             rgb00: RgbPixel {
                 r: r00,
                 g: g00,
@@ -98,8 +96,10 @@ impl<Vis: RgbBlockVisitor> I420Visitor for I420ToRgbVisitor<Vis> {
                 g: g11,
                 b: b11,
             },
-        };
-
-        self.visitor.visit(x, y, block)
+        }
     }
+}
+
+impl<S: I420Src> RgbaSrc for I420ToRgb<S> {
+    forward_rgb_rgba!();
 }
