@@ -35,29 +35,3 @@ pub(crate) struct RgbaBlock<V> {
 pub(crate) trait RgbaSrc {
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbaBlock<V>;
 }
-
-#[macro_export]
-macro_rules! forward_rgb_rgba {
-    () => {
-        #[inline(always)]
-        unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbaBlock<V> {
-            unsafe fn conv<V: Vector>(px: RgbPixel<V>) -> RgbaPixel<V> {
-                RgbaPixel {
-                    r: px.r,
-                    g: px.g,
-                    b: px.b,
-                    a: V::splat(1.0),
-                }
-            }
-
-            let block = RgbSrc::read(self, x, y);
-
-            RgbaBlock {
-                rgba00: conv(block.rgb00),
-                rgba01: conv(block.rgb01),
-                rgba10: conv(block.rgb10),
-                rgba11: conv(block.rgb11),
-            }
-        }
-    };
-}

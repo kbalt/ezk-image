@@ -25,40 +25,6 @@ impl<S> TransferAndPrimariesConvert<S> {
             src,
         }
     }
-
-    #[rustfmt::skip]
-    #[inline(always)]
-    unsafe fn convert_primaries<V>(&mut self, i: &mut [&mut V; 12])
-    where
-        V: Vector,
-    {
-        let fw = self.src_color.rgb_to_xyz;
-        let bw = self.dst_color.xyz_to_rgb;
-
-        let mut iter = i.chunks_exact_mut(3);
-
-        while let Some([r, g, b]) = iter.next() {
-            let [x, y, z] = rgb_to_xyz(fw, **r, **g, **b);
-
-            let [r_, g_, b_] =  xyz_to_rgb(bw, x, y, z);
-
-            **r = r_;
-            **g = g_;
-            **b = b_;
-        }
-    }
-
-    #[inline(always)]
-    unsafe fn convert_rgb<V>(&mut self, mut i: [&mut V; 12])
-    where
-        V: Vector,
-    {
-        self.src_color.transfer.scaled_to_linear_v(&mut i);
-
-        self.convert_primaries(&mut i);
-
-        self.dst_color.transfer.linear_to_scaled_v(&mut i);
-    }
 }
 
 impl<S: RgbaSrc> RgbaSrc for TransferAndPrimariesConvert<S> {
@@ -66,7 +32,7 @@ impl<S: RgbaSrc> RgbaSrc for TransferAndPrimariesConvert<S> {
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbaBlock<V> {
         let mut block = self.src.read(x, y);
 
-        let i = [
+        let mut i = [
             &mut block.px00.r,
             &mut block.px00.g,
             &mut block.px00.b,
@@ -81,8 +47,24 @@ impl<S: RgbaSrc> RgbaSrc for TransferAndPrimariesConvert<S> {
             &mut block.px11.b,
         ];
 
-        self.convert_rgb(i);
+        self.src_color.transfer.scaled_to_linear_v(&mut i);
 
+        let fw = self.src_color.rgb_to_xyz;
+        let bw = self.dst_color.xyz_to_rgb;
+
+        let mut iter = i.chunks_exact_mut(3);
+
+        while let Some([r, g, b]) = iter.next() {
+            let [x, y, z] = rgb_to_xyz(fw, **r, **g, **b);
+
+            let [r_, g_, b_] = xyz_to_rgb(bw, x, y, z);
+
+            **r = r_;
+            **g = g_;
+            **b = b_;
+        }
+
+        self.dst_color.transfer.linear_to_scaled_v(&mut i);
         block
     }
 }

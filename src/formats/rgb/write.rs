@@ -4,7 +4,7 @@ use crate::vector::Vector;
 use crate::{PixelFormatPlanes, Rect, RgbaPixel, RgbaSrc};
 use std::marker::PhantomData;
 
-pub(crate) struct RgbWriter<const REVERSE: bool, B, S>
+pub(crate) struct RgbWriter<'a, const REVERSE: bool, B, S>
 where
     B: BitsInternal,
     S: RgbaSrc,
@@ -16,10 +16,10 @@ where
 
     rgba_src: S,
 
-    _b: PhantomData<B>,
+    _m: PhantomData<&'a mut [B::Primitive]>,
 }
 
-impl<const REVERSE: bool, B, S> RgbWriter<REVERSE, B, S>
+impl<'a, const REVERSE: bool, B, S> RgbWriter<'a, REVERSE, B, S>
 where
     B: BitsInternal,
     S: RgbaSrc,
@@ -47,13 +47,13 @@ where
                 dst: dst.as_mut_ptr(),
                 max_value: crate::max_value_for_bits(bits_per_component),
                 rgba_src,
-                _b: PhantomData,
+                _m: PhantomData,
             },
         )
     }
 }
 
-impl<const REVERSE: bool, B, S> ImageReader for RgbWriter<REVERSE, B, S>
+impl<'a, const REVERSE: bool, B, S> ImageReader for RgbWriter<'a, REVERSE, B, S>
 where
     B: BitsInternal,
     S: RgbaSrc,

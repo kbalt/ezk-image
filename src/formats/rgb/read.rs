@@ -12,8 +12,7 @@ pub(crate) struct RgbReader<'a, const REVERSE: bool, B: BitsInternal> {
     src: *const B::Primitive,
     max_value: f32,
 
-    _m: PhantomData<&'a mut [u8]>,
-    _b: PhantomData<fn() -> B>,
+    _m: PhantomData<&'a [B::Primitive]>,
 }
 
 impl<'a, const REVERSE: bool, B: BitsInternal> RgbReader<'a, REVERSE, B> {
@@ -46,12 +45,11 @@ impl<'a, const REVERSE: bool, B: BitsInternal> RgbReader<'a, REVERSE, B> {
             src: src.as_ptr(),
             max_value: crate::max_value_for_bits(bits_per_component),
             _m: PhantomData,
-            _b: PhantomData,
         }
     }
 }
 
-impl<const REVERSE: bool, B: BitsInternal> RgbaSrc for RgbReader<'_, REVERSE, B> {
+impl<'a, const REVERSE: bool, B: BitsInternal> RgbaSrc for RgbReader<'a, REVERSE, B> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbaBlock<V> {
         let x = self.window.x + x;

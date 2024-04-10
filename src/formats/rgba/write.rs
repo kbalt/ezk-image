@@ -5,7 +5,7 @@ use crate::vector::Vector;
 use crate::{PixelFormatPlanes, Rect};
 use std::marker::PhantomData;
 
-pub(crate) struct RgbaWriter<const REVERSE: bool, B, S>
+pub(crate) struct RgbaWriter<'a, const REVERSE: bool, B, S>
 where
     B: BitsInternal,
     S: RgbaSrc,
@@ -17,10 +17,10 @@ where
 
     rgba_src: S,
 
-    _b: PhantomData<B>,
+    _m: PhantomData<&'a mut [B::Primitive]>,
 }
 
-impl<const REVERSE: bool, B, S> RgbaWriter<REVERSE, B, S>
+impl<'a, const REVERSE: bool, B, S> RgbaWriter<'a, REVERSE, B, S>
 where
     B: BitsInternal,
     S: RgbaSrc,
@@ -28,7 +28,7 @@ where
     pub(crate) fn read(
         dst_width: usize,
         dst_height: usize,
-        dst_planes: PixelFormatPlanes<&mut [B::Primitive]>,
+        dst_planes: PixelFormatPlanes<&'a mut [B::Primitive]>,
         bits_per_component: usize,
         window: Option<Rect>,
         rgba_src: S,
@@ -48,13 +48,13 @@ where
                 dst: dst.as_mut_ptr(),
                 max_value: crate::max_value_for_bits(bits_per_component),
                 rgba_src,
-                _b: PhantomData,
+                _m: PhantomData,
             },
         )
     }
 }
 
-impl<const REVERSE: bool, B, S> ImageReader for RgbaWriter<REVERSE, B, S>
+impl<'a, const REVERSE: bool, B, S> ImageReader for RgbaWriter<'a, REVERSE, B, S>
 where
     B: BitsInternal,
     S: RgbaSrc,

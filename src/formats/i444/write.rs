@@ -7,7 +7,7 @@ use crate::vector::Vector;
 use crate::{PixelFormatPlanes, Rect};
 use std::marker::PhantomData;
 
-pub(crate) struct I444Writer<B, S>
+pub(crate) struct I444Writer<'a, B, S>
 where
     B: BitsInternal,
     S: I444Src,
@@ -21,10 +21,10 @@ where
 
     i444_src: S,
 
-    _b: PhantomData<B>,
+    _m: PhantomData<&'a mut [B::Primitive]>,
 }
 
-impl<B, S> I444Writer<B, S>
+impl<'a, B, S> I444Writer<'a, B, S>
 where
     B: BitsInternal,
     S: I444Src,
@@ -32,7 +32,7 @@ where
     pub(crate) fn read(
         dst_width: usize,
         dst_height: usize,
-        dst_planes: PixelFormatPlanes<&mut [B::Primitive]>,
+        dst_planes: PixelFormatPlanes<&'a mut [B::Primitive]>,
         bits_per_component: usize,
         window: Option<Rect>,
         i444_src: S,
@@ -54,13 +54,13 @@ where
                 dst_v: v.as_mut_ptr(),
                 max_value: crate::max_value_for_bits(bits_per_component),
                 i444_src,
-                _b: PhantomData,
+                _m: PhantomData,
             },
         )
     }
 }
 
-impl<B, S> ImageReader for I444Writer<B, S>
+impl<B, S> ImageReader for I444Writer<'_, B, S>
 where
     B: BitsInternal,
     S: I444Src,

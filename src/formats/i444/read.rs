@@ -14,8 +14,7 @@ pub(crate) struct I444Reader<'a, B: BitsInternal> {
 
     max_value: f32,
 
-    _m: PhantomData<&'a mut [B::Primitive]>,
-    _b: PhantomData<fn() -> B>,
+    _m: PhantomData<&'a [B::Primitive]>,
 }
 
 impl<'a, B: BitsInternal> I444Reader<'a, B> {
@@ -50,12 +49,11 @@ impl<'a, B: BitsInternal> I444Reader<'a, B> {
             v: v.as_ptr(),
             max_value: crate::max_value_for_bits(bits_per_component),
             _m: PhantomData,
-            _b: PhantomData,
         }
     }
 }
 
-impl<'a, B: BitsInternal> I444Src for I444Reader<'a, B> {
+impl<B: BitsInternal> I444Src for I444Reader<'_, B> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> I444Block<V> {
         let x = self.window.x + x;

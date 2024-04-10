@@ -1,7 +1,7 @@
 use super::Vector;
 use crate::arch::*;
-use crate::color::{ColorOps, ColorOpsPart};
 use crate::endian::Endian;
+use crate::{DynRgbaReader, DynRgbaReaderSpec, RgbaBlock};
 use std::mem::transmute;
 
 unsafe impl Vector for float32x4_t {
@@ -268,8 +268,12 @@ unsafe impl Vector for float32x4_t {
     }
 
     #[inline(always)]
-    fn color_ops(c: &ColorOps) -> &ColorOpsPart<Self> {
-        &c.neon
+    unsafe fn dyn_rgba_read<'a>(
+        v: &mut (dyn DynRgbaReader + 'a),
+        x: usize,
+        y: usize,
+    ) -> RgbaBlock<Self> {
+        DynRgbaReaderSpec::<float32x4_t>::dyn_read(v, x, y)
     }
 }
 

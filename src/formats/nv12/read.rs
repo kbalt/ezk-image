@@ -14,7 +14,6 @@ pub(crate) struct NV12Reader<'a, B: BitsInternal> {
     max_value: f32,
 
     _m: PhantomData<&'a [B::Primitive]>,
-    _b: PhantomData<fn() -> B>,
 }
 
 impl<'a, B: BitsInternal> NV12Reader<'a, B> {
@@ -48,12 +47,11 @@ impl<'a, B: BitsInternal> NV12Reader<'a, B> {
             src_uv: uv.as_ptr(),
             max_value: crate::max_value_for_bits(bits_per_component),
             _m: PhantomData,
-            _b: PhantomData,
         }
     }
 }
 
-impl<'a, B: BitsInternal> I420Src for NV12Reader<'a, B> {
+impl<B: BitsInternal> I420Src for NV12Reader<'_, B> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> I420Block<V> {
         let x = self.window.x + x;

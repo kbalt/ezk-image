@@ -1,6 +1,6 @@
 use super::Vector;
-use crate::arch::*;
 use crate::endian::Endian;
+use crate::{arch::*, DynRgbaReader, DynRgbaReaderSpec, RgbaBlock};
 use std::mem::transmute;
 
 unsafe impl Vector for __m256 {
@@ -248,6 +248,15 @@ unsafe impl Vector for __m256 {
             util::interleave_f32x8x4_to_u16x32::<E>(this[1][0], this[1][1], this[1][2], this[1][3]);
 
         ptr.cast::<[[u16; 32]; 2]>().write_unaligned([a, b])
+    }
+
+    #[inline(always)]
+    unsafe fn dyn_rgba_read<'a>(
+        v: &mut (dyn DynRgbaReader + 'a),
+        x: usize,
+        y: usize,
+    ) -> RgbaBlock<Self> {
+        DynRgbaReaderSpec::<__m256>::dyn_read(v, x, y)
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::endian::Endian;
+use crate::{endian::Endian, DynRgbaReader, DynRgbaReaderSpec, RgbaBlock};
 use std::fmt::Debug;
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -116,6 +116,12 @@ pub(crate) unsafe trait Vector: Debug + Copy + 'static {
 
     unsafe fn write_interleaved_4x_2x_u8(this: [[Self; 4]; 2], ptr: *mut u8);
     unsafe fn write_interleaved_4x_2x_u16<E: Endian>(this: [[Self; 4]; 2], ptr: *mut u16);
+
+    unsafe fn dyn_rgba_read<'a>(
+        v: &mut (dyn DynRgbaReader + 'a),
+        x: usize,
+        y: usize,
+    ) -> RgbaBlock<Self>;
 }
 
 unsafe impl Vector for f32 {
@@ -304,5 +310,14 @@ unsafe impl Vector for f32 {
                 }
             })
         }));
+    }
+
+    #[inline(always)]
+    unsafe fn dyn_rgba_read<'a>(
+        v: &mut (dyn DynRgbaReader + 'a),
+        x: usize,
+        y: usize,
+    ) -> RgbaBlock<Self> {
+        DynRgbaReaderSpec::<f32>::dyn_read(v, x, y)
     }
 }

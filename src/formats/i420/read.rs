@@ -14,8 +14,7 @@ pub(crate) struct I420Reader<'a, B: BitsInternal> {
 
     max_value: f32,
 
-    _m: PhantomData<&'a mut [B::Primitive]>,
-    _b: PhantomData<fn() -> B>,
+    _m: PhantomData<&'a [B::Primitive]>,
 }
 
 impl<'a, B: BitsInternal> I420Reader<'a, B> {
@@ -50,7 +49,6 @@ impl<'a, B: BitsInternal> I420Reader<'a, B> {
             v: v.as_ptr(),
             max_value: crate::max_value_for_bits(bits_per_component),
             _m: PhantomData,
-            _b: PhantomData,
         }
     }
 }

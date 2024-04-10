@@ -21,8 +21,7 @@ where
 
     i422_src: S,
 
-    _b: PhantomData<B>,
-    _m: PhantomData<&'a u8>,
+    _m: PhantomData<&'a mut [B::Primitive]>,
 }
 
 impl<'a, B, S> I422Writer<'a, B, S>
@@ -33,7 +32,7 @@ where
     pub(crate) fn read(
         dst_width: usize,
         dst_height: usize,
-        dst_planes: PixelFormatPlanes<&mut [B::Primitive]>,
+        dst_planes: PixelFormatPlanes<&'a mut [B::Primitive]>,
         bits_per_component: usize,
         window: Option<Rect>,
         i422_src: S,
@@ -55,7 +54,6 @@ where
                 dst_v: v.as_mut_ptr(),
                 max_value: crate::max_value_for_bits(bits_per_component),
                 i422_src,
-                _b: PhantomData,
                 _m: PhantomData,
             },
         )

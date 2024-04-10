@@ -1,7 +1,7 @@
 use crate::endian::{BigEndian, Endian, LittleEndian, NativeEndian};
 use crate::vector::Vector;
 
-pub trait Bits {
+pub trait Bits: 'static {
     type Primitive: Send + Sync + 'static;
     type Endian: Endian;
 }

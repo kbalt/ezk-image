@@ -20,8 +20,7 @@ where
 
     i420_src: S,
 
-    _b: PhantomData<B>,
-    _m: PhantomData<&'a u8>,
+    _m: PhantomData<&'a mut [B::Primitive]>,
 }
 
 impl<'a, B, S> NV12Writer<'a, B, S>
@@ -53,7 +52,6 @@ where
                 dst_uv: uv.as_mut_ptr(),
                 max_value: crate::max_value_for_bits(bits_per_component),
                 i420_src,
-                _b: PhantomData,
                 _m: PhantomData,
             },
         )
