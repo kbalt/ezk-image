@@ -219,7 +219,7 @@ where
     DB: BitsInternal,
 {
     match dst.format {
-        PixelFormat::I420 => I420Writer::<DB, _>::read(
+        PixelFormat::I420 => I420Writer::<DB, _>::write(
             dst.width,
             dst.height,
             dst.planes,
@@ -227,7 +227,7 @@ where
             dst.window,
             RgbToI420::new(&dst.color, reader),
         ),
-        PixelFormat::I422 => I422Writer::<DB, _>::read(
+        PixelFormat::I422 => I422Writer::<DB, _>::write(
             dst.width,
             dst.height,
             dst.planes,
@@ -235,7 +235,7 @@ where
             dst.window,
             RgbToI422::new(&dst.color, reader),
         ),
-        PixelFormat::I444 => I444Writer::<DB, _>::read(
+        PixelFormat::I444 => I444Writer::<DB, _>::write(
             dst.width,
             dst.height,
             dst.planes,
@@ -243,7 +243,7 @@ where
             dst.window,
             RgbToI444::new(&dst.color, reader),
         ),
-        PixelFormat::NV12 => NV12Writer::<DB, _>::read(
+        PixelFormat::NV12 => NV12Writer::<DB, _>::write(
             dst.width,
             dst.height,
             dst.planes,
@@ -251,7 +251,7 @@ where
             dst.window,
             RgbToI420::new(&dst.color, reader),
         ),
-        PixelFormat::RGBA => RgbaWriter::<false, DB, _>::read(
+        PixelFormat::RGBA => RgbaWriter::<false, DB, _>::write(
             dst.width,
             dst.height,
             dst.planes,
@@ -259,7 +259,7 @@ where
             dst.window,
             reader,
         ),
-        PixelFormat::BGRA => RgbaWriter::<true, DB, _>::read(
+        PixelFormat::BGRA => RgbaWriter::<true, DB, _>::write(
             dst.width,
             dst.height,
             dst.planes,
@@ -267,7 +267,7 @@ where
             dst.window,
             reader,
         ),
-        PixelFormat::RGB => RgbWriter::<false, DB, _>::read(
+        PixelFormat::RGB => RgbWriter::<false, DB, _>::write(
             dst.width,
             dst.height,
             dst.planes,
@@ -275,7 +275,7 @@ where
             dst.window,
             reader,
         ),
-        PixelFormat::BGR => RgbWriter::<true, DB, _>::read(
+        PixelFormat::BGR => RgbWriter::<true, DB, _>::write(
             dst.width,
             dst.height,
             dst.planes,

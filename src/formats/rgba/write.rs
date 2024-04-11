@@ -1,6 +1,6 @@
 use super::{RgbaPixel, RgbaSrc};
 use crate::bits::BitsInternal;
-use crate::formats::reader::{read, ImageReader};
+use crate::formats::reader::{visit, ImageVisitor};
 use crate::vector::Vector;
 use crate::{PixelFormatPlanes, Rect};
 use std::marker::PhantomData;
@@ -25,7 +25,7 @@ where
     B: BitsInternal,
     S: RgbaSrc,
 {
-    pub(crate) fn read(
+    pub(crate) fn write(
         dst_width: usize,
         dst_height: usize,
         dst_planes: PixelFormatPlanes<&'a mut [B::Primitive]>,
@@ -39,7 +39,7 @@ where
             panic!("Invalid PixelFormatPlanes for RgbaWriter");
         };
 
-        read(
+        visit(
             dst_width,
             dst_height,
             window,
@@ -54,7 +54,7 @@ where
     }
 }
 
-impl<'a, const REVERSE: bool, B, S> ImageReader for RgbaWriter<'a, REVERSE, B, S>
+impl<'a, const REVERSE: bool, B, S> ImageVisitor for RgbaWriter<'a, REVERSE, B, S>
 where
     B: BitsInternal,
     S: RgbaSrc,

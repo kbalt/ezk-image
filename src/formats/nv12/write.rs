@@ -1,7 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 
 use crate::bits::BitsInternal;
-use crate::formats::reader::{read, ImageReader};
+use crate::formats::reader::{visit, ImageVisitor};
 use crate::formats::{I420Block, I420Src};
 use crate::vector::Vector;
 use crate::{PixelFormatPlanes, Rect};
@@ -28,7 +28,7 @@ where
     B: BitsInternal,
     S: I420Src,
 {
-    pub(crate) fn read(
+    pub(crate) fn write(
         dst_width: usize,
         dst_height: usize,
         dst_planes: PixelFormatPlanes<&'a mut [B::Primitive]>,
@@ -42,7 +42,7 @@ where
             panic!("Invalid PixelFormatPlanes for read_nv12");
         };
 
-        read(
+        visit(
             dst_width,
             dst_height,
             window,
@@ -58,7 +58,7 @@ where
     }
 }
 
-impl<B, S> ImageReader for NV12Writer<'_, B, S>
+impl<B, S> ImageVisitor for NV12Writer<'_, B, S>
 where
     B: BitsInternal,
     S: I420Src,

@@ -2,7 +2,7 @@
 
 use super::{I420Block, I420Src};
 use crate::bits::BitsInternal;
-use crate::formats::reader::{read, ImageReader};
+use crate::formats::reader::{visit, ImageVisitor};
 use crate::vector::Vector;
 use crate::{PixelFormatPlanes, Rect};
 use std::marker::PhantomData;
@@ -29,7 +29,7 @@ where
     B: BitsInternal,
     S: I420Src,
 {
-    pub(crate) fn read(
+    pub(crate) fn write(
         dst_width: usize,
         dst_height: usize,
         dst_planes: PixelFormatPlanes<&'a mut [B::Primitive]>,
@@ -43,7 +43,7 @@ where
             panic!("Invalid PixelFormatPlanes for I420Writer");
         };
 
-        read(
+        visit(
             dst_width,
             dst_height,
             window,
@@ -60,7 +60,7 @@ where
     }
 }
 
-impl<B, S> ImageReader for I420Writer<'_, B, S>
+impl<B, S> ImageVisitor for I420Writer<'_, B, S>
 where
     B: BitsInternal,
     S: I420Src,

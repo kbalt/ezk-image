@@ -1,14 +1,14 @@
 use crate::arch::*;
 use crate::{vector::Vector, Rect};
 
-pub(crate) trait ImageReader {
+pub(crate) trait ImageVisitor {
     unsafe fn read_at<V: Vector>(&mut self, x: usize, y: usize);
 }
 
 #[inline(never)]
-pub(crate) fn read<R>(src_width: usize, src_height: usize, window: Option<Rect>, reader: R)
+pub(crate) fn visit<R>(src_width: usize, src_height: usize, window: Option<Rect>, reader: R)
 where
-    R: ImageReader,
+    R: ImageVisitor,
 {
     let window = window.unwrap_or(Rect {
         x: 0,
@@ -28,9 +28,9 @@ where
         #[target_feature(enable = "avx2")]
         unsafe fn call<R>(window: Rect, reader: R)
         where
-            R: ImageReader,
+            R: ImageVisitor,
         {
-            read_impl::<__m256, _>(window, reader);
+            visit_impl::<__m256, _>(window, reader);
         }
 
         // Safety: Did a feature check
@@ -44,9 +44,9 @@ where
         #[target_feature(enable = "neon")]
         unsafe fn call<R>(window: Rect, reader: R)
         where
-            R: ImageReader,
+            R: ImageVisitor,
         {
-            read_impl::<float32x4_t, _>(window, reader);
+            visit_impl::<float32x4_t, _>(window, reader);
         }
 
         // Safety: Did a feature check
@@ -57,11 +57,11 @@ where
 
     // Fallback to naive
     // Safety: Inputs have been checked
-    unsafe { read_impl::<f32, _>(window, reader) }
+    unsafe { visit_impl::<f32, _>(window, reader) }
 }
 
 #[inline(always)]
-unsafe fn read_impl<V: Vector, R: ImageReader>(window: Rect, mut reader: R) {
+unsafe fn visit_impl<V: Vector, R: ImageVisitor>(window: Rect, mut reader: R) {
     // How many pixels cannot be vectorized since they don't fit the vector (per row)
     let non_vectored_pixels_per_row = window.width % (V::LEN * 2);
     let vectored_pixels_per_row = window.width - non_vectored_pixels_per_row;
