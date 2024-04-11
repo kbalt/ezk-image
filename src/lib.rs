@@ -116,114 +116,6 @@ impl PixelFormat {
     }
 }
 
-macro_rules! read_i420 {
-    ($src:ident) => {
-        I420ToRgb::new(
-            &$src.color,
-            I420Reader::<SB>::new(
-                $src.width,
-                $src.height,
-                $src.planes,
-                $src.bits_per_component,
-                $src.window,
-            ),
-        )
-    };
-}
-
-macro_rules! read_i422 {
-    ($src:ident) => {
-        I422ToRgb::new(
-            &$src.color,
-            I422Reader::<SB>::new(
-                $src.width,
-                $src.height,
-                $src.planes,
-                $src.bits_per_component,
-                $src.window,
-            ),
-        )
-    };
-}
-
-macro_rules! read_i444 {
-    ($src:ident) => {
-        I444ToRgb::new(
-            &$src.color,
-            I444Reader::<SB>::new(
-                $src.width,
-                $src.height,
-                $src.planes,
-                $src.bits_per_component,
-                $src.window,
-            ),
-        )
-    };
-}
-
-macro_rules! read_nv12 {
-    ($src:ident) => {
-        I420ToRgb::new(
-            &$src.color,
-            NV12Reader::<SB>::new(
-                $src.width,
-                $src.height,
-                $src.planes,
-                $src.bits_per_component,
-                $src.window,
-            ),
-        )
-    };
-}
-
-macro_rules! read_rgb {
-    ($src:ident) => {
-        RgbReader::<false, SB>::new(
-            $src.width,
-            $src.height,
-            $src.planes,
-            $src.bits_per_component,
-            $src.window,
-        )
-    };
-}
-
-macro_rules! read_bgr {
-    ($src:ident) => {
-        RgbReader::<true, SB>::new(
-            $src.width,
-            $src.height,
-            $src.planes,
-            $src.bits_per_component,
-            $src.window,
-        )
-    };
-}
-
-macro_rules! read_rgba {
-    ($src:ident) => {
-        RgbaReader::<false, SB>::new(
-            $src.width,
-            $src.height,
-            $src.planes,
-            $src.bits_per_component,
-            $src.window,
-        )
-    };
-}
-
-macro_rules! read_bgra {
-    ($src:ident) => {
-        RgbaReader::<true, SB>::new(
-            $src.width,
-            $src.height,
-            $src.planes,
-            $src.bits_per_component,
-            $src.window,
-        )
-    };
-}
-
 #[allow(private_bounds)]
 #[inline(never)]
 pub fn convert<SB, DB>(src: Source<'_, SB>, dst: Destination<'_, DB>)
@@ -233,32 +125,97 @@ where
 {
     verify_input_windows_same_size(&src, &dst);
 
-    let reader: Box<dyn DynRgbaReader> = match src.format {
-        PixelFormat::I420 => Box::new(read_i420!(src)),
-        PixelFormat::I422 => Box::new(read_i422!(src)),
-        PixelFormat::I444 => Box::new(read_i444!(src)),
-        PixelFormat::NV12 => Box::new(read_nv12!(src)),
-        PixelFormat::RGBA => Box::new(read_rgba!(src)),
-        PixelFormat::BGRA => Box::new(read_bgra!(src)),
-        PixelFormat::RGB => Box::new(read_rgb!(src)),
-        PixelFormat::BGR => Box::new(read_bgr!(src)),
-    };
+    let reader: Box<dyn DynRgbaReader> = read_any_to_rgba(&src);
 
     if need_transfer_and_primaries_convert(&src.color, &dst.color) {
         let reader = TransferAndPrimariesConvert::new(&src.color, &dst.color, reader);
 
-        rgba_to_any(src, dst, reader);
+        rgba_to_any(dst, reader);
     } else {
-        rgba_to_any(src, dst, reader);
+        rgba_to_any(dst, reader);
     }
 }
 
-fn rgba_to_any<'src, SB, DB>(
-    src: Source<'src, SB>,
-    dst: Destination<'_, DB>,
-    reader: impl RgbaSrc + 'src,
-) where
+#[inline(never)]
+fn read_any_to_rgba<'src, SB>(src: &Source<'src, SB>) -> Box<dyn DynRgbaReader + 'src>
+where
     SB: BitsInternal,
+{
+    match src.format {
+        PixelFormat::I420 => Box::new(I420ToRgb::new(
+            &src.color,
+            I420Reader::<SB>::new(
+                src.width,
+                src.height,
+                src.planes,
+                src.bits_per_component,
+                src.window,
+            ),
+        )),
+        PixelFormat::I422 => Box::new(I422ToRgb::new(
+            &src.color,
+            I422Reader::<SB>::new(
+                src.width,
+                src.height,
+                src.planes,
+                src.bits_per_component,
+                src.window,
+            ),
+        )),
+        PixelFormat::I444 => Box::new(I444ToRgb::new(
+            &src.color,
+            I444Reader::<SB>::new(
+                src.width,
+                src.height,
+                src.planes,
+                src.bits_per_component,
+                src.window,
+            ),
+        )),
+        PixelFormat::NV12 => Box::new(I420ToRgb::new(
+            &src.color,
+            NV12Reader::<SB>::new(
+                src.width,
+                src.height,
+                src.planes,
+                src.bits_per_component,
+                src.window,
+            ),
+        )),
+        PixelFormat::RGBA => Box::new(RgbaReader::<false, SB>::new(
+            src.width,
+            src.height,
+            src.planes,
+            src.bits_per_component,
+            src.window,
+        )),
+        PixelFormat::BGRA => Box::new(RgbaReader::<true, SB>::new(
+            src.width,
+            src.height,
+            src.planes,
+            src.bits_per_component,
+            src.window,
+        )),
+        PixelFormat::RGB => Box::new(RgbReader::<false, SB>::new(
+            src.width,
+            src.height,
+            src.planes,
+            src.bits_per_component,
+            src.window,
+        )),
+        PixelFormat::BGR => Box::new(RgbReader::<true, SB>::new(
+            src.width,
+            src.height,
+            src.planes,
+            src.bits_per_component,
+            src.window,
+        )),
+    }
+}
+
+#[inline(never)]
+fn rgba_to_any<'src, DB>(dst: Destination<'_, DB>, reader: impl RgbaSrc + 'src)
+where
     DB: BitsInternal,
 {
     match dst.format {
@@ -284,7 +241,7 @@ fn rgba_to_any<'src, SB, DB>(
             dst.planes,
             dst.bits_per_component,
             dst.window,
-            RgbToI444::new(&src.color, reader),
+            RgbToI444::new(&dst.color, reader),
         ),
         PixelFormat::NV12 => NV12Writer::<DB, _>::read(
             dst.width,
@@ -327,4 +284,56 @@ fn rgba_to_any<'src, SB, DB>(
             reader,
         ),
     }
+}
+
+#[doc(hidden)]
+#[deprecated]
+pub fn force_compilation() {
+    macro_rules! src {
+        () => {
+            Source::new(
+                PixelFormat::RGB,
+                PixelFormatPlanes::RGB(&[]),
+                0,
+                0,
+                ColorInfo {
+                    space: ColorSpace::BT709,
+                    transfer: ColorTransfer::Linear,
+                    primaries: ColorPrimaries::BT709,
+                    full_range: false,
+                },
+                0,
+            )
+        };
+    }
+
+    macro_rules! dst {
+        () => {
+            Destination::new(
+                PixelFormat::RGB,
+                PixelFormatPlanes::RGB(&mut []),
+                0,
+                0,
+                ColorInfo {
+                    space: ColorSpace::BT709,
+                    transfer: ColorTransfer::Linear,
+                    primaries: ColorPrimaries::BT709,
+                    full_range: false,
+                },
+                0,
+            )
+        };
+    }
+
+    convert::<U8, U8>(src!(), dst!());
+    convert::<U8, U16LE>(src!(), dst!());
+    convert::<U8, U16BE>(src!(), dst!());
+
+    convert::<U16LE, U8>(src!(), dst!());
+    convert::<U16LE, U16LE>(src!(), dst!());
+    convert::<U16LE, U16BE>(src!(), dst!());
+
+    convert::<U16BE, U8>(src!(), dst!());
+    convert::<U16BE, U16LE>(src!(), dst!());
+    convert::<U16BE, U16BE>(src!(), dst!());
 }
