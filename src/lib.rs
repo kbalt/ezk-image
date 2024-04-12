@@ -94,10 +94,13 @@ pub enum PixelFormat {
 
     /// 1 Plane 4 primitives R, G, B, A
     RGBA,
+
     /// 1 Plane 4 primitives B, G, R, A
     BGRA,
+
     /// 1 Plane 3 primitives R, G, B
     RGB,
+
     /// 1 Plane 3 primitives B, G, R
     BGR,
 }

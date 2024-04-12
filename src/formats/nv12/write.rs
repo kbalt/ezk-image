@@ -1,7 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 
 use crate::bits::BitsInternal;
-use crate::formats::reader::{visit, ImageVisitor};
+use crate::formats::visit_2x2::{visit, Image2x2Visitor};
 use crate::formats::{I420Block, I420Src};
 use crate::vector::Vector;
 use crate::{PixelFormatPlanes, Rect};
@@ -58,7 +58,7 @@ where
     }
 }
 
-impl<B, S> ImageVisitor for NV12Writer<'_, B, S>
+impl<B, S> Image2x2Visitor for NV12Writer<'_, B, S>
 where
     B: BitsInternal,
     S: I420Src,

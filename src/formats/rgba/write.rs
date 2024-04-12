@@ -1,6 +1,6 @@
 use super::{RgbaPixel, RgbaSrc};
 use crate::bits::BitsInternal;
-use crate::formats::reader::{visit, ImageVisitor};
+use crate::formats::visit_2x2::{visit, Image2x2Visitor};
 use crate::vector::Vector;
 use crate::{PixelFormatPlanes, Rect};
 use std::marker::PhantomData;
@@ -54,7 +54,7 @@ where
     }
 }
 
-impl<'a, const REVERSE: bool, B, S> ImageVisitor for RgbaWriter<'a, REVERSE, B, S>
+impl<'a, const REVERSE: bool, B, S> Image2x2Visitor for RgbaWriter<'a, REVERSE, B, S>
 where
     B: BitsInternal,
     S: RgbaSrc,

@@ -2,7 +2,7 @@
 
 use super::{I444Block, I444Src};
 use crate::bits::BitsInternal;
-use crate::formats::reader::{visit, ImageVisitor};
+use crate::formats::visit_2x2::{visit, Image2x2Visitor};
 use crate::vector::Vector;
 use crate::{PixelFormatPlanes, Rect};
 use std::marker::PhantomData;
@@ -60,7 +60,7 @@ where
     }
 }
 
-impl<B, S> ImageVisitor for I444Writer<'_, B, S>
+impl<B, S> Image2x2Visitor for I444Writer<'_, B, S>
 where
     B: BitsInternal,
     S: I444Src,

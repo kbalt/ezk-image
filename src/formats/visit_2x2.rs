@@ -1,14 +1,14 @@
 use crate::arch::*;
 use crate::{vector::Vector, Rect};
 
-pub(crate) trait ImageVisitor {
+pub(crate) trait Image2x2Visitor {
     unsafe fn read_at<V: Vector>(&mut self, x: usize, y: usize);
 }
 
 #[inline(never)]
 pub(crate) fn visit<R>(src_width: usize, src_height: usize, window: Option<Rect>, reader: R)
 where
-    R: ImageVisitor,
+    R: Image2x2Visitor,
 {
     let window = window.unwrap_or(Rect {
         x: 0,
@@ -28,7 +28,7 @@ where
         #[target_feature(enable = "avx2")]
         unsafe fn call<R>(window: Rect, reader: R)
         where
-            R: ImageVisitor,
+            R: Image2x2Visitor,
         {
             visit_impl::<__m256, _>(window, reader);
         }
@@ -44,7 +44,7 @@ where
         #[target_feature(enable = "neon")]
         unsafe fn call<R>(window: Rect, reader: R)
         where
-            R: ImageVisitor,
+            R: Image2x2Visitor,
         {
             visit_impl::<float32x4_t, _>(window, reader);
         }
@@ -61,7 +61,7 @@ where
 }
 
 #[inline(always)]
-unsafe fn visit_impl<V: Vector, R: ImageVisitor>(window: Rect, mut reader: R) {
+unsafe fn visit_impl<V: Vector, R: Image2x2Visitor>(window: Rect, mut reader: R) {
     // How many pixels cannot be vectorized since they don't fit the vector (per row)
     let non_vectored_pixels_per_row = window.width % (V::LEN * 2);
     let vectored_pixels_per_row = window.width - non_vectored_pixels_per_row;

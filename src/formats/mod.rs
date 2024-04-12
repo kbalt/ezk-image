@@ -5,7 +5,7 @@ mod i420;
 mod i422;
 mod i444;
 mod nv12;
-mod reader;
+mod visit_2x2;
 mod rgb;
 mod transfer_and_primaries_convert;
 
