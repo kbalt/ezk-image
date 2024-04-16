@@ -60,7 +60,7 @@ where
     S: RgbaSrc,
 {
     #[inline(always)]
-    unsafe fn read_at<V: Vector>(&mut self, x: usize, y: usize) {
+    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize) {
         let block = self.rgba_src.read::<V>(x, y);
 
         let offset00 = y * self.dst_width + x;

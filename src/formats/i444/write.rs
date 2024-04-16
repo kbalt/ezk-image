@@ -66,7 +66,7 @@ where
     S: I444Src,
 {
     #[inline(always)]
-    unsafe fn read_at<V: Vector>(&mut self, x: usize, y: usize) {
+    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize) {
         let block = self.i444_src.read::<V>(x, y);
 
         let I444Block {

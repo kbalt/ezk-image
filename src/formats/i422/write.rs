@@ -66,7 +66,7 @@ where
     S: I422Src,
 {
     #[inline(always)]
-    unsafe fn read_at<V: Vector>(&mut self, x: usize, y: usize) {
+    unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize) {
         let I422Block {
             y00,
             y01,

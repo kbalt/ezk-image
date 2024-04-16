@@ -5,9 +5,9 @@ mod i420;
 mod i422;
 mod i444;
 mod nv12;
-mod visit_2x2;
 mod rgb;
 mod transfer_and_primaries_convert;
+mod visit_2x2;
 
 pub(crate) use dyn_rgba_src::{DynRgbaReader, DynRgbaReaderSpec};
 pub(crate) use i420::*;
