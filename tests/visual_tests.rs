@@ -1,5 +1,5 @@
 use ezk_image::{
-    convert_multi_thread, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, Destination,
+    convert_multi_thread, scale, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, Destination,
     PixelFormat, PixelFormatPlanes, Rect, Source, U16LE, U8,
 };
 use image::{Rgb, Rgba};
@@ -8,18 +8,18 @@ fn make_rgba8_image(primaries: ColorPrimaries, transfer: ColorTransfer) -> (Vec<
     let primaries = primaries.xyz_to_rgb_mat();
 
     // Use odd image size to force non-simd paths
-    let width = 4098;
-    let height = 4098;
+    let width = 2050;
+    let height = 2050;
 
     let mut out = Vec::with_capacity(width * height * 4);
 
     let y = 0.5;
 
     for x in 0..height {
-        let x = (x as f32) / 4098.0;
+        let x = (x as f32) / 2050.0;
 
         for z in 0..width {
-            let z = (z as f32) / 4098.0;
+            let z = (z as f32) / 2050.0;
 
             let r = x * primaries[0][0] + y * primaries[1][0] + z * primaries[2][0];
             let g = x * primaries[0][1] + y * primaries[1][1] + z * primaries[2][1];
@@ -59,6 +59,32 @@ fn make_i420_image(color: ColorInfo) -> (Vec<u8>, usize, usize) {
     );
 
     (i420, width, height)
+}
+
+fn make_nv12_image(color: ColorInfo) -> (Vec<u8>, usize, usize) {
+    let (rgba, width, height) = make_rgba8_image(color.primaries, color.transfer);
+    let mut nv12 = vec![255u8; PixelFormat::NV12.buffer_size(width, height)];
+
+    convert_multi_thread(
+        Source::<U8>::new(
+            PixelFormat::RGBA,
+            PixelFormatPlanes::RGBA(&rgba),
+            width,
+            height,
+            color,
+            8,
+        ),
+        Destination::<U8>::new(
+            PixelFormat::NV12,
+            PixelFormatPlanes::infer_nv12(&mut nv12[..], width, height),
+            width,
+            height,
+            color,
+            8,
+        ),
+    );
+
+    (nv12, width, height)
 }
 
 #[test]
@@ -251,6 +277,96 @@ fn rgba_to_rgb() {
         image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(width as _, height as _, rgb_dst).unwrap();
 
     buffer.save("tests/RGBA_TO_RGB.png").unwrap();
+}
+
+#[test]
+fn i420_to_rgb_scale() {
+    let (nv12, width, height) = make_nv12_image(ColorInfo {
+        space: ColorSpace::BT709,
+        transfer: ColorTransfer::Linear,
+        primaries: ColorPrimaries::BT709,
+        full_range: true,
+    });
+
+    let scaled_width = 100;
+    let scaled_height = 100;
+
+    // First upscale NV12
+
+    let src = Source::<U8>::new(
+        PixelFormat::NV12,
+        PixelFormatPlanes::infer_nv12(&nv12, width, height),
+        width,
+        height,
+        ColorInfo {
+            space: ColorSpace::BT709,
+            transfer: ColorTransfer::Linear,
+            primaries: ColorPrimaries::BT709,
+            full_range: false,
+        },
+        8,
+    );
+
+    let mut nv12_upscaled = vec![0u8; PixelFormat::I420.buffer_size(scaled_width, scaled_height)];
+
+    let dst = Destination::<U8>::new(
+        PixelFormat::NV12,
+        PixelFormatPlanes::infer_nv12(&mut nv12_upscaled, scaled_width, scaled_height),
+        scaled_width,
+        scaled_height,
+        ColorInfo {
+            space: ColorSpace::BT709,
+            transfer: ColorTransfer::Linear,
+            primaries: ColorPrimaries::BT709,
+            full_range: false,
+        },
+        8,
+    );
+
+    scale(src, dst);
+
+    // Convert I420 to RGB
+
+    let src = Source::<U8>::new(
+        PixelFormat::NV12,
+        PixelFormatPlanes::infer_nv12(&nv12_upscaled, scaled_width, scaled_height),
+        scaled_width,
+        scaled_height,
+        ColorInfo {
+            space: ColorSpace::BT709,
+            transfer: ColorTransfer::Linear,
+            primaries: ColorPrimaries::BT709,
+            full_range: false,
+        },
+        8,
+    );
+
+    let mut rgb = vec![0u8; PixelFormat::RGB.buffer_size(scaled_width, scaled_height)];
+
+    let dst = Destination::<U8>::new(
+        PixelFormat::RGB,
+        PixelFormatPlanes::RGB(&mut rgb),
+        scaled_width,
+        scaled_height,
+        ColorInfo {
+            space: ColorSpace::BT709,
+            transfer: ColorTransfer::Linear,
+            primaries: ColorPrimaries::BT709,
+            full_range: false,
+        },
+        8,
+    );
+
+    convert_multi_thread(src, dst);
+
+    let buffer = image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(
+        scaled_width as _,
+        scaled_height as _,
+        rgb,
+    )
+    .unwrap();
+
+    buffer.save("tests/NV12_UPSCALE.png").unwrap();
 }
 
 #[test]

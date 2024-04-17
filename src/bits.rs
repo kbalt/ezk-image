@@ -2,11 +2,16 @@ use crate::endian::{BigEndian, Endian, LittleEndian, NativeEndian};
 use crate::vector::Vector;
 
 pub trait Bits: 'static {
-    type Primitive: Send + Sync + 'static;
+    type Primitive: Copy + Send + Sync + 'static;
     type Endian: Endian;
 }
 
 pub(crate) trait BitsInternal: Bits {
+    type FirPixel1: fir::pixels::PixelExt;
+    type FirPixel2: fir::pixels::PixelExt;
+    type FirPixel3: fir::pixels::PixelExt;
+    type FirPixel4: fir::pixels::PixelExt;
+
     unsafe fn load<V: Vector>(ptr: *const Self::Primitive) -> V;
     unsafe fn load_3x_interleaved_2x<V: Vector>(ptr: *const Self::Primitive) -> [[V; 3]; 2];
     unsafe fn load_4x_interleaved_2x<V: Vector>(ptr: *const Self::Primitive) -> [[V; 4]; 2];
@@ -27,6 +32,11 @@ impl Bits for U8 {
 }
 
 impl BitsInternal for U8 {
+    type FirPixel1 = fir::pixels::U8;
+    type FirPixel2 = fir::pixels::U8x2;
+    type FirPixel3 = fir::pixels::U8x3;
+    type FirPixel4 = fir::pixels::U8x4;
+
     #[inline(always)]
     unsafe fn load<V: Vector>(ptr: *const Self::Primitive) -> V {
         V::load_u8(ptr)
@@ -68,6 +78,11 @@ impl Bits for U16LE {
 }
 
 impl BitsInternal for U16LE {
+    type FirPixel1 = fir::pixels::U16;
+    type FirPixel2 = fir::pixels::U16x2;
+    type FirPixel3 = fir::pixels::U16x3;
+    type FirPixel4 = fir::pixels::U16x4;
+
     #[inline(always)]
     unsafe fn load<V: Vector>(ptr: *const Self::Primitive) -> V {
         V::load_u16::<LittleEndian>(ptr)
@@ -109,6 +124,12 @@ impl Bits for U16BE {
 }
 
 impl BitsInternal for U16BE {
+    // TODO: probably wrong :/
+    type FirPixel1 = fir::pixels::U16;
+    type FirPixel2 = fir::pixels::U16x2;
+    type FirPixel3 = fir::pixels::U16x3;
+    type FirPixel4 = fir::pixels::U16x4;
+
     #[inline(always)]
     unsafe fn load<V: Vector>(ptr: *const Self::Primitive) -> V {
         V::load_u16::<BigEndian>(ptr)

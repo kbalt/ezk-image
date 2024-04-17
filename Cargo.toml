@@ -24,12 +24,13 @@ repository = "https://github.com/kbalt/ezk-image"
 [dependencies]
 rayon = { version = "1.9", optional = true }
 num_cpus = "1.0"
+fir = { package = "fast_image_resize", version = "3" }
 
 [features]
 default = ["multi-thread"]
 
 # Enable multi threading for image conversion
-multi-thread = ["rayon"]
+multi-thread = ["dep:rayon"]
 
 [dev-dependencies]
 image = { version = "0.25", default-features = false, features = ["png"] }
@@ -37,6 +38,8 @@ nalgebra = "0.32"
 
 criterion = "0.5"
 
+
 [[bench]]
 name = "pixel_format"
 harness = false
+

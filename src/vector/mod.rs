@@ -182,6 +182,7 @@ unsafe impl Vector for f32 {
     unsafe fn vpow(self, pow: Self) -> Self {
         self.powf(pow)
     }
+
     #[inline(always)]
     unsafe fn vln(self) -> Self {
         self.ln()

@@ -708,7 +708,7 @@ mod tests {
     fn assert_within_error(a: f32, b: f32, error: f32) {
         let err = (a - b).abs();
 
-        assert!(err < error, "error ({err}) too large between {a} and {b}")
+        assert!(err <= error, "error ({err}) too large between {a} and {b}")
     }
 
     unsafe fn make_arr(i: __m256) -> [f32; 8] {

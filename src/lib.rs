@@ -289,54 +289,248 @@ where
     }
 }
 
-#[doc(hidden)]
-#[deprecated]
-pub fn force_compilation() {
-    macro_rules! src {
-        () => {
-            Source::new(
-                PixelFormat::RGB,
-                PixelFormatPlanes::RGB(&[]),
-                0,
-                0,
-                ColorInfo {
-                    space: ColorSpace::BT709,
-                    transfer: ColorTransfer::Linear,
-                    primaries: ColorPrimaries::BT709,
-                    full_range: false,
-                },
-                0,
-            )
-        };
+#[allow(private_bounds)]
+pub fn scale<B>(src: Source<'_, B>, dst: Destination<'_, B>)
+where
+    B: BitsInternal,
+
+    for<'a> fir::DynamicImageView<'a>: From<fir::ImageView<'a, B::FirPixel1>>
+        + From<fir::ImageView<'a, B::FirPixel2>>
+        + From<fir::ImageView<'a, B::FirPixel3>>
+        + From<fir::ImageView<'a, B::FirPixel4>>,
+
+    for<'a> fir::DynamicImageViewMut<'a>: From<fir::ImageViewMut<'a, B::FirPixel1>>
+        + From<fir::ImageViewMut<'a, B::FirPixel2>>
+        + From<fir::ImageViewMut<'a, B::FirPixel3>>
+        + From<fir::ImageViewMut<'a, B::FirPixel4>>,
+{
+    assert_eq!(src.format, dst.format);
+
+    let mut resizer = fir::Resizer::new(fir::ResizeAlg::Convolution(fir::FilterType::Bilinear));
+
+    match (src.planes, dst.planes) {
+        (
+            PixelFormatPlanes::I420 {
+                y: src_y,
+                u: src_u,
+                v: src_v,
+            },
+            PixelFormatPlanes::I420 {
+                y: dst_y,
+                u: dst_u,
+                v: dst_v,
+            },
+        ) => {
+            resize_plane::<_, B::FirPixel1>(
+                &mut resizer,
+                src_y,
+                src.width as u32,
+                src.height as u32,
+                dst_y,
+                dst.width as u32,
+                dst.height as u32,
+            );
+
+            resize_plane::<_, B::FirPixel1>(
+                &mut resizer,
+                src_u,
+                src.width as u32 / 2,
+                src.height as u32 / 2,
+                dst_u,
+                dst.width as u32 / 2,
+                dst.height as u32 / 2,
+            );
+
+            resize_plane::<_, B::FirPixel1>(
+                &mut resizer,
+                src_v,
+                src.width as u32 / 2,
+                src.height as u32 / 2,
+                dst_v,
+                dst.width as u32 / 2,
+                dst.height as u32 / 2,
+            );
+        }
+        (
+            PixelFormatPlanes::I422 {
+                y: src_y,
+                u: src_u,
+                v: src_v,
+            },
+            PixelFormatPlanes::I422 {
+                y: dst_y,
+                u: dst_u,
+                v: dst_v,
+            },
+        ) => {
+            resize_plane::<_, B::FirPixel1>(
+                &mut resizer,
+                src_y,
+                src.width as u32,
+                src.height as u32,
+                dst_y,
+                dst.width as u32,
+                dst.height as u32,
+            );
+
+            resize_plane::<_, B::FirPixel1>(
+                &mut resizer,
+                src_u,
+                src.width as u32 / 2,
+                src.height as u32 / 2,
+                dst_u,
+                dst.width as u32 / 2,
+                dst.height as u32 / 2,
+            );
+
+            resize_plane::<_, B::FirPixel1>(
+                &mut resizer,
+                src_v,
+                src.width as u32,
+                src.height as u32 / 2,
+                dst_v,
+                dst.width as u32,
+                dst.height as u32 / 2,
+            );
+        }
+        (
+            PixelFormatPlanes::I444 {
+                y: src_y,
+                u: src_u,
+                v: src_v,
+            },
+            PixelFormatPlanes::I444 {
+                y: dst_y,
+                u: dst_u,
+                v: dst_v,
+            },
+        ) => {
+            resize_plane::<_, B::FirPixel1>(
+                &mut resizer,
+                src_y,
+                src.width as u32,
+                src.height as u32,
+                dst_y,
+                dst.width as u32,
+                dst.height as u32,
+            );
+
+            resize_plane::<_, B::FirPixel1>(
+                &mut resizer,
+                src_u,
+                src.width as u32,
+                src.height as u32,
+                dst_u,
+                dst.width as u32,
+                dst.height as u32,
+            );
+
+            resize_plane::<_, B::FirPixel1>(
+                &mut resizer,
+                src_v,
+                src.width as u32,
+                src.height as u32,
+                dst_v,
+                dst.width as u32,
+                dst.height as u32,
+            );
+        }
+        (
+            PixelFormatPlanes::NV12 {
+                y: src_y,
+                uv: src_uv,
+            },
+            PixelFormatPlanes::NV12 {
+                y: dst_y,
+                uv: dst_uv,
+            },
+        ) => {
+            resize_plane::<_, B::FirPixel1>(
+                &mut resizer,
+                src_y,
+                src.width as u32,
+                src.height as u32,
+                dst_y,
+                dst.width as u32,
+                dst.height as u32,
+            );
+
+            resize_plane::<_, B::FirPixel2>(
+                &mut resizer,
+                src_uv,
+                src.width as u32 / 2,
+                src.height as u32 / 2,
+                dst_uv,
+                dst.width as u32 / 2,
+                dst.height as u32 / 2,
+            );
+        }
+        (PixelFormatPlanes::RGB(src_rgb), PixelFormatPlanes::RGB(dst_rgb)) => {
+            resize_plane::<_, B::FirPixel3>(
+                &mut resizer,
+                src_rgb,
+                src.width as u32,
+                src.height as u32,
+                dst_rgb,
+                dst.width as u32,
+                dst.height as u32,
+            );
+        }
+        (PixelFormatPlanes::RGBA(src_rgba), PixelFormatPlanes::RGBA(dst_rgba)) => {
+            resize_plane::<_, B::FirPixel4>(
+                &mut resizer,
+                src_rgba,
+                src.width as u32,
+                src.height as u32,
+                dst_rgba,
+                dst.width as u32,
+                dst.height as u32,
+            );
+        }
+        _ => unreachable!(),
     }
+}
 
-    macro_rules! dst {
-        () => {
-            Destination::new(
-                PixelFormat::RGB,
-                PixelFormatPlanes::RGB(&mut []),
-                0,
-                0,
-                ColorInfo {
-                    space: ColorSpace::BT709,
-                    transfer: ColorTransfer::Linear,
-                    primaries: ColorPrimaries::BT709,
-                    full_range: false,
-                },
-                0,
-            )
-        };
-    }
+fn resize_plane<P, Px>(
+    resizer: &mut fir::Resizer,
 
-    convert::<U8, U8>(src!(), dst!());
-    convert::<U8, U16LE>(src!(), dst!());
-    convert::<U8, U16BE>(src!(), dst!());
+    src: &[P],
+    src_width: u32,
+    src_height: u32,
 
-    convert::<U16LE, U8>(src!(), dst!());
-    convert::<U16LE, U16LE>(src!(), dst!());
-    convert::<U16LE, U16BE>(src!(), dst!());
+    dst: &mut [P],
+    dst_width: u32,
+    dst_height: u32,
+) where
+    Px: fir::pixels::PixelExt,
+    for<'a> fir::DynamicImageView<'a>: From<fir::ImageView<'a, Px>>,
+    for<'a> fir::DynamicImageViewMut<'a>: From<fir::ImageViewMut<'a, Px>>,
+{
+    let src_slice = unsafe {
+        std::slice::from_raw_parts(src.as_ptr() as *const u8, std::mem::size_of_val(src))
+    };
+    let dst_slice = unsafe {
+        std::slice::from_raw_parts_mut(dst.as_mut_ptr() as *mut u8, std::mem::size_of_val(dst))
+    };
 
-    convert::<U16BE, U8>(src!(), dst!());
-    convert::<U16BE, U16LE>(src!(), dst!());
-    convert::<U16BE, U16BE>(src!(), dst!());
+    let src = fir::ImageView::<Px>::from_buffer(
+        src_width.try_into().unwrap(),
+        src_height.try_into().unwrap(),
+        src_slice,
+    )
+    .unwrap();
+
+    let dst = fir::ImageViewMut::<Px>::from_buffer(
+        dst_width.try_into().unwrap(),
+        dst_height.try_into().unwrap(),
+        dst_slice,
+    )
+    .unwrap();
+
+    resizer
+        .resize(
+            &fir::DynamicImageView::from(src),
+            &mut fir::DynamicImageViewMut::from(dst),
+        )
+        .unwrap();
 }
