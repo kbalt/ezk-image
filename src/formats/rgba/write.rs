@@ -1,34 +1,34 @@
 use super::{RgbaPixel, RgbaSrc};
-use crate::bits::BitsInternal;
 use crate::formats::visit_2x2::{visit, Image2x2Visitor};
+use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
 use crate::{PixelFormatPlanes, Rect};
 use std::marker::PhantomData;
 
-pub(crate) struct RgbaWriter<'a, const REVERSE: bool, B, S>
+pub(crate) struct RgbaWriter<'a, const REVERSE: bool, P, S>
 where
-    B: BitsInternal,
+    P: PrimitiveInternal,
     S: RgbaSrc,
 {
     dst_width: usize,
-    dst: *mut B::Primitive,
+    dst: *mut P,
 
     max_value: f32,
 
     rgba_src: S,
 
-    _m: PhantomData<&'a mut [B::Primitive]>,
+    _m: PhantomData<&'a mut [P]>,
 }
 
-impl<'a, const REVERSE: bool, B, S> RgbaWriter<'a, REVERSE, B, S>
+impl<'a, const REVERSE: bool, P, S> RgbaWriter<'a, REVERSE, P, S>
 where
-    B: BitsInternal,
+    P: PrimitiveInternal,
     S: RgbaSrc,
 {
     pub(crate) fn write(
         dst_width: usize,
         dst_height: usize,
-        dst_planes: PixelFormatPlanes<&'a mut [B::Primitive]>,
+        dst_planes: PixelFormatPlanes<&'a mut [P]>,
         bits_per_component: usize,
         window: Option<Rect>,
         rgba_src: S,
@@ -56,7 +56,7 @@ where
 
 impl<'a, const REVERSE: bool, B, S> Image2x2Visitor for RgbaWriter<'a, REVERSE, B, S>
 where
-    B: BitsInternal,
+    B: PrimitiveInternal,
     S: RgbaSrc,
 {
     #[inline(always)]

@@ -1,27 +1,27 @@
 use super::{I444Block, I444Src};
-use crate::bits::BitsInternal;
+use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
 use crate::{I444Pixel, PixelFormatPlanes, Rect};
 use std::marker::PhantomData;
 
-pub(crate) struct I444Reader<'a, B: BitsInternal> {
+pub(crate) struct I444Reader<'a, P: PrimitiveInternal> {
     window: Rect,
 
     src_width: usize,
-    y: *const B::Primitive,
-    u: *const B::Primitive,
-    v: *const B::Primitive,
+    y: *const P,
+    u: *const P,
+    v: *const P,
 
     max_value: f32,
 
-    _m: PhantomData<&'a [B::Primitive]>,
+    _m: PhantomData<&'a [P]>,
 }
 
-impl<'a, B: BitsInternal> I444Reader<'a, B> {
+impl<'a, P: PrimitiveInternal> I444Reader<'a, P> {
     pub(crate) fn new(
         src_width: usize,
         src_height: usize,
-        src_planes: PixelFormatPlanes<&'a [B::Primitive]>,
+        src_planes: PixelFormatPlanes<&'a [P]>,
         bits_per_component: usize,
         window: Option<Rect>,
     ) -> Self {
@@ -53,7 +53,7 @@ impl<'a, B: BitsInternal> I444Reader<'a, B> {
     }
 }
 
-impl<B: BitsInternal> I444Src for I444Reader<'_, B> {
+impl<P: PrimitiveInternal> I444Src for I444Reader<'_, P> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> I444Block<V> {
         let x = self.window.x + x;
@@ -63,22 +63,22 @@ impl<B: BitsInternal> I444Src for I444Reader<'_, B> {
         let px10_offset = ((y + 1) * self.src_width) + x;
 
         // Load Y pixels
-        let y00 = B::load::<V>(self.y.add(px00_offset));
-        let y01 = B::load::<V>(self.y.add(px00_offset + V::LEN));
-        let y10 = B::load::<V>(self.y.add(px10_offset));
-        let y11 = B::load::<V>(self.y.add(px10_offset + V::LEN));
+        let y00 = P::load::<V>(self.y.add(px00_offset));
+        let y01 = P::load::<V>(self.y.add(px00_offset + V::LEN));
+        let y10 = P::load::<V>(self.y.add(px10_offset));
+        let y11 = P::load::<V>(self.y.add(px10_offset + V::LEN));
 
         // Load U pixels
-        let u00 = B::load::<V>(self.u.add(px00_offset));
-        let u01 = B::load::<V>(self.u.add(px00_offset + V::LEN));
-        let u10 = B::load::<V>(self.u.add(px10_offset));
-        let u11 = B::load::<V>(self.u.add(px10_offset + V::LEN));
+        let u00 = P::load::<V>(self.u.add(px00_offset));
+        let u01 = P::load::<V>(self.u.add(px00_offset + V::LEN));
+        let u10 = P::load::<V>(self.u.add(px10_offset));
+        let u11 = P::load::<V>(self.u.add(px10_offset + V::LEN));
 
         // Load V pixels
-        let v00 = B::load::<V>(self.v.add(px00_offset));
-        let v01 = B::load::<V>(self.v.add(px00_offset + V::LEN));
-        let v10 = B::load::<V>(self.v.add(px10_offset));
-        let v11 = B::load::<V>(self.v.add(px10_offset + V::LEN));
+        let v00 = P::load::<V>(self.v.add(px00_offset));
+        let v01 = P::load::<V>(self.v.add(px00_offset + V::LEN));
+        let v10 = P::load::<V>(self.v.add(px10_offset));
+        let v11 = P::load::<V>(self.v.add(px10_offset + V::LEN));
 
         // Convert to analog 0..=1.0
         let y00 = y00.vdivf(self.max_value);

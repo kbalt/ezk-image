@@ -1,10 +1,10 @@
-use crate::{bits::Bits, ColorInfo, PixelFormat, PixelFormatPlanes, Rect};
+use crate::{primitive::Primitive, ColorInfo, PixelFormat, PixelFormatPlanes, Rect};
 
 /// Describes an immutable image buffer used as source for conversions
 #[derive(Debug, Clone, Copy)]
-pub struct Source<'a, B: Bits> {
+pub struct Source<'a, P: Primitive> {
     pub(crate) format: PixelFormat,
-    pub(crate) planes: PixelFormatPlanes<&'a [B::Primitive]>,
+    pub(crate) planes: PixelFormatPlanes<&'a [P]>,
     pub(crate) width: usize,
     pub(crate) height: usize,
 
@@ -14,10 +14,10 @@ pub struct Source<'a, B: Bits> {
     pub(crate) window: Option<Rect>,
 }
 
-impl<'a, B: Bits> Source<'a, B> {
+impl<'a, P: Primitive> Source<'a, P> {
     pub fn new(
         format: PixelFormat,
-        planes: PixelFormatPlanes<&'a [B::Primitive]>,
+        planes: PixelFormatPlanes<&'a [P]>,
         width: usize,
         height: usize,
         color: ColorInfo,
@@ -50,9 +50,9 @@ impl<'a, B: Bits> Source<'a, B> {
 }
 
 /// Describes a mutable image buffer used as destination for conversions
-pub struct Destination<'a, B: Bits> {
+pub struct Destination<'a, P: Primitive> {
     pub(crate) format: PixelFormat,
-    pub(crate) planes: PixelFormatPlanes<&'a mut [B::Primitive]>,
+    pub(crate) planes: PixelFormatPlanes<&'a mut [P]>,
     pub(crate) width: usize,
     pub(crate) height: usize,
 
@@ -62,10 +62,10 @@ pub struct Destination<'a, B: Bits> {
     pub(crate) window: Option<Rect>,
 }
 
-impl<'a, B: Bits> Destination<'a, B> {
+impl<'a, P: Primitive> Destination<'a, P> {
     pub fn new(
         format: PixelFormat,
-        planes: PixelFormatPlanes<&'a mut [B::Primitive]>,
+        planes: PixelFormatPlanes<&'a mut [P]>,
         width: usize,
         height: usize,
         color: ColorInfo,

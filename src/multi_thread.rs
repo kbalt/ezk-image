@@ -1,10 +1,10 @@
-use crate::bits::BitsInternal;
+use crate::primitive::PrimitiveInternal;
 use crate::{convert, verify_input_windows_same_size, Destination, Source};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 #[inline(never)]
 #[allow(private_bounds)]
-pub fn convert_multi_thread<SB: BitsInternal, DB: BitsInternal>(
+pub fn convert_multi_thread<SB: PrimitiveInternal, DB: PrimitiveInternal>(
     src: Source<'_, SB>,
     dst: Destination<'_, DB>,
 ) {

@@ -1,27 +1,27 @@
 use super::{I422Block, I422Src};
-use crate::bits::BitsInternal;
+use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
 use crate::{PixelFormatPlanes, Rect};
 use std::marker::PhantomData;
 
-pub(crate) struct I422Reader<'a, B: BitsInternal> {
+pub(crate) struct I422Reader<'a, P: PrimitiveInternal> {
     window: Rect,
 
     src_width: usize,
-    y: *const B::Primitive,
-    u: *const B::Primitive,
-    v: *const B::Primitive,
+    y: *const P,
+    u: *const P,
+    v: *const P,
 
     max_value: f32,
 
-    _m: PhantomData<&'a [B::Primitive]>,
+    _m: PhantomData<&'a [P]>,
 }
 
-impl<'a, B: BitsInternal> I422Reader<'a, B> {
+impl<'a, P: PrimitiveInternal> I422Reader<'a, P> {
     pub(crate) fn new(
         src_width: usize,
         src_height: usize,
-        src_planes: PixelFormatPlanes<&'a [B::Primitive]>,
+        src_planes: PixelFormatPlanes<&'a [P]>,
         bits_per_component: usize,
         window: Option<Rect>,
     ) -> Self {
@@ -53,7 +53,7 @@ impl<'a, B: BitsInternal> I422Reader<'a, B> {
     }
 }
 
-impl<B: BitsInternal> I422Src for I422Reader<'_, B> {
+impl<P: PrimitiveInternal> I422Src for I422Reader<'_, P> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> I422Block<V> {
         let x = self.window.x + x;
@@ -66,17 +66,17 @@ impl<B: BitsInternal> I422Src for I422Reader<'_, B> {
         let y10_offset = ((y + 1) * self.src_width) + x;
 
         // Load Y pixels
-        let y00 = B::load::<V>(self.y.add(y00_offset));
-        let y01 = B::load::<V>(self.y.add(y00_offset + V::LEN));
-        let y10 = B::load::<V>(self.y.add(y10_offset));
-        let y11 = B::load::<V>(self.y.add(y10_offset + V::LEN));
+        let y00 = P::load::<V>(self.y.add(y00_offset));
+        let y01 = P::load::<V>(self.y.add(y00_offset + V::LEN));
+        let y10 = P::load::<V>(self.y.add(y10_offset));
+        let y11 = P::load::<V>(self.y.add(y10_offset + V::LEN));
 
         // Load U and V
-        let u0 = B::load::<V>(self.u.add(uv0_offset));
-        let u1 = B::load::<V>(self.u.add(uv1_offset));
+        let u0 = P::load::<V>(self.u.add(uv0_offset));
+        let u1 = P::load::<V>(self.u.add(uv1_offset));
 
-        let v0 = B::load::<V>(self.v.add(uv0_offset));
-        let v1 = B::load::<V>(self.v.add(uv1_offset));
+        let v0 = P::load::<V>(self.v.add(uv0_offset));
+        let v1 = P::load::<V>(self.v.add(uv1_offset));
 
         // Convert to analog 0..=1.0
         let y00 = y00.vdivf(self.max_value);

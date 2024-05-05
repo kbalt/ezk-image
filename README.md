@@ -64,7 +64,7 @@ let rgb_image = vec![0u8; PixelFormat::RGB.buffer_size(width, height)];
 let mut nv12_image = vec![0u8; PixelFormat::NV12.buffer_size(width, height)];
 
 // Create a Source with the rgb_image buffer and specify the image we're converting from
-let source = Source::<U8>::new(
+let source = Source::new(
     PixelFormat::RGB,
     PixelFormatPlanes::RGB(&rgb_image), // RGB only has one plane
     width, height,
@@ -78,7 +78,7 @@ let source = Source::<U8>::new(
 );
 
 // Create a Destination with the nv12_image buffer
-let destination = Destination::<U8>::new(
+let destination = Destination::new(
     PixelFormat::NV12, // We're converting to NV12
     PixelFormatPlanes::infer_nv12(&mut nv12_image, width, height), // NV12 has 2 planes, `PixelFormatPlanes` has convenience functions to calculate them from a single buffer
     width, height,

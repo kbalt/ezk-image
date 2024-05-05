@@ -1,9 +1,9 @@
-use crate::{bits::BitsInternal, endian::Endian, Destination, PixelFormatPlanes, Source};
+use crate::{primitive::PrimitiveInternal, Destination, PixelFormatPlanes, Source};
 
 #[allow(private_bounds)]
 pub fn scale<B>(src: Source<'_, B>, dst: Destination<'_, B>)
 where
-    B: BitsInternal,
+    B: PrimitiveInternal,
 
     for<'a> fir::DynamicImageView<'a>: From<fir::ImageView<'a, B::FirPixel1>>
         + From<fir::ImageView<'a, B::FirPixel2>>
@@ -202,33 +202,23 @@ where
     }
 }
 
-fn resize_plane<B, Px>(
+fn resize_plane<P, Px>(
     resizer: &mut fir::Resizer,
 
-    src: &[B::Primitive],
+    src: &[P],
     src_width: u32,
     src_height: u32,
 
-    dst: &mut [B::Primitive],
+    dst: &mut [P],
     dst_width: u32,
     dst_height: u32,
 ) where
-    B: BitsInternal,
+    P: PrimitiveInternal,
     Px: fir::pixels::PixelExt,
     for<'a> fir::DynamicImageView<'a>: From<fir::ImageView<'a, Px>>,
     for<'a> fir::DynamicImageViewMut<'a>: From<fir::ImageViewMut<'a, Px>>,
 {
-    let mut src_copy;
-
-    let src_slice = if B::Endian::IS_NATIVE {
-        unsafe { src.align_to::<u8>().1 }
-    } else {
-        // Wrong endianess for FIR, convert first then resize
-        src_copy = src.to_vec();
-        B::swap_bytes(&mut src_copy);
-        unsafe { src_copy.align_to::<u8>().1 }
-    };
-
+    let src_slice = unsafe { src.align_to::<u8>().1 };
     let dst_slice = unsafe { dst.align_to_mut::<u8>().1 };
 
     let src_view = fir::ImageView::<Px>::from_buffer(
@@ -251,9 +241,4 @@ fn resize_plane<B, Px>(
             &mut fir::DynamicImageViewMut::from(dst_view),
         )
         .unwrap();
-
-    if !B::Endian::IS_NATIVE {
-        // Swap bytes back to original endianess
-        B::swap_bytes(dst);
-    }
 }

@@ -1,38 +1,38 @@
 #![allow(clippy::too_many_arguments)]
 
 use super::{I444Block, I444Src};
-use crate::bits::BitsInternal;
 use crate::formats::visit_2x2::{visit, Image2x2Visitor};
+use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
 use crate::{PixelFormatPlanes, Rect};
 use std::marker::PhantomData;
 
-pub(crate) struct I444Writer<'a, B, S>
+pub(crate) struct I444Writer<'a, P, S>
 where
-    B: BitsInternal,
+    P: PrimitiveInternal,
     S: I444Src,
 {
     dst_width: usize,
-    dst_y: *mut B::Primitive,
-    dst_u: *mut B::Primitive,
-    dst_v: *mut B::Primitive,
+    dst_y: *mut P,
+    dst_u: *mut P,
+    dst_v: *mut P,
 
     max_value: f32,
 
     i444_src: S,
 
-    _m: PhantomData<&'a mut [B::Primitive]>,
+    _m: PhantomData<&'a mut [P]>,
 }
 
-impl<'a, B, S> I444Writer<'a, B, S>
+impl<'a, P, S> I444Writer<'a, P, S>
 where
-    B: BitsInternal,
+    P: PrimitiveInternal,
     S: I444Src,
 {
     pub(crate) fn write(
         dst_width: usize,
         dst_height: usize,
-        dst_planes: PixelFormatPlanes<&'a mut [B::Primitive]>,
+        dst_planes: PixelFormatPlanes<&'a mut [P]>,
         bits_per_component: usize,
         window: Option<Rect>,
         i444_src: S,
@@ -60,9 +60,9 @@ where
     }
 }
 
-impl<B, S> Image2x2Visitor for I444Writer<'_, B, S>
+impl<P, S> Image2x2Visitor for I444Writer<'_, P, S>
 where
-    B: BitsInternal,
+    P: PrimitiveInternal,
     S: I444Src,
 {
     #[inline(always)]
@@ -94,13 +94,13 @@ where
         let offset0 = y * self.dst_width + x;
         let offset1 = (y + 1) * self.dst_width + x;
 
-        B::write_2x(self.dst_y.add(offset0), y00, y01);
-        B::write_2x(self.dst_y.add(offset1), y10, y11);
+        P::write_2x(self.dst_y.add(offset0), y00, y01);
+        P::write_2x(self.dst_y.add(offset1), y10, y11);
 
-        B::write_2x(self.dst_u.add(offset0), u00, u01);
-        B::write_2x(self.dst_u.add(offset1), u10, u11);
+        P::write_2x(self.dst_u.add(offset0), u00, u01);
+        P::write_2x(self.dst_u.add(offset1), u10, u11);
 
-        B::write_2x(self.dst_v.add(offset0), v00, v01);
-        B::write_2x(self.dst_v.add(offset1), v10, v11);
+        P::write_2x(self.dst_v.add(offset0), v00, v01);
+        P::write_2x(self.dst_v.add(offset1), v10, v11);
     }
 }

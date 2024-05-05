@@ -1,25 +1,25 @@
 use super::{RgbaBlock, RgbaPixel, RgbaSrc};
-use crate::bits::BitsInternal;
+use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
 use crate::{PixelFormatPlanes, Rect};
 use std::marker::PhantomData;
 
 /// Writes 3 Bytes for every visited pixel in R G B order
-pub(crate) struct RgbaReader<'a, const REVERSE: bool, B: BitsInternal> {
+pub(crate) struct RgbaReader<'a, const REVERSE: bool, P: PrimitiveInternal> {
     window: Rect,
 
     src_width: usize,
-    src: *const B::Primitive,
+    src: *const P,
     max_value: f32,
 
-    _m: PhantomData<&'a [B::Primitive]>,
+    _m: PhantomData<&'a [P]>,
 }
 
-impl<'a, const REVERSE: bool, B: BitsInternal> RgbaReader<'a, REVERSE, B> {
+impl<'a, const REVERSE: bool, P: PrimitiveInternal> RgbaReader<'a, REVERSE, P> {
     pub(crate) fn new(
         src_width: usize,
         src_height: usize,
-        src_planes: PixelFormatPlanes<&'a [B::Primitive]>,
+        src_planes: PixelFormatPlanes<&'a [P]>,
         bits_per_component: usize,
         window: Option<Rect>,
     ) -> Self {
@@ -49,7 +49,7 @@ impl<'a, const REVERSE: bool, B: BitsInternal> RgbaReader<'a, REVERSE, B> {
     }
 }
 
-impl<'a, const REVERSE: bool, B: BitsInternal> RgbaSrc for RgbaReader<'a, REVERSE, B> {
+impl<'a, const REVERSE: bool, B: PrimitiveInternal> RgbaSrc for RgbaReader<'a, REVERSE, B> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbaBlock<V> {
         let x = self.window.x + x;

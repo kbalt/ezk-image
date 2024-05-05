@@ -1,26 +1,26 @@
-use crate::bits::BitsInternal;
 use crate::formats::{I420Block, I420Src};
+use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
 use crate::{PixelFormatPlanes, Rect};
 use std::marker::PhantomData;
 
-pub(crate) struct NV12Reader<'a, B: BitsInternal> {
+pub(crate) struct NV12Reader<'a, P: PrimitiveInternal> {
     window: Rect,
 
     src_width: usize,
-    src_y: *const B::Primitive,
-    src_uv: *const B::Primitive,
+    src_y: *const P,
+    src_uv: *const P,
 
     max_value: f32,
 
-    _m: PhantomData<&'a [B::Primitive]>,
+    _m: PhantomData<&'a [P]>,
 }
 
-impl<'a, B: BitsInternal> NV12Reader<'a, B> {
+impl<'a, P: PrimitiveInternal> NV12Reader<'a, P> {
     pub(crate) fn new(
         src_width: usize,
         src_height: usize,
-        src_planes: PixelFormatPlanes<&'a [B::Primitive]>,
+        src_planes: PixelFormatPlanes<&'a [P]>,
         bits_per_component: usize,
         window: Option<Rect>,
     ) -> Self {
@@ -51,7 +51,7 @@ impl<'a, B: BitsInternal> NV12Reader<'a, B> {
     }
 }
 
-impl<B: BitsInternal> I420Src for NV12Reader<'_, B> {
+impl<P: PrimitiveInternal> I420Src for NV12Reader<'_, P> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> I420Block<V> {
         let x = self.window.x + x;
@@ -63,14 +63,14 @@ impl<B: BitsInternal> I420Src for NV12Reader<'_, B> {
         let y10_offset = ((y + 1) * self.src_width) + x;
 
         // Load Y pixels
-        let y00 = B::load::<V>(self.src_y.add(y00_offset));
-        let y01 = B::load::<V>(self.src_y.add(y00_offset + V::LEN));
-        let y10 = B::load::<V>(self.src_y.add(y10_offset));
-        let y11 = B::load::<V>(self.src_y.add(y10_offset + V::LEN));
+        let y00 = P::load::<V>(self.src_y.add(y00_offset));
+        let y01 = P::load::<V>(self.src_y.add(y00_offset + V::LEN));
+        let y10 = P::load::<V>(self.src_y.add(y10_offset));
+        let y11 = P::load::<V>(self.src_y.add(y10_offset + V::LEN));
 
         // Load U and V
-        let uv0 = B::load::<V>(self.src_uv.add(uv_offset));
-        let uv1 = B::load::<V>(self.src_uv.add(uv_offset + V::LEN));
+        let uv0 = P::load::<V>(self.src_uv.add(uv_offset));
+        let uv1 = P::load::<V>(self.src_uv.add(uv_offset + V::LEN));
 
         let (u, v) = uv0.unzip(uv1);
 

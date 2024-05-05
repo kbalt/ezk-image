@@ -263,6 +263,30 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
     }
 }
 
+impl PixelFormatPlanes<&mut [u16]> {
+    /// Swap the bytes in the planes to convert between big/little endian
+    pub fn swap_bytes(&mut self) {
+        use crate::primitive::swap_bytes;
+
+        match self {
+            PixelFormatPlanes::I420 { y, u, v }
+            | PixelFormatPlanes::I422 { y, u, v }
+            | PixelFormatPlanes::I444 { y, u, v } => {
+                swap_bytes(y);
+                swap_bytes(u);
+                swap_bytes(v);
+            }
+            PixelFormatPlanes::NV12 { y, uv } => {
+                swap_bytes(y);
+                swap_bytes(uv);
+            }
+            PixelFormatPlanes::RGB(rgb) | PixelFormatPlanes::RGBA(rgb) => {
+                swap_bytes(rgb);
+            }
+        }
+    }
+}
+
 /// Abstract over &[T] and &mut [T]
 pub trait AnySlice: Default + Sized {
     fn slice_len(&self) -> usize;

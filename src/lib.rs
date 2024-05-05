@@ -1,23 +1,22 @@
 #![doc = include_str!("../README.md")]
 
-use bits::BitsInternal;
 use formats::*;
+use primitive::PrimitiveInternal;
 
-pub use bits::{Bits, U16BE, U16LE, U8};
 pub use color::{ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer};
 #[cfg(feature = "multi-thread")]
 pub use multi_thread::convert_multi_thread;
 pub use planes::PixelFormatPlanes;
+pub use primitive::Primitive;
 pub use resize::scale;
 pub use src_dst::{Destination, Source};
 
-mod bits;
 mod color;
-mod endian;
 mod formats;
 #[cfg(feature = "multi-thread")]
 mod multi_thread;
 mod planes;
+mod primitive;
 mod resize;
 mod src_dst;
 mod vector;
@@ -47,7 +46,7 @@ pub struct Rect {
 }
 
 /// Verify that the input values are all valid and safe to move on to
-fn verify_input_windows_same_size<SB: Bits, DB: Bits>(
+fn verify_input_windows_same_size<SB: Primitive, DB: Primitive>(
     src: &Source<'_, SB>,
     dst: &Destination<'_, DB>,
 ) -> (Rect, Rect) {
@@ -125,8 +124,8 @@ impl PixelFormat {
 #[inline(never)]
 pub fn convert<SB, DB>(src: Source<'_, SB>, dst: Destination<'_, DB>)
 where
-    SB: BitsInternal,
-    DB: BitsInternal,
+    SB: PrimitiveInternal,
+    DB: PrimitiveInternal,
 {
     verify_input_windows_same_size(&src, &dst);
 
@@ -144,7 +143,7 @@ where
 #[inline(never)]
 fn read_any_to_rgba<'src, SB>(src: &Source<'src, SB>) -> Box<dyn DynRgbaReader + 'src>
 where
-    SB: BitsInternal,
+    SB: PrimitiveInternal,
 {
     match src.format {
         PixelFormat::I420 => Box::new(I420ToRgb::new(
@@ -221,7 +220,7 @@ where
 #[inline(never)]
 fn rgba_to_any<'src, DB>(dst: Destination<'_, DB>, reader: impl RgbaSrc + 'src)
 where
-    DB: BitsInternal,
+    DB: PrimitiveInternal,
 {
     match dst.format {
         PixelFormat::I420 => I420Writer::<DB, _>::write(

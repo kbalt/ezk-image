@@ -1,6 +1,6 @@
 use ezk_image::{
     convert_multi_thread, scale, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, Destination,
-    PixelFormat, PixelFormatPlanes, Rect, Source, U16LE, U8,
+    PixelFormat, PixelFormatPlanes, Rect, Source,
 };
 use image::{Rgb, Rgba};
 
@@ -40,7 +40,7 @@ fn make_i420_image(color: ColorInfo) -> (Vec<u8>, usize, usize) {
     let mut i420 = vec![255u8; PixelFormat::I420.buffer_size(width, height)];
 
     convert_multi_thread(
-        Source::<U8>::new(
+        Source::new(
             PixelFormat::RGBA,
             PixelFormatPlanes::RGBA(&rgba),
             width,
@@ -48,7 +48,7 @@ fn make_i420_image(color: ColorInfo) -> (Vec<u8>, usize, usize) {
             color,
             8,
         ),
-        Destination::<U8>::new(
+        Destination::new(
             PixelFormat::I420,
             PixelFormatPlanes::infer_i420(&mut i420[..], width, height),
             width,
@@ -66,7 +66,7 @@ fn make_nv12_image(color: ColorInfo) -> (Vec<u8>, usize, usize) {
     let mut nv12 = vec![255u8; PixelFormat::NV12.buffer_size(width, height)];
 
     convert_multi_thread(
-        Source::<U8>::new(
+        Source::new(
             PixelFormat::RGBA,
             PixelFormatPlanes::RGBA(&rgba),
             width,
@@ -74,7 +74,7 @@ fn make_nv12_image(color: ColorInfo) -> (Vec<u8>, usize, usize) {
             color,
             8,
         ),
-        Destination::<U8>::new(
+        Destination::new(
             PixelFormat::NV12,
             PixelFormatPlanes::infer_nv12(&mut nv12[..], width, height),
             width,
@@ -98,7 +98,7 @@ fn i420_to_rgb() {
 
     let mut rgb = vec![0u8; PixelFormat::RGB.buffer_size(width, height)];
 
-    let src = Source::<U8>::new(
+    let src = Source::new(
         PixelFormat::I420,
         PixelFormatPlanes::infer_i420(&i420[..], width, height),
         width,
@@ -112,7 +112,7 @@ fn i420_to_rgb() {
         8,
     );
 
-    let dst = Destination::<U8>::new(
+    let dst = Destination::new(
         PixelFormat::RGB,
         PixelFormatPlanes::RGB(&mut rgb),
         width,
@@ -145,7 +145,7 @@ fn i420_to_rgba_with_window() {
 
     let mut rgb = vec![0u8; PixelFormat::RGB.buffer_size(width, height)];
 
-    let src = Source::<U8>::new(
+    let src = Source::new(
         PixelFormat::I420,
         PixelFormatPlanes::infer_i420(&i420[..], width, height),
         width,
@@ -165,7 +165,7 @@ fn i420_to_rgba_with_window() {
         height: 2888,
     });
 
-    let dst = Destination::<U8>::new(
+    let dst = Destination::new(
         PixelFormat::RGB,
         PixelFormatPlanes::RGB(&mut rgb),
         width,
@@ -200,7 +200,7 @@ fn rgba_to_rgba() {
     let mut rgba_dst = rgba.clone();
     rgba_dst.iter_mut().for_each(|b| *b = 255);
 
-    let src = Source::<U8>::new(
+    let src = Source::new(
         PixelFormat::RGBA,
         PixelFormatPlanes::RGBA(&rgba),
         width,
@@ -214,7 +214,7 @@ fn rgba_to_rgba() {
         8,
     );
 
-    let dst = Destination::<U8>::new(
+    let dst = Destination::new(
         PixelFormat::RGBA,
         PixelFormatPlanes::RGBA(&mut rgba_dst),
         width,
@@ -243,7 +243,7 @@ fn rgba_to_rgb() {
 
     let mut rgb_dst = vec![0u8; PixelFormat::RGB.buffer_size(width, height)];
 
-    let src = Source::<U8>::new(
+    let src = Source::new(
         PixelFormat::RGBA,
         PixelFormatPlanes::RGBA(&rgba),
         width,
@@ -257,7 +257,7 @@ fn rgba_to_rgb() {
         8,
     );
 
-    let dst = Destination::<U8>::new(
+    let dst = Destination::new(
         PixelFormat::RGB,
         PixelFormatPlanes::RGB(&mut rgb_dst),
         width,
@@ -293,7 +293,7 @@ fn i420_to_rgb_scale() {
 
     // First upscale NV12
 
-    let src = Source::<U8>::new(
+    let src = Source::new(
         PixelFormat::NV12,
         PixelFormatPlanes::infer_nv12(&nv12, width, height),
         width,
@@ -309,7 +309,7 @@ fn i420_to_rgb_scale() {
 
     let mut nv12_upscaled = vec![0u8; PixelFormat::I420.buffer_size(scaled_width, scaled_height)];
 
-    let dst = Destination::<U8>::new(
+    let dst = Destination::new(
         PixelFormat::NV12,
         PixelFormatPlanes::infer_nv12(&mut nv12_upscaled, scaled_width, scaled_height),
         scaled_width,
@@ -327,7 +327,7 @@ fn i420_to_rgb_scale() {
 
     // Convert I420 to RGB
 
-    let src = Source::<U8>::new(
+    let src = Source::new(
         PixelFormat::NV12,
         PixelFormatPlanes::infer_nv12(&nv12_upscaled, scaled_width, scaled_height),
         scaled_width,
@@ -343,7 +343,7 @@ fn i420_to_rgb_scale() {
 
     let mut rgb = vec![0u8; PixelFormat::RGB.buffer_size(scaled_width, scaled_height)];
 
-    let dst = Destination::<U8>::new(
+    let dst = Destination::new(
         PixelFormat::RGB,
         PixelFormatPlanes::RGB(&mut rgb),
         scaled_width,
@@ -375,7 +375,7 @@ fn rgba8_to_rgba16_and_back() {
 
     let mut rgb16 = vec![0u16; PixelFormat::RGB.buffer_size(width, height)];
 
-    let src = Source::<U8>::new(
+    let src = Source::new(
         PixelFormat::RGBA,
         PixelFormatPlanes::RGBA(&rgba8),
         width,
@@ -389,7 +389,7 @@ fn rgba8_to_rgba16_and_back() {
         8,
     );
 
-    let dst = Destination::<U16LE>::new(
+    let dst = Destination::new(
         PixelFormat::RGB,
         PixelFormatPlanes::RGB(&mut rgb16),
         width,
@@ -416,7 +416,7 @@ fn rgba8_to_rgba16_and_back() {
         buffer.save("tests/RGBA8_TO_RGB16.png").unwrap();
     }
 
-    let src = Source::<U16LE>::new(
+    let src = Source::new(
         PixelFormat::RGB,
         PixelFormatPlanes::RGB(&rgb16),
         width,
@@ -430,7 +430,7 @@ fn rgba8_to_rgba16_and_back() {
         16,
     );
 
-    let dst = Destination::<U8>::new(
+    let dst = Destination::new(
         PixelFormat::RGBA,
         PixelFormatPlanes::RGBA(&mut rgba8),
         width,
@@ -458,7 +458,7 @@ fn rgba8_to_nv12_and_back() {
 
     let mut nv12 = vec![0u8; PixelFormat::NV12.buffer_size(width, height)];
 
-    let src = Source::<U8>::new(
+    let src = Source::new(
         PixelFormat::RGBA,
         PixelFormatPlanes::RGBA(&rgba8),
         width,
@@ -472,7 +472,7 @@ fn rgba8_to_nv12_and_back() {
         8,
     );
 
-    let dst = Destination::<U8>::new(
+    let dst = Destination::new(
         PixelFormat::NV12,
         PixelFormatPlanes::infer_nv12(&mut nv12, width, height),
         width,
@@ -488,7 +488,7 @@ fn rgba8_to_nv12_and_back() {
 
     convert_multi_thread(src, dst);
 
-    let src = Source::<U8>::new(
+    let src = Source::new(
         PixelFormat::NV12,
         PixelFormatPlanes::infer_nv12(&nv12, width, height),
         width,
@@ -502,7 +502,7 @@ fn rgba8_to_nv12_and_back() {
         8,
     );
 
-    let dst = Destination::<U8>::new(
+    let dst = Destination::new(
         PixelFormat::RGBA,
         PixelFormatPlanes::RGBA(&mut rgba8),
         width,
@@ -530,7 +530,7 @@ fn rgba8_to_i422_and_back() {
 
     let mut i422 = vec![0u8; PixelFormat::I422.buffer_size(width, height)];
 
-    let src = Source::<U8>::new(
+    let src = Source::new(
         PixelFormat::RGBA,
         PixelFormatPlanes::RGBA(&rgba8),
         width,
@@ -544,7 +544,7 @@ fn rgba8_to_i422_and_back() {
         8,
     );
 
-    let dst = Destination::<U8>::new(
+    let dst = Destination::new(
         PixelFormat::I422,
         PixelFormatPlanes::infer_i422(&mut i422, width, height),
         width,
@@ -560,7 +560,7 @@ fn rgba8_to_i422_and_back() {
 
     convert_multi_thread(src, dst);
 
-    let src = Source::<U8>::new(
+    let src = Source::new(
         PixelFormat::I422,
         PixelFormatPlanes::infer_i422(&i422, width, height),
         width,
@@ -574,7 +574,7 @@ fn rgba8_to_i422_and_back() {
         8,
     );
 
-    let dst = Destination::<U8>::new(
+    let dst = Destination::new(
         PixelFormat::RGBA,
         PixelFormatPlanes::RGBA(&mut rgba8),
         width,
@@ -602,7 +602,7 @@ fn rgba8_to_i444_and_back() {
 
     let mut i444 = vec![0u8; PixelFormat::I444.buffer_size(width, height)];
 
-    let src = Source::<U8>::new(
+    let src = Source::new(
         PixelFormat::RGBA,
         PixelFormatPlanes::RGBA(&rgba8),
         width,
@@ -616,7 +616,7 @@ fn rgba8_to_i444_and_back() {
         8,
     );
 
-    let dst = Destination::<U8>::new(
+    let dst = Destination::new(
         PixelFormat::I444,
         PixelFormatPlanes::infer_i444(&mut i444, width, height),
         width,
@@ -632,7 +632,7 @@ fn rgba8_to_i444_and_back() {
 
     convert_multi_thread(src, dst);
 
-    let src = Source::<U8>::new(
+    let src = Source::new(
         PixelFormat::I444,
         PixelFormatPlanes::infer_i444(&i444, width, height),
         width,
@@ -646,7 +646,7 @@ fn rgba8_to_i444_and_back() {
         8,
     );
 
-    let dst = Destination::<U8>::new(
+    let dst = Destination::new(
         PixelFormat::RGBA,
         PixelFormatPlanes::RGBA(&mut rgba8),
         width,
@@ -674,7 +674,7 @@ fn rgba8_to_nv12_and_back_ictcp_pq() {
 
     let mut nv12 = vec![0u16; PixelFormat::NV12.buffer_size(width, height)];
 
-    let src = Source::<U8>::new(
+    let src = Source::new(
         PixelFormat::RGBA,
         PixelFormatPlanes::RGBA(&rgba8),
         width,
@@ -688,7 +688,7 @@ fn rgba8_to_nv12_and_back_ictcp_pq() {
         8,
     );
 
-    let dst = Destination::<U16LE>::new(
+    let dst = Destination::new(
         PixelFormat::NV12,
         PixelFormatPlanes::infer_nv12(&mut nv12, width, height),
         width,
@@ -704,7 +704,7 @@ fn rgba8_to_nv12_and_back_ictcp_pq() {
 
     convert_multi_thread(src, dst);
 
-    let src = Source::<U16LE>::new(
+    let src = Source::new(
         PixelFormat::NV12,
         PixelFormatPlanes::infer_nv12(&nv12, width, height),
         width,
@@ -718,7 +718,7 @@ fn rgba8_to_nv12_and_back_ictcp_pq() {
         16,
     );
 
-    let dst = Destination::<U8>::new(
+    let dst = Destination::new(
         PixelFormat::RGBA,
         PixelFormatPlanes::RGBA(&mut rgba8),
         width,
@@ -746,7 +746,7 @@ fn rgba8_to_nv12_and_back_ictcp_hlg() {
 
     let mut nv12 = vec![0u16; PixelFormat::NV12.buffer_size(width, height)];
 
-    let src = Source::<U8>::new(
+    let src = Source::new(
         PixelFormat::RGBA,
         PixelFormatPlanes::RGBA(&rgba8),
         width,
@@ -760,7 +760,7 @@ fn rgba8_to_nv12_and_back_ictcp_hlg() {
         8,
     );
 
-    let dst = Destination::<U16LE>::new(
+    let dst = Destination::new(
         PixelFormat::NV12,
         PixelFormatPlanes::infer_nv12(&mut nv12, width, height),
         width,
@@ -776,7 +776,7 @@ fn rgba8_to_nv12_and_back_ictcp_hlg() {
 
     convert_multi_thread(src, dst);
 
-    let src = Source::<U16LE>::new(
+    let src = Source::new(
         PixelFormat::NV12,
         PixelFormatPlanes::infer_nv12(&nv12, width, height),
         width,
@@ -790,7 +790,7 @@ fn rgba8_to_nv12_and_back_ictcp_hlg() {
         16,
     );
 
-    let dst = Destination::<U8>::new(
+    let dst = Destination::new(
         PixelFormat::RGBA,
         PixelFormatPlanes::RGBA(&mut rgba8),
         width,
