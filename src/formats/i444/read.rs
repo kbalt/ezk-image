@@ -62,84 +62,61 @@ impl<B: BitsInternal> I444Src for I444Reader<'_, B> {
         let px00_offset = (y * self.src_width) + x;
         let px10_offset = ((y + 1) * self.src_width) + x;
 
-        load_and_visit_block::<V, B>(
-            self.y,
-            self.u,
-            self.v,
-            px00_offset,
-            px10_offset,
-            self.max_value,
-        )
-    }
-}
+        // Load Y pixels
+        let y00 = B::load::<V>(self.y.add(px00_offset));
+        let y01 = B::load::<V>(self.y.add(px00_offset + V::LEN));
+        let y10 = B::load::<V>(self.y.add(px10_offset));
+        let y11 = B::load::<V>(self.y.add(px10_offset + V::LEN));
 
-#[inline(always)]
-unsafe fn load_and_visit_block<V, B>(
-    y_ptr: *const B::Primitive,
-    u_ptr: *const B::Primitive,
-    v_ptr: *const B::Primitive,
-    px00_offset: usize,
-    px10_offset: usize,
-    max_value: f32,
-) -> I444Block<V>
-where
-    V: Vector,
-    B: BitsInternal,
-{
-    // Load Y pixels
-    let y00 = B::load::<V>(y_ptr.add(px00_offset));
-    let y01 = B::load::<V>(y_ptr.add(px00_offset + V::LEN));
-    let y10 = B::load::<V>(y_ptr.add(px10_offset));
-    let y11 = B::load::<V>(y_ptr.add(px10_offset + V::LEN));
+        // Load U pixels
+        let u00 = B::load::<V>(self.u.add(px00_offset));
+        let u01 = B::load::<V>(self.u.add(px00_offset + V::LEN));
+        let u10 = B::load::<V>(self.u.add(px10_offset));
+        let u11 = B::load::<V>(self.u.add(px10_offset + V::LEN));
 
-    // Load U pixels
-    let u00 = B::load::<V>(u_ptr.add(px00_offset));
-    let u01 = B::load::<V>(u_ptr.add(px00_offset + V::LEN));
-    let u10 = B::load::<V>(u_ptr.add(px10_offset));
-    let u11 = B::load::<V>(u_ptr.add(px10_offset + V::LEN));
+        // Load V pixels
+        let v00 = B::load::<V>(self.v.add(px00_offset));
+        let v01 = B::load::<V>(self.v.add(px00_offset + V::LEN));
+        let v10 = B::load::<V>(self.v.add(px10_offset));
+        let v11 = B::load::<V>(self.v.add(px10_offset + V::LEN));
 
-    // Load V pixels
-    let v00 = B::load::<V>(v_ptr.add(px00_offset));
-    let v01 = B::load::<V>(v_ptr.add(px00_offset + V::LEN));
-    let v10 = B::load::<V>(v_ptr.add(px10_offset));
-    let v11 = B::load::<V>(v_ptr.add(px10_offset + V::LEN));
+        // Convert to analog 0..=1.0
+        let y00 = y00.vdivf(self.max_value);
+        let y01 = y01.vdivf(self.max_value);
+        let y10 = y10.vdivf(self.max_value);
+        let y11 = y11.vdivf(self.max_value);
 
-    // Convert to analog 0..=1.0
-    let y00 = y00.vdivf(max_value);
-    let y01 = y01.vdivf(max_value);
-    let y10 = y10.vdivf(max_value);
-    let y11 = y11.vdivf(max_value);
+        let u00 = u00.vdivf(self.max_value);
+        let u01 = u01.vdivf(self.max_value);
+        let u10 = u10.vdivf(self.max_value);
+        let u11 = u11.vdivf(self.max_value);
 
-    let u00 = u00.vdivf(max_value);
-    let u01 = u01.vdivf(max_value);
-    let u10 = u10.vdivf(max_value);
-    let u11 = u11.vdivf(max_value);
+        let v00 = v00.vdivf(self.max_value);
+        let v01 = v01.vdivf(self.max_value);
+        let v10 = v10.vdivf(self.max_value);
+        let v11 = v11.vdivf(self.max_value);
 
-    let v00 = v00.vdivf(max_value);
-    let v01 = v01.vdivf(max_value);
-    let v10 = v10.vdivf(max_value);
-    let v11 = v11.vdivf(max_value);
-
-    I444Block {
-        px00: I444Pixel {
-            y: y00,
-            u: u00,
-            v: v00,
-        },
-        px01: I444Pixel {
-            y: y01,
-            u: u01,
-            v: v01,
-        },
-        px10: I444Pixel {
-            y: y10,
-            u: u10,
-            v: v10,
-        },
-        px11: I444Pixel {
-            y: y11,
-            u: u11,
-            v: v11,
-        },
+        I444Block {
+            px00: I444Pixel {
+                y: y00,
+                u: u00,
+                v: v00,
+            },
+            px01: I444Pixel {
+                y: y01,
+                u: u01,
+                v: v01,
+            },
+            px10: I444Pixel {
+                y: y10,
+                u: u10,
+                v: v10,
+            },
+            px11: I444Pixel {
+                y: y11,
+                u: u11,
+                v: v11,
+            },
+        }
     }
 }

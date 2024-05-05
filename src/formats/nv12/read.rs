@@ -57,62 +57,39 @@ impl<B: BitsInternal> I420Src for NV12Reader<'_, B> {
         let x = self.window.x + x;
         let y = self.window.y + y;
 
-        let uv_offset = (y / 2) * (self.src_width / 2) + (x / 2);
+        let uv_offset = ((y / 2) * (self.src_width / 2) + (x / 2)) * 2;
 
         let y00_offset = (y * self.src_width) + x;
         let y10_offset = ((y + 1) * self.src_width) + x;
 
-        load_and_visit_block::<V, B>(
-            self.src_y,
-            self.src_uv,
-            y00_offset,
-            y10_offset,
-            uv_offset * 2,
-            self.max_value,
-        )
-    }
-}
+        // Load Y pixels
+        let y00 = B::load::<V>(self.src_y.add(y00_offset));
+        let y01 = B::load::<V>(self.src_y.add(y00_offset + V::LEN));
+        let y10 = B::load::<V>(self.src_y.add(y10_offset));
+        let y11 = B::load::<V>(self.src_y.add(y10_offset + V::LEN));
 
-#[inline(always)]
-unsafe fn load_and_visit_block<V, B>(
-    y_ptr: *const B::Primitive,
-    uv_ptr: *const B::Primitive,
-    y00_offset: usize,
-    y10_offset: usize,
-    uv_offset: usize,
-    max_value: f32,
-) -> I420Block<V>
-where
-    V: Vector,
-    B: BitsInternal,
-{
-    // Load Y pixels
-    let y00 = B::load::<V>(y_ptr.add(y00_offset));
-    let y01 = B::load::<V>(y_ptr.add(y00_offset + V::LEN));
-    let y10 = B::load::<V>(y_ptr.add(y10_offset));
-    let y11 = B::load::<V>(y_ptr.add(y10_offset + V::LEN));
+        // Load U and V
+        let uv0 = B::load::<V>(self.src_uv.add(uv_offset));
+        let uv1 = B::load::<V>(self.src_uv.add(uv_offset + V::LEN));
 
-    // Load U and V
-    let uv0 = B::load::<V>(uv_ptr.add(uv_offset));
-    let uv1 = B::load::<V>(uv_ptr.add(uv_offset + V::LEN));
+        let (u, v) = uv0.unzip(uv1);
 
-    let (u, v) = uv0.unzip(uv1);
+        // Convert to analog 0..=1.0
+        let y00 = y00.vdivf(self.max_value);
+        let y01 = y01.vdivf(self.max_value);
+        let y10 = y10.vdivf(self.max_value);
+        let y11 = y11.vdivf(self.max_value);
 
-    // Convert to analog 0..=1.0
-    let y00 = y00.vdivf(max_value);
-    let y01 = y01.vdivf(max_value);
-    let y10 = y10.vdivf(max_value);
-    let y11 = y11.vdivf(max_value);
+        let u = u.vdivf(self.max_value);
+        let v = v.vdivf(self.max_value);
 
-    let u = u.vdivf(max_value);
-    let v = v.vdivf(max_value);
-
-    I420Block {
-        y00,
-        y01,
-        y10,
-        y11,
-        u,
-        v,
+        I420Block {
+            y00,
+            y01,
+            y10,
+            y11,
+            u,
+            v,
+        }
     }
 }

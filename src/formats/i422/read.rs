@@ -65,67 +65,39 @@ impl<B: BitsInternal> I422Src for I422Reader<'_, B> {
         let y00_offset = (y * self.src_width) + x;
         let y10_offset = ((y + 1) * self.src_width) + x;
 
-        load_and_visit_block::<V, B>(
-            self.y,
-            self.u,
-            self.v,
-            y00_offset,
-            y10_offset,
-            uv0_offset,
-            uv1_offset,
-            self.max_value,
-        )
-    }
-}
+        // Load Y pixels
+        let y00 = B::load::<V>(self.y.add(y00_offset));
+        let y01 = B::load::<V>(self.y.add(y00_offset + V::LEN));
+        let y10 = B::load::<V>(self.y.add(y10_offset));
+        let y11 = B::load::<V>(self.y.add(y10_offset + V::LEN));
 
-#[inline(always)]
-#[allow(clippy::too_many_arguments)]
-unsafe fn load_and_visit_block<V, B>(
-    y_ptr: *const B::Primitive,
-    u_ptr: *const B::Primitive,
-    v_ptr: *const B::Primitive,
-    y00_offset: usize,
-    y10_offset: usize,
-    uv0_offset: usize,
-    uv1_offset: usize,
-    max_value: f32,
-) -> I422Block<V>
-where
-    V: Vector,
-    B: BitsInternal,
-{
-    // Load Y pixels
-    let y00 = B::load::<V>(y_ptr.add(y00_offset));
-    let y01 = B::load::<V>(y_ptr.add(y00_offset + V::LEN));
-    let y10 = B::load::<V>(y_ptr.add(y10_offset));
-    let y11 = B::load::<V>(y_ptr.add(y10_offset + V::LEN));
+        // Load U and V
+        let u0 = B::load::<V>(self.u.add(uv0_offset));
+        let u1 = B::load::<V>(self.u.add(uv1_offset));
 
-    // Load U and V
-    let u0 = B::load::<V>(u_ptr.add(uv0_offset));
-    let u1 = B::load::<V>(u_ptr.add(uv1_offset));
+        let v0 = B::load::<V>(self.v.add(uv0_offset));
+        let v1 = B::load::<V>(self.v.add(uv1_offset));
 
-    let v0 = B::load::<V>(v_ptr.add(uv0_offset));
-    let v1 = B::load::<V>(v_ptr.add(uv1_offset));
+        // Convert to analog 0..=1.0
+        let y00 = y00.vdivf(self.max_value);
+        let y01 = y01.vdivf(self.max_value);
+        let y10 = y10.vdivf(self.max_value);
+        let y11 = y11.vdivf(self.max_value);
 
-    // Convert to analog 0..=1.0
-    let y00 = y00.vdivf(max_value);
-    let y01 = y01.vdivf(max_value);
-    let y10 = y10.vdivf(max_value);
-    let y11 = y11.vdivf(max_value);
+        let u0 = u0.vdivf(self.max_value);
+        let u1 = u1.vdivf(self.max_value);
+        let v0 = v0.vdivf(self.max_value);
+        let v1 = v1.vdivf(self.max_value);
 
-    let u0 = u0.vdivf(max_value);
-    let u1 = u1.vdivf(max_value);
-    let v0 = v0.vdivf(max_value);
-    let v1 = v1.vdivf(max_value);
-
-    I422Block {
-        y00,
-        y01,
-        y10,
-        y11,
-        u0,
-        u1,
-        v0,
-        v1,
+        I422Block {
+            y00,
+            y01,
+            y10,
+            y11,
+            u0,
+            u1,
+            v0,
+            v1,
+        }
     }
 }
