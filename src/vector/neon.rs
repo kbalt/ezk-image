@@ -1,6 +1,5 @@
 use super::Vector;
 use crate::arch::*;
-use crate::endian::Endian;
 use crate::{DynRgbaReader, DynRgbaReaderSpec, RgbaBlock};
 use std::mem::transmute;
 
@@ -87,9 +86,8 @@ unsafe impl Vector for float32x4_t {
     }
 
     #[inline(always)]
-    unsafe fn load_u16<E: Endian>(ptr: *const u16) -> Self {
+    unsafe fn load_u16(ptr: *const u16) -> Self {
         let v = ptr.cast::<uint16x4_t>().read_unaligned();
-        let v = if E::IS_NATIVE { v } else { vrev32_u16(v) };
         let v = vmovl_u16(v);
 
         vcvtq_f32_u32(v)
@@ -117,16 +115,10 @@ unsafe impl Vector for float32x4_t {
     }
 
     #[inline(always)]
-    unsafe fn load_u16_3x_interleaved_2x<E: Endian>(ptr: *const u16) -> [[Self; 3]; 2] {
+    unsafe fn load_u16_3x_interleaved_2x(ptr: *const u16) -> [[Self; 3]; 2] {
         let rgb_lanes = vld3q_u16(ptr);
 
         let [r, g, b]: [uint16x8_t; 3] = transmute(rgb_lanes);
-
-        let (r, g, b) = if E::IS_NATIVE {
-            (r, g, b)
-        } else {
-            (vrev32q_u16(r), vrev32q_u16(g), vrev32q_u16(b))
-        };
 
         let rl = vcvtq_f32_u32(vmovl_u16(vget_low_u16(r)));
         let rh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(r)));
@@ -166,21 +158,10 @@ unsafe impl Vector for float32x4_t {
     }
 
     #[inline(always)]
-    unsafe fn load_u16_4x_interleaved_2x<E: Endian>(ptr: *const u16) -> [[Self; 4]; 2] {
+    unsafe fn load_u16_4x_interleaved_2x(ptr: *const u16) -> [[Self; 4]; 2] {
         let rgba_lanes = vld4q_u16(ptr);
 
         let [r, g, b, a]: [uint16x8_t; 4] = transmute(rgba_lanes);
-
-        let (r, g, b, a) = if E::IS_NATIVE {
-            (r, g, b, a)
-        } else {
-            (
-                vrev32q_u16(r),
-                vrev32q_u16(g),
-                vrev32q_u16(b),
-                vrev32q_u16(a),
-            )
-        };
 
         let rl = vcvtq_f32_u32(vmovl_u16(vget_low_u16(r)));
         let rh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(r)));
@@ -210,15 +191,15 @@ unsafe impl Vector for float32x4_t {
     }
 
     #[inline(always)]
-    unsafe fn write_u16<E: Endian>(self, ptr: *mut u16) {
+    unsafe fn write_u16(self, ptr: *mut u16) {
         ptr.cast::<[u16; 4]>()
-            .write_unaligned(util::float32x4_to_u16x4::<E>(self))
+            .write_unaligned(util::float32x4_to_u16x4(self))
     }
 
     #[inline(always)]
-    unsafe fn write_u16_2x<E: Endian>(v0: Self, v1: Self, ptr: *mut u16) {
+    unsafe fn write_u16_2x(v0: Self, v1: Self, ptr: *mut u16) {
         ptr.cast::<[u16; 8]>()
-            .write_unaligned(util::float32x4x2_to_u16x8::<E>(v0, v1))
+            .write_unaligned(util::float32x4x2_to_u16x8(v0, v1))
     }
 
     #[inline(always)]
@@ -233,10 +214,10 @@ unsafe impl Vector for float32x4_t {
     }
 
     #[inline(always)]
-    unsafe fn write_interleaved_3x_2x_u16<E: Endian>(this: [[Self; 3]; 2], ptr: *mut u16) {
-        let v0 = util::float32x4x2_to_u16x8::<E>(this[0][0], this[1][0]);
-        let v1 = util::float32x4x2_to_u16x8::<E>(this[0][1], this[1][1]);
-        let v2 = util::float32x4x2_to_u16x8::<E>(this[0][2], this[1][2]);
+    unsafe fn write_interleaved_3x_2x_u16(this: [[Self; 3]; 2], ptr: *mut u16) {
+        let v0 = util::float32x4x2_to_u16x8(this[0][0], this[1][0]);
+        let v1 = util::float32x4x2_to_u16x8(this[0][1], this[1][1]);
+        let v2 = util::float32x4x2_to_u16x8(this[0][2], this[1][2]);
 
         let v = transmute::<[[u16; 8]; 3], uint16x8x3_t>([v0, v1, v2]);
 
@@ -256,11 +237,11 @@ unsafe impl Vector for float32x4_t {
     }
 
     #[inline(always)]
-    unsafe fn write_interleaved_4x_2x_u16<E: Endian>(this: [[Self; 4]; 2], ptr: *mut u16) {
-        let v0 = util::float32x4x2_to_u16x8::<E>(this[0][0], this[1][0]);
-        let v1 = util::float32x4x2_to_u16x8::<E>(this[0][1], this[1][1]);
-        let v2 = util::float32x4x2_to_u16x8::<E>(this[0][2], this[1][2]);
-        let v3 = util::float32x4x2_to_u16x8::<E>(this[0][3], this[1][3]);
+    unsafe fn write_interleaved_4x_2x_u16(this: [[Self; 4]; 2], ptr: *mut u16) {
+        let v0 = util::float32x4x2_to_u16x8(this[0][0], this[1][0]);
+        let v1 = util::float32x4x2_to_u16x8(this[0][1], this[1][1]);
+        let v2 = util::float32x4x2_to_u16x8(this[0][2], this[1][2]);
+        let v3 = util::float32x4x2_to_u16x8(this[0][3], this[1][3]);
 
         let v = transmute::<[[u16; 8]; 4], uint16x8x4_t>([v0, v1, v2, v3]);
 
@@ -447,7 +428,6 @@ mod math {
 
 pub(crate) mod util {
     use crate::arch::*;
-    use crate::endian::Endian;
     use std::mem::transmute;
 
     #[inline(always)]
@@ -466,10 +446,7 @@ pub(crate) mod util {
     }
 
     #[inline(always)]
-    pub(crate) unsafe fn float32x4x2_to_u16x8<E: Endian>(
-        l: float32x4_t,
-        h: float32x4_t,
-    ) -> [u16; 8] {
+    pub(crate) unsafe fn float32x4x2_to_u16x8(l: float32x4_t, h: float32x4_t) -> [u16; 8] {
         let l = vcvtq_u32_f32(l);
         let l = vminq_u32(l, vdupq_n_u32(u16::MAX as u32));
         let l = vmovn_u32(l);
@@ -477,12 +454,6 @@ pub(crate) mod util {
         let h = vcvtq_u32_f32(h);
         let h = vminq_u32(h, vdupq_n_u32(u16::MAX as u32));
         let h = vmovn_u32(h);
-
-        let (l, h) = if E::IS_NATIVE {
-            (l, h)
-        } else {
-            (vrev32_u16(l), (vrev32_u16(h)))
-        };
 
         transmute([l, h])
     }
@@ -501,16 +472,12 @@ pub(crate) mod util {
     }
 
     #[inline(always)]
-    pub(crate) unsafe fn float32x4_to_u16x4<E: Endian>(i: float32x4_t) -> [u16; 4] {
+    pub(crate) unsafe fn float32x4_to_u16x4(i: float32x4_t) -> [u16; 4] {
         let i = vcvtq_u32_f32(i);
         let i = vminq_u32(i, vdupq_n_u32(u16::MAX as u32));
         let i = vmovn_u32(i);
 
-        if E::IS_NATIVE {
-            transmute(i)
-        } else {
-            transmute(vrev32_u16(i))
-        }
+        transmute(i)
     }
 }
 

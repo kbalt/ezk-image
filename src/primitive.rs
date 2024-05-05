@@ -121,7 +121,7 @@ pub(crate) fn swap_bytes(b: &mut [u16]) {
     }
 
     #[cfg(target_arch = "aarch64")]
-    if is_x86_feature_detected!("neon") {
+    if crate::arch::is_aarch64_feature_detected!("neon") {
         #[target_feature(enable = "neon")]
         unsafe fn call(b: &mut [u16]) {
             impl_(b);
