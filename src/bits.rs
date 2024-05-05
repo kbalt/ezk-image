@@ -21,6 +21,8 @@ pub(crate) trait BitsInternal: Bits {
 
     unsafe fn write_interleaved_3x_2x<V: Vector>(ptr: *mut Self::Primitive, v: [[V; 3]; 2]);
     unsafe fn write_interleaved_4x_2x<V: Vector>(ptr: *mut Self::Primitive, v: [[V; 4]; 2]);
+
+    fn swap_bytes(b: &mut [Self::Primitive]);
 }
 
 pub struct U8;
@@ -68,6 +70,9 @@ impl BitsInternal for U8 {
     unsafe fn write_interleaved_4x_2x<V: Vector>(ptr: *mut Self::Primitive, v: [[V; 4]; 2]) {
         V::write_interleaved_4x_2x_u8(v, ptr)
     }
+
+    #[inline(always)]
+    fn swap_bytes(_: &mut [Self::Primitive]) {}
 }
 
 pub struct U16LE;
@@ -113,6 +118,10 @@ impl BitsInternal for U16LE {
     #[inline(always)]
     unsafe fn write_interleaved_4x_2x<V: Vector>(ptr: *mut Self::Primitive, v: [[V; 4]; 2]) {
         V::write_interleaved_4x_2x_u16::<Self::Endian>(v, ptr)
+    }
+
+    fn swap_bytes(b: &mut [Self::Primitive]) {
+        swap_bytes(b)
     }
 }
 
@@ -161,4 +170,43 @@ impl BitsInternal for U16BE {
     unsafe fn write_interleaved_4x_2x<V: Vector>(ptr: *mut Self::Primitive, v: [[V; 4]; 2]) {
         V::write_interleaved_4x_2x_u16::<Self::Endian>(v, ptr)
     }
+
+    fn swap_bytes(b: &mut [Self::Primitive]) {
+        swap_bytes(b)
+    }
+}
+
+fn swap_bytes(b: &mut [u16]) {
+    #[inline(always)]
+    fn impl_(b: &mut [u16]) {
+        for b in b {
+            *b = b.swap_bytes();
+        }
+    }
+
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    if is_x86_feature_detected!("avx2") {
+        #[target_feature(enable = "avx2")]
+        unsafe fn call(b: &mut [u16]) {
+            impl_(b);
+        }
+
+        // Safety: Did a feature check
+        unsafe { call(b) }
+    }
+
+    #[cfg(target_arch = "aarch64")]
+    if is_x86_feature_detected!("neon") {
+        #[target_feature(enable = "neon")]
+        unsafe fn call(b: &mut [u16]) {
+            impl_(b);
+        }
+
+        // Safety: Did a feature check
+        unsafe {
+            call(b);
+        }
+    }
+
+    impl_(b)
 }
