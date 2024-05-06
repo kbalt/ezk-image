@@ -79,7 +79,7 @@ unsafe impl Vector for float32x4_t {
     #[inline(always)]
     unsafe fn load_u8(ptr: *const u8) -> Self {
         let v = ptr.cast::<[u8; 4]>().read_unaligned();
-        let v = vmovl_u8(transmute([v, v]));
+        let v = vmovl_u8(transmute::<[[u8; 4]; 2], uint8x8_t>([v, v]));
         let v = vmovl_high_u16(v);
 
         vcvtq_f32_u32(v)

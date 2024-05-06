@@ -255,13 +255,13 @@ unsafe impl Vector for __m256 {
 unsafe fn deinterleave_3x(m1: __m256, m2: __m256, m3: __m256) -> (__m256, __m256, __m256) {
     // TODO: write something smarter here, until then - let the compiler figure it out
 
-    let [v00, v01, v02, v03, v04, v05, v06, v07] = transmute::<_, [f32; 8]>(m1);
-    let [v08, v09, v10, v11, v12, v13, v14, v15] = transmute::<_, [f32; 8]>(m2);
-    let [v16, v17, v18, v19, v20, v21, v22, v23] = transmute::<_, [f32; 8]>(m3);
+    let [v00, v01, v02, v03, v04, v05, v06, v07] = transmute::<__m256, [f32; 8]>(m1);
+    let [v08, v09, v10, v11, v12, v13, v14, v15] = transmute::<__m256, [f32; 8]>(m2);
+    let [v16, v17, v18, v19, v20, v21, v22, v23] = transmute::<__m256, [f32; 8]>(m3);
 
-    let a = transmute([v00, v03, v06, v09, v12, v15, v18, v21]);
-    let b = transmute([v01, v04, v07, v10, v13, v16, v19, v22]);
-    let c = transmute([v02, v05, v08, v11, v14, v17, v20, v23]);
+    let a = transmute::<[f32; 8], __m256>([v00, v03, v06, v09, v12, v15, v18, v21]);
+    let b = transmute::<[f32; 8], __m256>([v01, v04, v07, v10, v13, v16, v19, v22]);
+    let c = transmute::<[f32; 8], __m256>([v02, v05, v08, v11, v14, v17, v20, v23]);
 
     (a, b, c)
 }
@@ -547,7 +547,7 @@ pub(crate) mod util {
             -128, -128, -128, -128,
         );
 
-        let rgb = _mm256_shuffle_epi8(transmute(rgb), idx);
+        let rgb = _mm256_shuffle_epi8(transmute::<[u8; 32], __m256i>(rgb), idx);
 
         // This gets optimized to use avx2 by the compiler
         let [a0, b0, c0, _, a1, b1, c1, _]: [i32; 8] = transmute(rgb);
@@ -608,8 +608,8 @@ mod tests {
 
             let (a, b) = a.zip(b);
 
-            assert_eq!(transmute::<_, [f32; 8]>(a), expected_a);
-            assert_eq!(transmute::<_, [f32; 8]>(b), expected_b);
+            assert_eq!(transmute::<__m256, [f32; 8]>(a), expected_a);
+            assert_eq!(transmute::<__m256, [f32; 8]>(b), expected_b);
         }
     }
 
@@ -648,7 +648,7 @@ mod tests {
 
             let x = r0.vadd(r1);
 
-            assert_eq!(transmute::<_, [f32; 8]>(x), result);
+            assert_eq!(transmute::<__m256, [f32; 8]>(x), result);
         }
     }
 
