@@ -1,19 +1,19 @@
-use crate::{primitive::PrimitiveInternal, Destination, PixelFormatPlanes, Source};
+use crate::{primitive::PrimitiveInternal, Image, PixelFormatPlanes};
 
 #[allow(private_bounds)]
-pub fn scale<B>(src: Source<'_, B>, dst: Destination<'_, B>)
+pub fn scale<P>(src: Image<&[P]>, dst: Image<&mut [P]>)
 where
-    B: PrimitiveInternal,
+    P: PrimitiveInternal,
 
-    for<'a> fir::DynamicImageView<'a>: From<fir::ImageView<'a, B::FirPixel1>>
-        + From<fir::ImageView<'a, B::FirPixel2>>
-        + From<fir::ImageView<'a, B::FirPixel3>>
-        + From<fir::ImageView<'a, B::FirPixel4>>,
+    for<'a> fir::DynamicImageView<'a>: From<fir::ImageView<'a, P::FirPixel1>>
+        + From<fir::ImageView<'a, P::FirPixel2>>
+        + From<fir::ImageView<'a, P::FirPixel3>>
+        + From<fir::ImageView<'a, P::FirPixel4>>,
 
-    for<'a> fir::DynamicImageViewMut<'a>: From<fir::ImageViewMut<'a, B::FirPixel1>>
-        + From<fir::ImageViewMut<'a, B::FirPixel2>>
-        + From<fir::ImageViewMut<'a, B::FirPixel3>>
-        + From<fir::ImageViewMut<'a, B::FirPixel4>>,
+    for<'a> fir::DynamicImageViewMut<'a>: From<fir::ImageViewMut<'a, P::FirPixel1>>
+        + From<fir::ImageViewMut<'a, P::FirPixel2>>
+        + From<fir::ImageViewMut<'a, P::FirPixel3>>
+        + From<fir::ImageViewMut<'a, P::FirPixel4>>,
 {
     assert_eq!(src.format, dst.format);
 
@@ -32,7 +32,7 @@ where
                 v: dst_v,
             },
         ) => {
-            resize_plane::<B, B::FirPixel1>(
+            resize_plane::<P, P::FirPixel1>(
                 &mut resizer,
                 src_y,
                 src.width as u32,
@@ -42,7 +42,7 @@ where
                 dst.height as u32,
             );
 
-            resize_plane::<B, B::FirPixel1>(
+            resize_plane::<P, P::FirPixel1>(
                 &mut resizer,
                 src_u,
                 src.width as u32 / 2,
@@ -52,7 +52,7 @@ where
                 dst.height as u32 / 2,
             );
 
-            resize_plane::<B, B::FirPixel1>(
+            resize_plane::<P, P::FirPixel1>(
                 &mut resizer,
                 src_v,
                 src.width as u32 / 2,
@@ -74,7 +74,7 @@ where
                 v: dst_v,
             },
         ) => {
-            resize_plane::<B, B::FirPixel1>(
+            resize_plane::<P, P::FirPixel1>(
                 &mut resizer,
                 src_y,
                 src.width as u32,
@@ -84,7 +84,7 @@ where
                 dst.height as u32,
             );
 
-            resize_plane::<B, B::FirPixel1>(
+            resize_plane::<P, P::FirPixel1>(
                 &mut resizer,
                 src_u,
                 src.width as u32,
@@ -94,7 +94,7 @@ where
                 dst.height as u32 / 2,
             );
 
-            resize_plane::<B, B::FirPixel1>(
+            resize_plane::<P, P::FirPixel1>(
                 &mut resizer,
                 src_v,
                 src.width as u32,
@@ -116,7 +116,7 @@ where
                 v: dst_v,
             },
         ) => {
-            resize_plane::<B, B::FirPixel1>(
+            resize_plane::<P, P::FirPixel1>(
                 &mut resizer,
                 src_y,
                 src.width as u32,
@@ -126,7 +126,7 @@ where
                 dst.height as u32,
             );
 
-            resize_plane::<B, B::FirPixel1>(
+            resize_plane::<P, P::FirPixel1>(
                 &mut resizer,
                 src_u,
                 src.width as u32,
@@ -136,7 +136,7 @@ where
                 dst.height as u32,
             );
 
-            resize_plane::<B, B::FirPixel1>(
+            resize_plane::<P, P::FirPixel1>(
                 &mut resizer,
                 src_v,
                 src.width as u32,
@@ -156,7 +156,7 @@ where
                 uv: dst_uv,
             },
         ) => {
-            resize_plane::<B, B::FirPixel1>(
+            resize_plane::<P, P::FirPixel1>(
                 &mut resizer,
                 src_y,
                 src.width as u32,
@@ -166,7 +166,7 @@ where
                 dst.height as u32,
             );
 
-            resize_plane::<B, B::FirPixel2>(
+            resize_plane::<P, P::FirPixel2>(
                 &mut resizer,
                 src_uv,
                 src.width as u32 / 2,
@@ -177,7 +177,7 @@ where
             );
         }
         (PixelFormatPlanes::RGB(src_rgb), PixelFormatPlanes::RGB(dst_rgb)) => {
-            resize_plane::<B, B::FirPixel3>(
+            resize_plane::<P, P::FirPixel3>(
                 &mut resizer,
                 src_rgb,
                 src.width as u32,
@@ -188,7 +188,7 @@ where
             );
         }
         (PixelFormatPlanes::RGBA(src_rgba), PixelFormatPlanes::RGBA(dst_rgba)) => {
-            resize_plane::<B, B::FirPixel4>(
+            resize_plane::<P, P::FirPixel4>(
                 &mut resizer,
                 src_rgba,
                 src.width as u32,

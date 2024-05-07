@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use ezk_image::{
-    convert, convert_multi_thread, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer,
-    Destination, PixelFormat, PixelFormatPlanes, Source,
+    convert, convert_multi_thread, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, Image,
+    PixelFormat, PixelFormatPlanes,
 };
 use std::hint::black_box;
 
@@ -21,7 +21,7 @@ fn do_convert(
     dst_format: PixelFormat,
     dst_planes: PixelFormatPlanes<&mut [u8]>,
 ) {
-    let src = Source::new(
+    let src = Image::new(
         src_format,
         src_planes,
         IMAGE_WIDTH,
@@ -29,7 +29,7 @@ fn do_convert(
         NOOP_COLOR_INFO,
         8,
     );
-    let dst = Destination::new(
+    let dst = Image::new(
         dst_format,
         dst_planes,
         IMAGE_WIDTH,
@@ -47,7 +47,7 @@ fn do_convert_multi_thread(
     dst_format: PixelFormat,
     dst_planes: PixelFormatPlanes<&mut [u8]>,
 ) {
-    let src = Source::new(
+    let src = Image::new(
         src_format,
         src_planes,
         IMAGE_WIDTH,
@@ -55,7 +55,7 @@ fn do_convert_multi_thread(
         NOOP_COLOR_INFO,
         8,
     );
-    let dst = Destination::new(
+    let dst = Image::new(
         dst_format,
         dst_planes,
         IMAGE_WIDTH,

@@ -4,21 +4,21 @@ use formats::*;
 use primitive::PrimitiveInternal;
 
 pub use color::{ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer};
+pub use image::Image;
 #[cfg(feature = "multi-thread")]
 pub use multi_thread::convert_multi_thread;
 pub use planes::PixelFormatPlanes;
 pub use primitive::Primitive;
 pub use resize::scale;
-pub use src_dst::{Destination, Source};
 
 mod color;
 mod formats;
+mod image;
 #[cfg(feature = "multi-thread")]
 mod multi_thread;
 mod planes;
 mod primitive;
 mod resize;
-mod src_dst;
 mod vector;
 
 mod arch {
@@ -42,9 +42,9 @@ pub struct Rect {
 }
 
 /// Verify that the input values are all valid and safe to move on to
-fn verify_input_windows_same_size<SB: Primitive, DB: Primitive>(
-    src: &Source<'_, SB>,
-    dst: &Destination<'_, DB>,
+fn verify_input_windows_same_size<SP: Primitive, DP: Primitive>(
+    src: &Image<&[SP]>,
+    dst: &Image<&mut [DP]>,
 ) -> (Rect, Rect) {
     let src_window = src.window.unwrap_or(Rect {
         x: 0,
@@ -118,10 +118,10 @@ impl PixelFormat {
 
 #[allow(private_bounds)]
 #[inline(never)]
-pub fn convert<SB, DB>(src: Source<'_, SB>, dst: Destination<'_, DB>)
+pub fn convert<SP, DP>(src: Image<&[SP]>, dst: Image<&mut [DP]>)
 where
-    SB: PrimitiveInternal,
-    DB: PrimitiveInternal,
+    SP: PrimitiveInternal,
+    DP: PrimitiveInternal,
 {
     verify_input_windows_same_size(&src, &dst);
 
@@ -137,14 +137,14 @@ where
 }
 
 #[inline(never)]
-fn read_any_to_rgba<'src, SB>(src: &Source<'src, SB>) -> Box<dyn DynRgbaReader + 'src>
+fn read_any_to_rgba<'src, P>(src: &Image<&'src [P]>) -> Box<dyn DynRgbaReader + 'src>
 where
-    SB: PrimitiveInternal,
+    P: PrimitiveInternal,
 {
     match src.format {
         PixelFormat::I420 => Box::new(I420ToRgb::new(
             &src.color,
-            I420Reader::<SB>::new(
+            I420Reader::<P>::new(
                 src.width,
                 src.height,
                 src.planes,
@@ -154,7 +154,7 @@ where
         )),
         PixelFormat::I422 => Box::new(I422ToRgb::new(
             &src.color,
-            I422Reader::<SB>::new(
+            I422Reader::<P>::new(
                 src.width,
                 src.height,
                 src.planes,
@@ -164,7 +164,7 @@ where
         )),
         PixelFormat::I444 => Box::new(I444ToRgb::new(
             &src.color,
-            I444Reader::<SB>::new(
+            I444Reader::<P>::new(
                 src.width,
                 src.height,
                 src.planes,
@@ -174,7 +174,7 @@ where
         )),
         PixelFormat::NV12 => Box::new(I420ToRgb::new(
             &src.color,
-            NV12Reader::<SB>::new(
+            NV12Reader::<P>::new(
                 src.width,
                 src.height,
                 src.planes,
@@ -182,28 +182,28 @@ where
                 src.window,
             ),
         )),
-        PixelFormat::RGBA => Box::new(RgbaReader::<false, SB>::new(
+        PixelFormat::RGBA => Box::new(RgbaReader::<false, P>::new(
             src.width,
             src.height,
             src.planes,
             src.bits_per_component,
             src.window,
         )),
-        PixelFormat::BGRA => Box::new(RgbaReader::<true, SB>::new(
+        PixelFormat::BGRA => Box::new(RgbaReader::<true, P>::new(
             src.width,
             src.height,
             src.planes,
             src.bits_per_component,
             src.window,
         )),
-        PixelFormat::RGB => Box::new(RgbReader::<false, SB>::new(
+        PixelFormat::RGB => Box::new(RgbReader::<false, P>::new(
             src.width,
             src.height,
             src.planes,
             src.bits_per_component,
             src.window,
         )),
-        PixelFormat::BGR => Box::new(RgbReader::<true, SB>::new(
+        PixelFormat::BGR => Box::new(RgbReader::<true, P>::new(
             src.width,
             src.height,
             src.planes,
@@ -214,12 +214,12 @@ where
 }
 
 #[inline(never)]
-fn rgba_to_any<'src, DB>(dst: Destination<'_, DB>, reader: impl RgbaSrc + 'src)
+fn rgba_to_any<'src, DP>(dst: Image<&mut [DP]>, reader: impl RgbaSrc + 'src)
 where
-    DB: PrimitiveInternal,
+    DP: PrimitiveInternal,
 {
     match dst.format {
-        PixelFormat::I420 => I420Writer::<DB, _>::write(
+        PixelFormat::I420 => I420Writer::<DP, _>::write(
             dst.width,
             dst.height,
             dst.planes,
@@ -227,7 +227,7 @@ where
             dst.window,
             RgbToI420::new(&dst.color, reader),
         ),
-        PixelFormat::I422 => I422Writer::<DB, _>::write(
+        PixelFormat::I422 => I422Writer::<DP, _>::write(
             dst.width,
             dst.height,
             dst.planes,
@@ -235,7 +235,7 @@ where
             dst.window,
             RgbToI422::new(&dst.color, reader),
         ),
-        PixelFormat::I444 => I444Writer::<DB, _>::write(
+        PixelFormat::I444 => I444Writer::<DP, _>::write(
             dst.width,
             dst.height,
             dst.planes,
@@ -243,7 +243,7 @@ where
             dst.window,
             RgbToI444::new(&dst.color, reader),
         ),
-        PixelFormat::NV12 => NV12Writer::<DB, _>::write(
+        PixelFormat::NV12 => NV12Writer::<DP, _>::write(
             dst.width,
             dst.height,
             dst.planes,
@@ -251,7 +251,7 @@ where
             dst.window,
             RgbToI420::new(&dst.color, reader),
         ),
-        PixelFormat::RGBA => RgbaWriter::<false, DB, _>::write(
+        PixelFormat::RGBA => RgbaWriter::<false, DP, _>::write(
             dst.width,
             dst.height,
             dst.planes,
@@ -259,7 +259,7 @@ where
             dst.window,
             reader,
         ),
-        PixelFormat::BGRA => RgbaWriter::<true, DB, _>::write(
+        PixelFormat::BGRA => RgbaWriter::<true, DP, _>::write(
             dst.width,
             dst.height,
             dst.planes,
@@ -267,7 +267,7 @@ where
             dst.window,
             reader,
         ),
-        PixelFormat::RGB => RgbWriter::<false, DB, _>::write(
+        PixelFormat::RGB => RgbWriter::<false, DP, _>::write(
             dst.width,
             dst.height,
             dst.planes,
@@ -275,7 +275,7 @@ where
             dst.window,
             reader,
         ),
-        PixelFormat::BGR => RgbWriter::<true, DB, _>::write(
+        PixelFormat::BGR => RgbWriter::<true, DP, _>::write(
             dst.width,
             dst.height,
             dst.planes,
