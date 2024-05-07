@@ -56,7 +56,8 @@ fn make_i420_image(color: ColorInfo) -> (Vec<u8>, usize, usize) {
             color,
             8,
         ),
-    );
+    )
+    .unwrap();
 
     (i420, width, height)
 }
@@ -82,7 +83,8 @@ fn make_nv12_image(color: ColorInfo) -> (Vec<u8>, usize, usize) {
             color,
             8,
         ),
-    );
+    )
+    .unwrap();
 
     (nv12, width, height)
 }
@@ -126,7 +128,7 @@ fn i420_to_rgb() {
         8,
     );
 
-    convert_multi_thread(src, dst);
+    convert_multi_thread(src, dst).unwrap();
 
     let buffer =
         image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(width as _, height as _, rgb).unwrap();
@@ -185,7 +187,7 @@ fn i420_to_rgba_with_window() {
         height: 400,
     });
 
-    convert_multi_thread(src, dst);
+    convert_multi_thread(src, dst).unwrap();
 
     let buffer =
         image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(width as _, height as _, rgb).unwrap();
@@ -228,7 +230,7 @@ fn rgba_to_rgba() {
         8,
     );
 
-    convert_multi_thread(src, dst);
+    convert_multi_thread(src, dst).unwrap();
 
     let buffer =
         image::ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(width as _, height as _, rgba_dst)
@@ -271,7 +273,7 @@ fn rgba_to_rgb() {
         8,
     );
 
-    convert_multi_thread(src, dst);
+    convert_multi_thread(src, dst).unwrap();
 
     let buffer =
         image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(width as _, height as _, rgb_dst).unwrap();
@@ -357,7 +359,7 @@ fn i420_to_rgb_scale() {
         8,
     );
 
-    convert_multi_thread(src, dst);
+    convert_multi_thread(src, dst).unwrap();
 
     let buffer = image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(
         scaled_width as _,
@@ -403,7 +405,7 @@ fn rgba8_to_rgba16_and_back() {
         16,
     );
 
-    convert_multi_thread(src, dst);
+    convert_multi_thread(src, dst).unwrap();
 
     {
         let buffer = image::ImageBuffer::<Rgb<u16>, Vec<u16>>::from_vec(
@@ -444,7 +446,7 @@ fn rgba8_to_rgba16_and_back() {
         8,
     );
 
-    convert_multi_thread(src, dst);
+    convert_multi_thread(src, dst).unwrap();
 
     let buffer =
         image::ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(width as _, height as _, rgba8).unwrap();
@@ -486,7 +488,7 @@ fn rgba8_to_nv12_and_back() {
         8,
     );
 
-    convert_multi_thread(src, dst);
+    convert_multi_thread(src, dst).unwrap();
 
     let src = Image::new(
         PixelFormat::NV12,
@@ -516,7 +518,7 @@ fn rgba8_to_nv12_and_back() {
         8,
     );
 
-    convert_multi_thread(src, dst);
+    convert_multi_thread(src, dst).unwrap();
 
     let buffer =
         image::ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(width as _, height as _, rgba8).unwrap();
@@ -558,7 +560,7 @@ fn rgba8_to_i422_and_back() {
         8,
     );
 
-    convert_multi_thread(src, dst);
+    convert_multi_thread(src, dst).unwrap();
 
     let src = Image::new(
         PixelFormat::I422,
@@ -588,7 +590,7 @@ fn rgba8_to_i422_and_back() {
         8,
     );
 
-    convert_multi_thread(src, dst);
+    convert_multi_thread(src, dst).unwrap();
 
     let buffer =
         image::ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(width as _, height as _, rgba8).unwrap();
@@ -630,7 +632,7 @@ fn rgba8_to_i444_and_back() {
         8,
     );
 
-    convert_multi_thread(src, dst);
+    convert_multi_thread(src, dst).unwrap();
 
     let src = Image::new(
         PixelFormat::I444,
@@ -660,7 +662,7 @@ fn rgba8_to_i444_and_back() {
         8,
     );
 
-    convert_multi_thread(src, dst);
+    convert_multi_thread(src, dst).unwrap();
 
     let buffer =
         image::ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(width as _, height as _, rgba8).unwrap();
@@ -702,7 +704,7 @@ fn rgba8_to_nv12_and_back_ictcp_pq() {
         16,
     );
 
-    convert_multi_thread(src, dst);
+    convert_multi_thread(src, dst).unwrap();
 
     let src = Image::new(
         PixelFormat::NV12,
@@ -732,7 +734,7 @@ fn rgba8_to_nv12_and_back_ictcp_pq() {
         8,
     );
 
-    convert_multi_thread(src, dst);
+    convert_multi_thread(src, dst).unwrap();
 
     let buffer =
         image::ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(width as _, height as _, rgba8).unwrap();
@@ -774,7 +776,7 @@ fn rgba8_to_nv12_and_back_ictcp_hlg() {
         16,
     );
 
-    convert_multi_thread(src, dst);
+    convert_multi_thread(src, dst).unwrap();
 
     let src = Image::new(
         PixelFormat::NV12,
@@ -804,7 +806,7 @@ fn rgba8_to_nv12_and_back_ictcp_hlg() {
         8,
     );
 
-    convert_multi_thread(src, dst);
+    convert_multi_thread(src, dst).unwrap();
 
     let buffer =
         image::ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(width as _, height as _, rgba8).unwrap();

@@ -38,7 +38,7 @@ fn do_convert(
         8,
     );
 
-    convert(src, dst);
+    convert(src, dst).unwrap();
 }
 
 fn do_convert_multi_thread(
@@ -64,7 +64,7 @@ fn do_convert_multi_thread(
         8,
     );
 
-    convert_multi_thread(src, dst);
+    convert_multi_thread(src, dst).unwrap();
 }
 
 type ConvertFunction =
