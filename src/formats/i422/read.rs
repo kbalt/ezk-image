@@ -1,7 +1,7 @@
 use super::{I422Block, I422Src};
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
-use crate::{PixelFormatPlanes, Rect};
+use crate::{ConvertError, PixelFormat, PixelFormatPlanes, Rect};
 use std::marker::PhantomData;
 
 pub(crate) struct I422Reader<'a, P: PrimitiveInternal> {
@@ -24,7 +24,15 @@ impl<'a, P: PrimitiveInternal> I422Reader<'a, P> {
         src_planes: PixelFormatPlanes<&'a [P]>,
         bits_per_component: usize,
         window: Option<Rect>,
-    ) -> Self {
+    ) -> Result<Self, ConvertError> {
+        if src_planes.bounds_check(src_width, src_height) {
+            return Err(ConvertError::InvalidPlaneSizeForDimensions);
+        }
+
+        let PixelFormatPlanes::I422 { y, u, v } = src_planes else {
+            return Err(ConvertError::InvalidPlanesForPixelFormat(PixelFormat::I422));
+        };
+
         let window = window.unwrap_or(Rect {
             x: 0,
             y: 0,
@@ -32,16 +40,10 @@ impl<'a, P: PrimitiveInternal> I422Reader<'a, P> {
             height: src_height,
         });
 
-        assert!(src_planes.bounds_check(src_width, src_height));
-
-        let PixelFormatPlanes::I422 { y, u, v } = src_planes else {
-            panic!("Invalid PixelFormatPlanes for I422Reader");
-        };
-
         assert!((window.x + window.width) <= src_width);
         assert!((window.y + window.height) <= src_height);
 
-        Self {
+        Ok(Self {
             window,
             src_width,
             y: y.as_ptr(),
@@ -49,7 +51,7 @@ impl<'a, P: PrimitiveInternal> I422Reader<'a, P> {
             v: v.as_ptr(),
             max_value: crate::formats::max_value_for_bits(bits_per_component),
             _m: PhantomData,
-        }
+        })
     }
 }
 

@@ -7,8 +7,8 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterato
 pub fn convert_multi_thread<SP: PrimitiveInternal, DP: PrimitiveInternal>(
     src: Image<&[SP]>,
     dst: Image<&mut [DP]>,
-) {
-    let (src_window, dst_window) = verify_input_windows_same_size(&src, &dst);
+) -> Result<(), crate::ConvertError> {
+    let (src_window, dst_window) = verify_input_windows_same_size(&src, &dst)?;
 
     let threads = num_cpus::get();
 
@@ -19,7 +19,7 @@ pub fn convert_multi_thread<SP: PrimitiveInternal, DP: PrimitiveInternal>(
     let src_planes = src.planes.split(src.width, src_window, threads);
     let dst_planes = dst.planes.split(dst.width, dst_window, threads);
 
-    src_planes.into_par_iter().zip(dst_planes).for_each(
+    src_planes.into_par_iter().zip(dst_planes).try_for_each(
         |((src_planes, src_window), (dst_planes, dst_window))| {
             let src = Image::new(
                 src.format,
@@ -41,7 +41,7 @@ pub fn convert_multi_thread<SP: PrimitiveInternal, DP: PrimitiveInternal>(
             )
             .with_window(dst_window);
 
-            convert(src, dst);
+            convert(src, dst)
         },
-    );
+    )
 }

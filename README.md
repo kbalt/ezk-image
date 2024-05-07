@@ -63,11 +63,12 @@ let rgb_image = vec![0u8; PixelFormat::RGB.buffer_size(width, height)];
 // Our destination image, NV12 is a format that stores the image's luminosity and colors in the YUV space
 let mut nv12_image = vec![0u8; PixelFormat::NV12.buffer_size(width, height)];
 
-// Create a Source with the rgb_image buffer and specify the image we're converting from
-let source = Source::new(
+// Create the image we're converting from
+let source = Image::new(
     PixelFormat::RGB,
-    PixelFormatPlanes::RGB(&rgb_image), // RGB only has one plane
-    width, height,
+    PixelFormatPlanes::RGB(&rgb_image[..]), // RGB only has one plane
+    width,
+    height,
     ColorInfo { // Describe the color of this image
         space: ColorSpace::BT709, // Doesn't really matter since we're not going to use the color.space in RGB images
         transfer: ColorTransfer::Linear,
@@ -77,11 +78,12 @@ let source = Source::new(
     8, // there's 8 bits per component (R, G or B)
 );
 
-// Create a Destination with the nv12_image buffer
-let destination = Destination::new(
+// Crate the image buffer we're converting to
+let destination = Image::new(
     PixelFormat::NV12, // We're converting to NV12
-    PixelFormatPlanes::infer_nv12(&mut nv12_image, width, height), // NV12 has 2 planes, `PixelFormatPlanes` has convenience functions to calculate them from a single buffer
-    width, height,
+    PixelFormatPlanes::infer_nv12(&mut nv12_image[..], width, height), // NV12 has 2 planes, `PixelFormatPlanes` has convenience functions to calculate them from a single buffer
+    width,
+    height,
     ColorInfo {
         space: ColorSpace::BT709, // NV12 is YUV so this is now relevant
         transfer: ColorTransfer::Linear,

@@ -2,7 +2,7 @@ use super::{RgbaPixel, RgbaSrc};
 use crate::formats::visit_2x2::{visit, Image2x2Visitor};
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
-use crate::{PixelFormatPlanes, Rect};
+use crate::{ConvertError, PixelFormat, PixelFormatPlanes, Rect};
 use std::marker::PhantomData;
 
 pub(crate) struct RgbaWriter<'a, const REVERSE: bool, P, S>
@@ -32,11 +32,17 @@ where
         bits_per_component: usize,
         window: Option<Rect>,
         rgba_src: S,
-    ) {
-        assert!(dst_planes.bounds_check(dst_width, dst_height));
+    ) -> Result<(), ConvertError> {
+        if !dst_planes.bounds_check(dst_width, dst_height) {
+            return Err(ConvertError::InvalidPlaneSizeForDimensions);
+        }
 
         let PixelFormatPlanes::RGBA(dst) = dst_planes else {
-            panic!("Invalid PixelFormatPlanes for RgbaWriter");
+            return Err(ConvertError::InvalidPlanesForPixelFormat(if REVERSE {
+                PixelFormat::BGRA
+            } else {
+                PixelFormat::RGBA
+            }));
         };
 
         visit(

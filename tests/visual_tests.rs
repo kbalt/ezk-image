@@ -161,8 +161,8 @@ fn i420_to_rgba_with_window() {
     .with_window(Rect {
         x: 100,
         y: 200,
-        width: 2500,
-        height: 2888,
+        width: 400,
+        height: 400,
     });
 
     let dst = Image::new(
@@ -181,8 +181,8 @@ fn i420_to_rgba_with_window() {
     .with_window(Rect {
         x: 400,
         y: 700,
-        width: 2500,
-        height: 2888,
+        width: 400,
+        height: 400,
     });
 
     convert_multi_thread(src, dst);

@@ -1,7 +1,7 @@
 use super::{RgbaBlock, RgbaPixel, RgbaSrc};
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
-use crate::{PixelFormatPlanes, Rect};
+use crate::{ConvertError, PixelFormat, PixelFormatPlanes, Rect};
 use std::marker::PhantomData;
 
 /// Writes 3 Bytes for every visited pixel in R G B order
@@ -22,11 +22,17 @@ impl<'a, const REVERSE: bool, P: PrimitiveInternal> RgbaReader<'a, REVERSE, P> {
         src_planes: PixelFormatPlanes<&'a [P]>,
         bits_per_component: usize,
         window: Option<Rect>,
-    ) -> Self {
-        assert!(src_planes.bounds_check(src_width, src_height));
+    ) -> Result<Self, ConvertError> {
+        if src_planes.bounds_check(src_width, src_height) {
+            return Err(ConvertError::InvalidPlaneSizeForDimensions);
+        }
 
         let PixelFormatPlanes::RGBA(src) = src_planes else {
-            panic!("Invalid PixelFormatPlanes for RgbaReader");
+            return Err(ConvertError::InvalidPlanesForPixelFormat(if REVERSE {
+                PixelFormat::BGRA
+            } else {
+                PixelFormat::RGBA
+            }));
         };
 
         let window = window.unwrap_or(Rect {
@@ -39,13 +45,13 @@ impl<'a, const REVERSE: bool, P: PrimitiveInternal> RgbaReader<'a, REVERSE, P> {
         assert!((window.x + window.width) <= src_width);
         assert!((window.y + window.height) <= src_height);
 
-        Self {
+        Ok(Self {
             window,
             src_width,
             src: src.as_ptr(),
             max_value: crate::formats::max_value_for_bits(bits_per_component),
             _m: PhantomData,
-        }
+        })
     }
 }
 

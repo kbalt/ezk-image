@@ -4,7 +4,7 @@ use super::{I422Block, I422Src};
 use crate::formats::visit_2x2::{visit, Image2x2Visitor};
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
-use crate::{PixelFormatPlanes, Rect};
+use crate::{ConvertError, PixelFormat, PixelFormatPlanes, Rect};
 use std::marker::PhantomData;
 
 pub(crate) struct I422Writer<'a, P, S>
@@ -36,11 +36,13 @@ where
         bits_per_component: usize,
         window: Option<Rect>,
         i422_src: S,
-    ) {
-        assert!(dst_planes.bounds_check(dst_width, dst_height));
+    ) -> Result<(), ConvertError> {
+        if !dst_planes.bounds_check(dst_width, dst_height) {
+            return Err(ConvertError::InvalidPlaneSizeForDimensions);
+        }
 
         let PixelFormatPlanes::I422 { y, u, v } = dst_planes else {
-            panic!("Invalid PixelFormatPlanes for I422Writer");
+            return Err(ConvertError::InvalidPlanesForPixelFormat(PixelFormat::I422));
         };
 
         visit(

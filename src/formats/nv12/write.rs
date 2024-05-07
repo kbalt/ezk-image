@@ -4,7 +4,7 @@ use crate::formats::visit_2x2::{visit, Image2x2Visitor};
 use crate::formats::{I420Block, I420Src};
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
-use crate::{PixelFormatPlanes, Rect};
+use crate::{ConvertError, PixelFormat, PixelFormatPlanes, Rect};
 use std::marker::PhantomData;
 
 pub(crate) struct NV12Writer<'a, P, S>
@@ -35,11 +35,13 @@ where
         bits_per_component: usize,
         window: Option<Rect>,
         i420_src: S,
-    ) {
-        assert!(dst_planes.bounds_check(dst_width, dst_height));
+    ) -> Result<(), ConvertError> {
+        if !dst_planes.bounds_check(dst_width, dst_height) {
+            return Err(ConvertError::InvalidPlaneSizeForDimensions);
+        }
 
         let PixelFormatPlanes::NV12 { y, uv } = dst_planes else {
-            panic!("Invalid PixelFormatPlanes for read_nv12");
+            return Err(ConvertError::InvalidPlanesForPixelFormat(PixelFormat::NV12));
         };
 
         visit(

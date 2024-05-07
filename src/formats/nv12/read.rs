@@ -1,7 +1,7 @@
 use crate::formats::{I420Block, I420Src};
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
-use crate::{PixelFormatPlanes, Rect};
+use crate::{ConvertError, PixelFormat, PixelFormatPlanes, Rect};
 use std::marker::PhantomData;
 
 pub(crate) struct NV12Reader<'a, P: PrimitiveInternal> {
@@ -23,7 +23,15 @@ impl<'a, P: PrimitiveInternal> NV12Reader<'a, P> {
         src_planes: PixelFormatPlanes<&'a [P]>,
         bits_per_component: usize,
         window: Option<Rect>,
-    ) -> Self {
+    ) -> Result<Self, ConvertError> {
+        if src_planes.bounds_check(src_width, src_height) {
+            return Err(ConvertError::InvalidPlaneSizeForDimensions);
+        }
+
+        let PixelFormatPlanes::NV12 { y, uv } = src_planes else {
+            return Err(ConvertError::InvalidPlanesForPixelFormat(PixelFormat::NV12));
+        };
+
         let window = window.unwrap_or(Rect {
             x: 0,
             y: 0,
@@ -31,23 +39,17 @@ impl<'a, P: PrimitiveInternal> NV12Reader<'a, P> {
             height: src_height,
         });
 
-        assert!(src_planes.bounds_check(src_width, src_height));
-
-        let PixelFormatPlanes::NV12 { y, uv } = src_planes else {
-            panic!("Invalid PixelFormatPlanes for NV12Writer");
-        };
-
         assert!((window.x + window.width) <= src_width);
         assert!((window.y + window.height) <= src_height);
 
-        Self {
+        Ok(Self {
             window,
             src_width,
             src_y: y.as_ptr(),
             src_uv: uv.as_ptr(),
             max_value: crate::formats::max_value_for_bits(bits_per_component),
             _m: PhantomData,
-        }
+        })
     }
 }
 

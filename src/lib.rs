@@ -45,7 +45,7 @@ pub struct Rect {
 fn verify_input_windows_same_size<SP: Primitive, DP: Primitive>(
     src: &Image<&[SP]>,
     dst: &Image<&mut [DP]>,
-) -> (Rect, Rect) {
+) -> Result<(Rect, Rect), ConvertError> {
     let src_window = src.window.unwrap_or(Rect {
         x: 0,
         y: 0,
@@ -61,10 +61,11 @@ fn verify_input_windows_same_size<SP: Primitive, DP: Primitive>(
     });
 
     // Src and Dst window must be the same size
-    assert_eq!(src_window.width, dst_window.width);
-    assert_eq!(src_window.height, dst_window.height);
-
-    (src_window, dst_window)
+    if src_window.width == dst_window.width && src_window.height == dst_window.height {
+        Ok((src_window, dst_window))
+    } else {
+        Err(ConvertError::MismatchedImageSize)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -116,33 +117,47 @@ impl PixelFormat {
     }
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum ConvertError {
+    #[error("source image has different size than destination image")]
+    MismatchedImageSize,
+
+    #[error("provided planes mismatch with {0:?}")]
+    InvalidPlanesForPixelFormat(PixelFormat),
+
+    #[error("provided planes are too small for the given image dimensions")]
+    InvalidPlaneSizeForDimensions,
+}
+
 #[allow(private_bounds)]
 #[inline(never)]
-pub fn convert<SP, DP>(src: Image<&[SP]>, dst: Image<&mut [DP]>)
+pub fn convert<SP, DP>(src: Image<&[SP]>, dst: Image<&mut [DP]>) -> Result<(), ConvertError>
 where
     SP: PrimitiveInternal,
     DP: PrimitiveInternal,
 {
-    verify_input_windows_same_size(&src, &dst);
+    verify_input_windows_same_size(&src, &dst)?;
 
-    let reader: Box<dyn DynRgbaReader> = read_any_to_rgba(&src);
+    let reader: Box<dyn DynRgbaReader> = read_any_to_rgba(&src)?;
 
     if need_transfer_and_primaries_convert(&src.color, &dst.color) {
         let reader = TransferAndPrimariesConvert::new(&src.color, &dst.color, reader);
 
-        rgba_to_any(dst, reader);
+        rgba_to_any(dst, reader)
     } else {
-        rgba_to_any(dst, reader);
+        rgba_to_any(dst, reader)
     }
 }
 
 #[inline(never)]
-fn read_any_to_rgba<'src, P>(src: &Image<&'src [P]>) -> Box<dyn DynRgbaReader + 'src>
+fn read_any_to_rgba<'src, P>(
+    src: &Image<&'src [P]>,
+) -> Result<Box<dyn DynRgbaReader + 'src>, ConvertError>
 where
     P: PrimitiveInternal,
 {
     match src.format {
-        PixelFormat::I420 => Box::new(I420ToRgb::new(
+        PixelFormat::I420 => Ok(Box::new(I420ToRgb::new(
             &src.color,
             I420Reader::<P>::new(
                 src.width,
@@ -150,9 +165,9 @@ where
                 src.planes,
                 src.bits_per_component,
                 src.window,
-            ),
-        )),
-        PixelFormat::I422 => Box::new(I422ToRgb::new(
+            )?,
+        ))),
+        PixelFormat::I422 => Ok(Box::new(I422ToRgb::new(
             &src.color,
             I422Reader::<P>::new(
                 src.width,
@@ -160,9 +175,9 @@ where
                 src.planes,
                 src.bits_per_component,
                 src.window,
-            ),
-        )),
-        PixelFormat::I444 => Box::new(I444ToRgb::new(
+            )?,
+        ))),
+        PixelFormat::I444 => Ok(Box::new(I444ToRgb::new(
             &src.color,
             I444Reader::<P>::new(
                 src.width,
@@ -170,9 +185,9 @@ where
                 src.planes,
                 src.bits_per_component,
                 src.window,
-            ),
-        )),
-        PixelFormat::NV12 => Box::new(I420ToRgb::new(
+            )?,
+        ))),
+        PixelFormat::NV12 => Ok(Box::new(I420ToRgb::new(
             &src.color,
             NV12Reader::<P>::new(
                 src.width,
@@ -180,41 +195,44 @@ where
                 src.planes,
                 src.bits_per_component,
                 src.window,
-            ),
-        )),
-        PixelFormat::RGBA => Box::new(RgbaReader::<false, P>::new(
+            )?,
+        ))),
+        PixelFormat::RGBA => Ok(Box::new(RgbaReader::<false, P>::new(
             src.width,
             src.height,
             src.planes,
             src.bits_per_component,
             src.window,
-        )),
-        PixelFormat::BGRA => Box::new(RgbaReader::<true, P>::new(
+        )?)),
+        PixelFormat::BGRA => Ok(Box::new(RgbaReader::<true, P>::new(
             src.width,
             src.height,
             src.planes,
             src.bits_per_component,
             src.window,
-        )),
-        PixelFormat::RGB => Box::new(RgbReader::<false, P>::new(
+        )?)),
+        PixelFormat::RGB => Ok(Box::new(RgbReader::<false, P>::new(
             src.width,
             src.height,
             src.planes,
             src.bits_per_component,
             src.window,
-        )),
-        PixelFormat::BGR => Box::new(RgbReader::<true, P>::new(
+        )?)),
+        PixelFormat::BGR => Ok(Box::new(RgbReader::<true, P>::new(
             src.width,
             src.height,
             src.planes,
             src.bits_per_component,
             src.window,
-        )),
+        )?)),
     }
 }
 
 #[inline(never)]
-fn rgba_to_any<'src, DP>(dst: Image<&mut [DP]>, reader: impl RgbaSrc + 'src)
+fn rgba_to_any<'src, DP>(
+    dst: Image<&mut [DP]>,
+    reader: impl RgbaSrc + 'src,
+) -> Result<(), ConvertError>
 where
     DP: PrimitiveInternal,
 {
