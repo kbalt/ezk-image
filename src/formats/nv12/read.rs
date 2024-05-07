@@ -45,7 +45,7 @@ impl<'a, P: PrimitiveInternal> NV12Reader<'a, P> {
             src_width,
             src_y: y.as_ptr(),
             src_uv: uv.as_ptr(),
-            max_value: crate::max_value_for_bits(bits_per_component),
+            max_value: crate::formats::max_value_for_bits(bits_per_component),
             _m: PhantomData,
         }
     }

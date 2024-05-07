@@ -19,3 +19,7 @@ pub(crate) use rgba::*;
 pub(crate) use transfer_and_primaries_convert::{
     need_transfer_and_primaries_convert, TransferAndPrimariesConvert,
 };
+
+fn max_value_for_bits(bits: usize) -> f32 {
+    ((1 << bits) - 1) as f32
+}

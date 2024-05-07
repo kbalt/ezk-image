@@ -33,10 +33,6 @@ mod arch {
     pub use std::arch::is_aarch64_feature_detected;
 }
 
-fn max_value_for_bits(bits: usize) -> f32 {
-    ((1 << bits) - 1) as f32
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct Rect {
     pub x: usize,

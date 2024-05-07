@@ -45,7 +45,7 @@ where
             Self {
                 dst_width,
                 dst: dst.as_mut_ptr(),
-                max_value: crate::max_value_for_bits(bits_per_component),
+                max_value: crate::formats::max_value_for_bits(bits_per_component),
                 rgba_src,
                 _m: PhantomData,
             },

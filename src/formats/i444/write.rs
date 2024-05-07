@@ -52,7 +52,7 @@ where
                 dst_y: y.as_mut_ptr(),
                 dst_u: u.as_mut_ptr(),
                 dst_v: v.as_mut_ptr(),
-                max_value: crate::max_value_for_bits(bits_per_component),
+                max_value: crate::formats::max_value_for_bits(bits_per_component),
                 i444_src,
                 _m: PhantomData,
             },

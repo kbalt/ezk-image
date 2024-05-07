@@ -50,7 +50,7 @@ where
                 dst_width,
                 dst_y: y.as_mut_ptr(),
                 dst_uv: uv.as_mut_ptr(),
-                max_value: crate::max_value_for_bits(bits_per_component),
+                max_value: crate::formats::max_value_for_bits(bits_per_component),
                 i420_src,
                 _m: PhantomData,
             },

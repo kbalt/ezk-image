@@ -43,7 +43,7 @@ impl<'a, const REVERSE: bool, P: PrimitiveInternal> RgbReader<'a, REVERSE, P> {
             window,
             src_width,
             src: src.as_ptr(),
-            max_value: crate::max_value_for_bits(bits_per_component),
+            max_value: crate::formats::max_value_for_bits(bits_per_component),
             _m: PhantomData,
         }
     }

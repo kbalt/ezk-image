@@ -47,7 +47,7 @@ impl<'a, P: PrimitiveInternal> I444Reader<'a, P> {
             y: y.as_ptr(),
             u: u.as_ptr(),
             v: v.as_ptr(),
-            max_value: crate::max_value_for_bits(bits_per_component),
+            max_value: crate::formats::max_value_for_bits(bits_per_component),
             _m: PhantomData,
         }
     }
