@@ -23,7 +23,7 @@ impl<'a, const REVERSE: bool, P: PrimitiveInternal> RgbReader<'a, REVERSE, P> {
         bits_per_component: usize,
         window: Option<Rect>,
     ) -> Result<Self, ConvertError> {
-        if src_planes.bounds_check(src_width, src_height) {
+        if !src_planes.bounds_check(src_width, src_height) {
             return Err(ConvertError::InvalidPlaneSizeForDimensions);
         }
 
