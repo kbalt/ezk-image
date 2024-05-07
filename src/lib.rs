@@ -42,7 +42,7 @@ pub struct Rect {
 }
 
 /// Verify that the input values are all valid and safe to move on to
-fn verify_input_windows_same_size<SP: Primitive, DP: Primitive>(
+fn get_and_verify_input_windows<SP: Primitive, DP: Primitive>(
     src: &Image<&[SP]>,
     dst: &Image<&mut [DP]>,
 ) -> Result<(Rect, Rect), ConvertError> {
@@ -61,11 +61,16 @@ fn verify_input_windows_same_size<SP: Primitive, DP: Primitive>(
     });
 
     // Src and Dst window must be the same size
-    if src_window.width == dst_window.width && src_window.height == dst_window.height {
-        Ok((src_window, dst_window))
-    } else {
-        Err(ConvertError::MismatchedImageSize)
+    if src_window.width != dst_window.width || src_window.height != dst_window.height {
+        return Err(ConvertError::MismatchedImageSize);
     }
+
+    // Src and Dst window must have even dimensions
+    if src_window.width % 2 == 1 || src_window.height % 2 == 1 {
+        return Err(ConvertError::OddImageDimensions);
+    }
+
+    Ok((src_window, dst_window))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -119,6 +124,9 @@ impl PixelFormat {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ConvertError {
+    #[error("image dimensions are not divisible by 2")]
+    OddImageDimensions,
+
     #[error("source image has different size than destination image")]
     MismatchedImageSize,
 
@@ -136,7 +144,7 @@ where
     SP: PrimitiveInternal,
     DP: PrimitiveInternal,
 {
-    verify_input_windows_same_size(&src, &dst)?;
+    get_and_verify_input_windows(&src, &dst)?;
 
     let reader: Box<dyn DynRgbaReader> = read_any_to_rgba(&src)?;
 

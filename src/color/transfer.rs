@@ -21,12 +21,14 @@ pub enum ColorTransfer {
 
 impl ColorTransfer {
     pub fn linear_to_scaled(&self, mut i: f32) -> f32 {
+        // Safety: f32 is not a SIMD type
         unsafe { self.linear_to_scaled_v(&mut [&mut i]) }
 
         i
     }
 
     pub fn scaled_to_linear(&self, mut i: f32) -> f32 {
+        // Safety: f32 is not a SIMD type
         unsafe { self.scaled_to_linear_v(&mut [&mut i]) }
 
         i

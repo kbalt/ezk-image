@@ -1,5 +1,5 @@
 use crate::primitive::PrimitiveInternal;
-use crate::{convert, verify_input_windows_same_size, Image};
+use crate::{convert, get_and_verify_input_windows, Image};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 #[inline(never)]
@@ -8,7 +8,7 @@ pub fn convert_multi_thread<SP: PrimitiveInternal, DP: PrimitiveInternal>(
     src: Image<&[SP]>,
     dst: Image<&mut [DP]>,
 ) -> Result<(), crate::ConvertError> {
-    let (src_window, dst_window) = verify_input_windows_same_size(&src, &dst)?;
+    let (src_window, dst_window) = get_and_verify_input_windows(&src, &dst)?;
 
     let threads = num_cpus::get();
 

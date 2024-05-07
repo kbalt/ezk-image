@@ -65,6 +65,7 @@ where
     // Fallback to naive
     // Safety: Inputs have been checked
     unsafe { visit_impl::<f32, _>(window, visitor) };
+
     Ok(())
 }
 

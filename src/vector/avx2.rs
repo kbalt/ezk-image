@@ -310,7 +310,7 @@ mod math {
     const ONE_HALF: __m256 = splat(0.5);
 
     const fn splat(f: f32) -> __m256 {
-        unsafe { transmute([f; 8]) }
+        unsafe { transmute::<[f32; 8], __m256>([f; 8]) }
     }
 
     #[inline(always)]

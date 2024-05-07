@@ -266,6 +266,8 @@ fn resize_plane<P, Px>(
     for<'a> fir::DynamicImageView<'a>: From<fir::ImageView<'a, Px>>,
     for<'a> fir::DynamicImageViewMut<'a>: From<fir::ImageViewMut<'a, Px>>,
 {
+    // Safety:
+    // P is either u8 or u16, so transmuting to u8 isn't an issue
     let src_slice = unsafe { src.align_to::<u8>().1 };
     let dst_slice = unsafe { dst.align_to_mut::<u8>().1 };
 
