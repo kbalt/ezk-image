@@ -1,5 +1,18 @@
 use crate::{planes::AnySlice, ColorInfo, PixelFormat, PixelFormatPlanes, Rect};
 
+#[derive(Debug, thiserror::Error)]
+pub enum ImageError {
+    #[error("width or height must not be zero")]
+    InvalidDimensions,
+
+    #[error("plane size does not match the provided dimensions and pixel format")]
+    InvalidPlaneSize,
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("Window position and/or size does not fit in the Image")]
+pub struct ImageWindowError;
+
 #[derive(Debug, Clone, Copy)]
 pub struct Image<S: AnySlice> {
     pub(crate) format: PixelFormat,
@@ -21,10 +34,16 @@ impl<S: AnySlice> Image<S> {
         height: usize,
         color: ColorInfo,
         bits_per_component: usize,
-    ) -> Self {
-        assert!(planes.bounds_check(width, height));
+    ) -> Result<Self, ImageError> {
+        if width == 0 || height == 0 {
+            return Err(ImageError::InvalidDimensions);
+        }
 
-        Self {
+        if !planes.bounds_check(width, height) {
+            return Err(ImageError::InvalidPlaneSize);
+        }
+
+        Ok(Self {
             format,
             planes,
             width,
@@ -32,18 +51,21 @@ impl<S: AnySlice> Image<S> {
             color,
             bits_per_component,
             window: None,
+        })
+    }
+
+    pub fn with_window(mut self, window: Rect) -> Result<Self, ImageWindowError> {
+        self.set_window(window)?;
+        Ok(self)
+    }
+
+    pub fn set_window(&mut self, window: Rect) -> Result<(), ImageWindowError> {
+        if (window.x + window.width > self.width) || (window.y + window.height > self.height) {
+            return Err(ImageWindowError);
         }
-    }
 
-    pub fn with_window(mut self, window: Rect) -> Self {
-        self.set_window(window);
-        self
-    }
+        self.window = Some(window);
 
-    pub fn set_window(&mut self, window: Rect) {
-        assert!(window.x + window.width <= self.width);
-        assert!(window.y + window.height <= self.height);
-
-        self.window = Some(window)
+        Ok(())
     }
 }

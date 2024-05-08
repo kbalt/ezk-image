@@ -76,7 +76,7 @@ let source = Image::new(
         full_range: false, // just like the ColorSpace, this isn't used in RGB images
     },
     8, // there's 8 bits per component (R, G or B)
-);
+).unwrap();
 
 // Crate the image buffer we're converting to
 let destination = Image::new(
@@ -91,11 +91,11 @@ let destination = Image::new(
         full_range: false, // just like the ColorSpace this must now be considered, because the target is YUV
     },
     8, // there's 8 bits per component (Y, U or V)
-);
+).unwrap();
 
 // Now convert the image data
 convert_multi_thread(
     source,
     destination,
-);
+).unwrap();
 ```

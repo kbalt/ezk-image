@@ -110,6 +110,10 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
     /// - `max_results` how often the image should be split (upper limit, might be less if the image is too small)
     ///
     /// Returns a list containing the new planes and the window piece of the `initial_window`
+    ///
+    /// # Panics
+    ///
+    /// Panics when the initial window is larger than the image's dimensions
     pub fn split(
         mut self,
         width: usize,

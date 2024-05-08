@@ -1,6 +1,6 @@
 use ezk_image::{
-    convert_multi_thread, scale, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, Image,
-    PixelFormat, PixelFormatPlanes, Rect,
+    convert_multi_thread, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, Image, PixelFormat,
+    PixelFormatPlanes, Rect, ResizeAlg, Resizer,
 };
 use image::{Rgb, Rgba};
 
@@ -42,12 +42,13 @@ fn make_i420_image(color: ColorInfo) -> (Vec<u8>, usize, usize) {
     convert_multi_thread(
         Image::new(
             PixelFormat::RGBA,
-            PixelFormatPlanes::RGBA(&rgba),
+            PixelFormatPlanes::RGBA(&rgba[..]),
             width,
             height,
             color,
             8,
-        ),
+        )
+        .unwrap(),
         Image::new(
             PixelFormat::I420,
             PixelFormatPlanes::infer_i420(&mut i420[..], width, height),
@@ -55,7 +56,8 @@ fn make_i420_image(color: ColorInfo) -> (Vec<u8>, usize, usize) {
             height,
             color,
             8,
-        ),
+        )
+        .unwrap(),
     )
     .unwrap();
 
@@ -69,12 +71,13 @@ fn make_nv12_image(color: ColorInfo) -> (Vec<u8>, usize, usize) {
     convert_multi_thread(
         Image::new(
             PixelFormat::RGBA,
-            PixelFormatPlanes::RGBA(&rgba),
+            PixelFormatPlanes::RGBA(&rgba[..]),
             width,
             height,
             color,
             8,
-        ),
+        )
+        .unwrap(),
         Image::new(
             PixelFormat::NV12,
             PixelFormatPlanes::infer_nv12(&mut nv12[..], width, height),
@@ -82,7 +85,8 @@ fn make_nv12_image(color: ColorInfo) -> (Vec<u8>, usize, usize) {
             height,
             color,
             8,
-        ),
+        )
+        .unwrap(),
     )
     .unwrap();
 
@@ -112,7 +116,8 @@ fn i420_to_rgb() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
     let dst = Image::new(
         PixelFormat::RGB,
@@ -126,7 +131,8 @@ fn i420_to_rgb() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
     convert_multi_thread(src, dst).unwrap();
 
@@ -160,12 +166,14 @@ fn i420_to_rgba_with_window() {
         },
         8,
     )
+    .unwrap()
     .with_window(Rect {
         x: 100,
         y: 200,
         width: 400,
         height: 400,
-    });
+    })
+    .unwrap();
 
     let dst = Image::new(
         PixelFormat::RGB,
@@ -180,12 +188,14 @@ fn i420_to_rgba_with_window() {
         },
         8,
     )
+    .unwrap()
     .with_window(Rect {
         x: 400,
         y: 700,
         width: 400,
         height: 400,
-    });
+    })
+    .unwrap();
 
     convert_multi_thread(src, dst).unwrap();
 
@@ -214,7 +224,8 @@ fn rgba_to_rgba() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
     let dst = Image::new(
         PixelFormat::RGBA,
@@ -228,7 +239,8 @@ fn rgba_to_rgba() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
     convert_multi_thread(src, dst).unwrap();
 
@@ -257,7 +269,8 @@ fn rgba_to_rgb() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
     let dst = Image::new(
         PixelFormat::RGB,
@@ -271,7 +284,8 @@ fn rgba_to_rgb() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
     convert_multi_thread(src, dst).unwrap();
 
@@ -307,7 +321,8 @@ fn i420_to_rgb_scale() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
     let mut nv12_upscaled = vec![0u8; PixelFormat::I420.buffer_size(scaled_width, scaled_height)];
 
@@ -323,9 +338,10 @@ fn i420_to_rgb_scale() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
-    scale(src, dst);
+    Resizer::new(ResizeAlg::Nearest).resize(src, dst).unwrap();
 
     // Convert I420 to RGB
 
@@ -341,7 +357,8 @@ fn i420_to_rgb_scale() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
     let mut rgb = vec![0u8; PixelFormat::RGB.buffer_size(scaled_width, scaled_height)];
 
@@ -357,7 +374,8 @@ fn i420_to_rgb_scale() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
     convert_multi_thread(src, dst).unwrap();
 
@@ -389,7 +407,8 @@ fn rgba8_to_rgba16_and_back() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
     let dst = Image::new(
         PixelFormat::RGB,
@@ -403,7 +422,8 @@ fn rgba8_to_rgba16_and_back() {
             full_range: false,
         },
         16,
-    );
+    )
+    .unwrap();
 
     convert_multi_thread(src, dst).unwrap();
 
@@ -430,7 +450,8 @@ fn rgba8_to_rgba16_and_back() {
             full_range: false,
         },
         16,
-    );
+    )
+    .unwrap();
 
     let dst = Image::new(
         PixelFormat::RGBA,
@@ -444,7 +465,8 @@ fn rgba8_to_rgba16_and_back() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
     convert_multi_thread(src, dst).unwrap();
 
@@ -472,7 +494,8 @@ fn rgba8_to_nv12_and_back() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
     let dst = Image::new(
         PixelFormat::NV12,
@@ -486,7 +509,8 @@ fn rgba8_to_nv12_and_back() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
     convert_multi_thread(src, dst).unwrap();
 
@@ -502,7 +526,8 @@ fn rgba8_to_nv12_and_back() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
     let dst = Image::new(
         PixelFormat::RGBA,
@@ -516,7 +541,8 @@ fn rgba8_to_nv12_and_back() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
     convert_multi_thread(src, dst).unwrap();
 
@@ -544,7 +570,8 @@ fn rgba8_to_i422_and_back() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
     let dst = Image::new(
         PixelFormat::I422,
@@ -558,7 +585,8 @@ fn rgba8_to_i422_and_back() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
     convert_multi_thread(src, dst).unwrap();
 
@@ -574,7 +602,8 @@ fn rgba8_to_i422_and_back() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
     let dst = Image::new(
         PixelFormat::RGBA,
@@ -588,7 +617,8 @@ fn rgba8_to_i422_and_back() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
     convert_multi_thread(src, dst).unwrap();
 
@@ -616,7 +646,8 @@ fn rgba8_to_i444_and_back() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
     let dst = Image::new(
         PixelFormat::I444,
@@ -630,7 +661,8 @@ fn rgba8_to_i444_and_back() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
     convert_multi_thread(src, dst).unwrap();
 
@@ -646,7 +678,8 @@ fn rgba8_to_i444_and_back() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
     let dst = Image::new(
         PixelFormat::RGBA,
@@ -660,7 +693,8 @@ fn rgba8_to_i444_and_back() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
     convert_multi_thread(src, dst).unwrap();
 
@@ -688,7 +722,8 @@ fn rgba8_to_nv12_and_back_ictcp_pq() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
     let dst = Image::new(
         PixelFormat::NV12,
@@ -702,7 +737,8 @@ fn rgba8_to_nv12_and_back_ictcp_pq() {
             full_range: false,
         },
         16,
-    );
+    )
+    .unwrap();
 
     convert_multi_thread(src, dst).unwrap();
 
@@ -718,7 +754,8 @@ fn rgba8_to_nv12_and_back_ictcp_pq() {
             full_range: false,
         },
         16,
-    );
+    )
+    .unwrap();
 
     let dst = Image::new(
         PixelFormat::RGBA,
@@ -732,7 +769,8 @@ fn rgba8_to_nv12_and_back_ictcp_pq() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
     convert_multi_thread(src, dst).unwrap();
 
@@ -760,7 +798,8 @@ fn rgba8_to_nv12_and_back_ictcp_hlg() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
     let dst = Image::new(
         PixelFormat::NV12,
@@ -774,7 +813,8 @@ fn rgba8_to_nv12_and_back_ictcp_hlg() {
             full_range: false,
         },
         16,
-    );
+    )
+    .unwrap();
 
     convert_multi_thread(src, dst).unwrap();
 
@@ -790,7 +830,8 @@ fn rgba8_to_nv12_and_back_ictcp_hlg() {
             full_range: false,
         },
         16,
-    );
+    )
+    .unwrap();
 
     let dst = Image::new(
         PixelFormat::RGBA,
@@ -804,7 +845,8 @@ fn rgba8_to_nv12_and_back_ictcp_hlg() {
             full_range: false,
         },
         8,
-    );
+    )
+    .unwrap();
 
     convert_multi_thread(src, dst).unwrap();
 

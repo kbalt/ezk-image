@@ -28,7 +28,8 @@ fn do_convert(
         IMAGE_HEIGHT,
         NOOP_COLOR_INFO,
         8,
-    );
+    )
+    .unwrap();
     let dst = Image::new(
         dst_format,
         dst_planes,
@@ -36,7 +37,8 @@ fn do_convert(
         IMAGE_HEIGHT,
         NOOP_COLOR_INFO,
         8,
-    );
+    )
+    .unwrap();
 
     convert(src, dst).unwrap();
 }
@@ -54,7 +56,8 @@ fn do_convert_multi_thread(
         IMAGE_HEIGHT,
         NOOP_COLOR_INFO,
         8,
-    );
+    )
+    .unwrap();
     let dst = Image::new(
         dst_format,
         dst_planes,
@@ -62,7 +65,8 @@ fn do_convert_multi_thread(
         IMAGE_HEIGHT,
         NOOP_COLOR_INFO,
         8,
-    );
+    )
+    .unwrap();
 
     convert_multi_thread(src, dst).unwrap();
 }

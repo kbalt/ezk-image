@@ -29,7 +29,9 @@ pub fn convert_multi_thread<SP: PrimitiveInternal, DP: PrimitiveInternal>(
                 src.color,
                 src.bits_per_component,
             )
-            .with_window(src_window);
+            .expect("Invariants have been checked")
+            .with_window(src_window)
+            .expect("Invariants have been checked");
 
             let dst = Image::new(
                 dst.format,
@@ -39,7 +41,9 @@ pub fn convert_multi_thread<SP: PrimitiveInternal, DP: PrimitiveInternal>(
                 dst.color,
                 dst.bits_per_component,
             )
-            .with_window(dst_window);
+            .expect("Invariants have been checked")
+            .with_window(dst_window)
+            .expect("Invariants have been checked");
 
             convert(src, dst)
         },
