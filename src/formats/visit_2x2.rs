@@ -1,5 +1,5 @@
 use crate::{arch::*, ConvertError};
-use crate::{vector::Vector, Rect};
+use crate::{vector::Vector, Window};
 
 pub(crate) trait Image2x2Visitor {
     unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize);
@@ -9,13 +9,13 @@ pub(crate) trait Image2x2Visitor {
 pub(crate) fn visit<R>(
     src_width: usize,
     src_height: usize,
-    window: Option<Rect>,
+    window: Option<Window>,
     visitor: R,
 ) -> Result<(), ConvertError>
 where
     R: Image2x2Visitor,
 {
-    let window = window.unwrap_or(Rect {
+    let window = window.unwrap_or(Window {
         x: 0,
         y: 0,
         width: src_width,
@@ -31,7 +31,7 @@ where
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     if is_x86_feature_detected!("avx2") && is_x86_feature_detected!("fma") {
         #[target_feature(enable = "avx2")]
-        unsafe fn call<R>(window: Rect, visitor: R)
+        unsafe fn call<R>(window: Window, visitor: R)
         where
             R: Image2x2Visitor,
         {
@@ -48,7 +48,7 @@ where
     #[cfg(target_arch = "aarch64")]
     if is_aarch64_feature_detected!("neon") {
         #[target_feature(enable = "neon")]
-        unsafe fn call<R>(window: Rect, visitor: R)
+        unsafe fn call<R>(window: Window, visitor: R)
         where
             R: Image2x2Visitor,
         {
@@ -70,7 +70,7 @@ where
 }
 
 #[inline(always)]
-unsafe fn visit_impl<V: Vector, R: Image2x2Visitor>(window: Rect, mut visitor: R) {
+unsafe fn visit_impl<V: Vector, R: Image2x2Visitor>(window: Window, mut visitor: R) {
     // How many pixels cannot be vectorized since they don't fit the vector (per row)
     let non_vectored_pixels_per_row = window.width % (V::LEN * 2);
     let vectored_pixels_per_row = window.width - non_vectored_pixels_per_row;

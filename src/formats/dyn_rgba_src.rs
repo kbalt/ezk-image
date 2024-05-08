@@ -13,7 +13,10 @@ mod platform {
     use super::DynRgbaReaderSpec;
     use crate::{arch::*, RgbaBlock, RgbaSrc};
 
-    pub trait DynRgbaReader: DynRgbaReaderSpec<f32> + DynRgbaReaderSpec<__m256> {}
+    pub(crate) trait DynRgbaReader:
+        DynRgbaReaderSpec<f32> + DynRgbaReaderSpec<__m256>
+    {
+    }
 
     impl<R: DynRgbaReaderSpec<f32> + DynRgbaReaderSpec<__m256>> DynRgbaReader for R {}
 
@@ -31,7 +34,10 @@ mod platform {
     use super::DynRgbaReaderSpec;
     use crate::{arch::*, RgbaBlock, RgbaSrc};
 
-    pub trait DynRgbaReader: DynRgbaReaderSpec<f32> + DynRgbaReaderSpec<float32x4_t> {}
+    pub(crate) trait DynRgbaReader:
+        DynRgbaReaderSpec<f32> + DynRgbaReaderSpec<float32x4_t>
+    {
+    }
 
     impl<R: DynRgbaReaderSpec<f32> + DynRgbaReaderSpec<float32x4_t>> DynRgbaReader for R {}
 
@@ -50,7 +56,7 @@ mod platform {
     use crate::vector::Vector;
     use crate::{RgbaBlock, RgbaSrc};
 
-    pub trait DynRgbaReader: DynRgbaReaderSpec<f32> {}
+    pub(crate) trait DynRgbaReader: DynRgbaReaderSpec<f32> {}
 
     impl<R: DynRgbaReaderSpec<f32>> DynRgbaReader for R {}
 }

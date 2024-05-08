@@ -1,6 +1,7 @@
 use crate::{convert, get_and_verify_input_windows, Image, Primitive};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
+/// Parallelizes [`convert`] using as many threads as there are CPU cores.
 pub fn convert_multi_thread<SP: Primitive, DP: Primitive>(
     src: Image<&[SP]>,
     dst: Image<&mut [DP]>,

@@ -1,5 +1,6 @@
 use crate::vector::Vector;
 
+/// Color gamut of an image
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColorPrimaries {
     BT601NTSC,
@@ -8,6 +9,7 @@ pub enum ColorPrimaries {
 }
 
 impl ColorPrimaries {
+    /// Returns the RGB to CIE 1931 XYZ matrix
     pub fn rgb_to_xyz_mat(self) -> &'static [[f32; 3]; 3] {
         use ColorPrimaries::*;
 
@@ -18,6 +20,7 @@ impl ColorPrimaries {
         }
     }
 
+    /// Returns the CIE 1931 XYZ to RGB matrix
     pub fn xyz_to_rgb_mat(self) -> &'static [[f32; 3]; 3] {
         use ColorPrimaries::*;
 

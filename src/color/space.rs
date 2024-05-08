@@ -4,6 +4,7 @@ use crate::color::mat_idxs::*;
 use crate::vector::Vector;
 use crate::ColorTransfer;
 
+/// Color space used for RGB to YUV conversion
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColorSpace {
     /// YUV Rec. ITU-R BT.601-7 625

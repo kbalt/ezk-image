@@ -1,11 +1,11 @@
 use super::{I444Block, I444Src};
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
-use crate::{ConvertError, I444Pixel, PixelFormat, PixelFormatPlanes, Rect};
+use crate::{ConvertError, I444Pixel, PixelFormat, PixelFormatPlanes, Window};
 use std::marker::PhantomData;
 
 pub(crate) struct I444Reader<'a, P: PrimitiveInternal> {
-    window: Rect,
+    window: Window,
 
     src_width: usize,
     y: *const P,
@@ -23,7 +23,7 @@ impl<'a, P: PrimitiveInternal> I444Reader<'a, P> {
         src_height: usize,
         src_planes: PixelFormatPlanes<&'a [P]>,
         bits_per_component: usize,
-        window: Option<Rect>,
+        window: Option<Window>,
     ) -> Result<Self, ConvertError> {
         if !src_planes.bounds_check(src_width, src_height) {
             return Err(ConvertError::InvalidPlaneSizeForDimensions);
@@ -33,7 +33,7 @@ impl<'a, P: PrimitiveInternal> I444Reader<'a, P> {
             return Err(ConvertError::InvalidPlanesForPixelFormat(PixelFormat::I444));
         };
 
-        let window = window.unwrap_or(Rect {
+        let window = window.unwrap_or(Window {
             x: 0,
             y: 0,
             width: src_width,

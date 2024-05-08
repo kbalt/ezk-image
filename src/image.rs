@@ -1,4 +1,4 @@
-use crate::{planes::AnySlice, ColorInfo, PixelFormat, PixelFormatPlanes, Rect};
+use crate::{planes::AnySlice, ColorInfo, PixelFormat, PixelFormatPlanes, Window};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ImageError {
@@ -23,7 +23,7 @@ pub struct Image<S: AnySlice> {
     pub(crate) color: ColorInfo,
     pub(crate) bits_per_component: usize,
 
-    pub(crate) window: Option<Rect>,
+    pub(crate) window: Option<Window>,
 }
 
 impl<S: AnySlice> Image<S> {
@@ -54,12 +54,12 @@ impl<S: AnySlice> Image<S> {
         })
     }
 
-    pub fn with_window(mut self, window: Rect) -> Result<Self, ImageWindowError> {
+    pub fn with_window(mut self, window: Window) -> Result<Self, ImageWindowError> {
         self.set_window(window)?;
         Ok(self)
     }
 
-    pub fn set_window(&mut self, window: Rect) -> Result<(), ImageWindowError> {
+    pub fn set_window(&mut self, window: Window) -> Result<(), ImageWindowError> {
         if (window.x + window.width > self.width) || (window.y + window.height > self.height) {
             return Err(ImageWindowError);
         }

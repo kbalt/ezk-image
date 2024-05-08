@@ -1,10 +1,10 @@
 use crate::vector::Vector;
 
+/// Image opto-electronic transfer characteristics
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColorTransfer {
     /// Linear
     Linear,
-
     /// Gamma of 2.2
     Gamma22,
     /// Gamma of 2.8
@@ -13,9 +13,9 @@ pub enum ColorTransfer {
     SRGB,
     /// BT.601 BT.709 BT.2020
     SDR,
-    /// BT.2100 perceptual quantization (PQ) system
+    /// BT.2100 perceptual quantization (PQ)
     BT2100PQ,
-    /// BT.2100 hybrid log-gamma (HLG) system
+    /// BT.2100 hybrid log-gamma (HLG)
     BT2100HLG,
 }
 

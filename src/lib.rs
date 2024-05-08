@@ -1,4 +1,5 @@
 #![doc = include_str!("../README.md")]
+#![warn(unreachable_pub)]
 
 use formats::*;
 use primitive::PrimitiveInternal;
@@ -6,7 +7,7 @@ use primitive::PrimitiveInternal;
 pub use color::{ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer};
 #[cfg(feature = "resize")]
 pub use fir::{Filter, FilterType, ResizeAlg};
-pub use image::Image;
+pub use image::{Image, ImageError, ImageWindowError};
 #[cfg(feature = "multi-thread")]
 pub use multi_thread::convert_multi_thread;
 pub use planes::PixelFormatPlanes;
@@ -27,18 +28,19 @@ mod vector;
 
 mod arch {
     #[cfg(target_arch = "x86")]
-    pub use std::arch::x86::*;
+    pub(crate) use std::arch::x86::*;
     #[cfg(target_arch = "x86_64")]
-    pub use std::arch::x86_64::*;
+    pub(crate) use std::arch::x86_64::*;
 
     #[cfg(target_arch = "aarch64")]
-    pub use std::arch::aarch64::*;
+    pub(crate) use std::arch::aarch64::*;
     #[cfg(target_arch = "aarch64")]
-    pub use std::arch::is_aarch64_feature_detected;
+    pub(crate) use std::arch::is_aarch64_feature_detected;
 }
 
+/// Window into an image
 #[derive(Debug, Clone, Copy)]
-pub struct Rect {
+pub struct Window {
     pub x: usize,
     pub y: usize,
     pub width: usize,
@@ -49,15 +51,15 @@ pub struct Rect {
 fn get_and_verify_input_windows<SP: Primitive, DP: Primitive>(
     src: &Image<&[SP]>,
     dst: &Image<&mut [DP]>,
-) -> Result<(Rect, Rect), ConvertError> {
-    let src_window = src.window.unwrap_or(Rect {
+) -> Result<(Window, Window), ConvertError> {
+    let src_window = src.window.unwrap_or(Window {
         x: 0,
         y: 0,
         width: src.width,
         height: src.height,
     });
 
-    let dst_window = dst.window.unwrap_or(Rect {
+    let dst_window = dst.window.unwrap_or(Window {
         x: 0,
         y: 0,
         width: dst.width,
@@ -77,42 +79,54 @@ fn get_and_verify_input_windows<SP: Primitive, DP: Primitive>(
     Ok((src_window, dst_window))
 }
 
+/// Supported pixel formats
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum PixelFormat {
-    /// 3 Planes, Y, U, V
+    /// YUV with U and V sub-sampled in the vertical and horizontal dimension
     ///
-    /// 4x Y, 1x U, 1x V
+    /// 3 Planes Y, U and V
     I420,
 
-    /// 3 Planes, Y, U, V
+    /// YUV with U and V sub-sampled in the horizontal dimension
     ///
-    /// 4x Y, 2x U, 2x V
+    /// 3 Planes Y, U and V
     I422,
 
-    /// 3 Planes, Y, U, V
+    /// YUV
     ///
-    /// 1x Y, 1x U, 1x V
+    /// 3 Planes Y, U and V
     I444,
 
-    /// 2 Planes, Y, U & V interleaved
+    /// YUV with U and V sub-sampled in the vertical and horizontal dimension
     ///
-    /// 4x Y, 1x U & V
+    /// 2 Planes Y and UV interleaved
     NV12,
 
-    /// 1 Plane 4 primitives R, G, B, A
+    /// RGBA
+    ///
+    /// 1 Plane RGBA interleaved
     RGBA,
 
-    /// 1 Plane 4 primitives B, G, R, A
+    /// BGRA
+    ///
+    /// 1 Plane BGRA interleaved
     BGRA,
 
-    /// 1 Plane 3 primitives R, G, B
+    /// RGB
+    ///
+    /// 1 Plane RGB interleaved
     RGB,
 
-    /// 1 Plane 3 primitives B, G, R
+    /// BGR
+    ///
+    /// 1 Plane BGR interleaved
     BGR,
 }
 
 impl PixelFormat {
+    /// Calculate the required buffer size given the [`PixelFormat`] self and image dimensions (in pixel width, height).
+    ///
+    /// The size is the amount of primitives (u8, u16) so when allocating size this must be accounted for.
     pub fn buffer_size(self, width: usize, height: usize) -> usize {
         use PixelFormat::*;
 
@@ -126,6 +140,7 @@ impl PixelFormat {
     }
 }
 
+/// Errors that may occur when trying to convert an image
 #[derive(Debug, thiserror::Error)]
 pub enum ConvertError {
     #[error("image dimensions are not divisible by 2")]
@@ -141,6 +156,9 @@ pub enum ConvertError {
     InvalidPlaneSizeForDimensions,
 }
 
+/// Convert pixel-format and color from the src-image to the specified dst-image.
+///
+/// The given images (or at least their included window) must have dimensions (width, height) divisible by 2.
 #[inline(never)]
 pub fn convert<SP, DP>(src: Image<&[SP]>, dst: Image<&mut [DP]>) -> Result<(), ConvertError>
 where

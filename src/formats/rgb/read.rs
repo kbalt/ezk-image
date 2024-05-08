@@ -1,12 +1,12 @@
 use crate::formats::rgba::{RgbaBlock, RgbaPixel, RgbaSrc};
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
-use crate::{ConvertError, PixelFormat, PixelFormatPlanes, Rect};
+use crate::{ConvertError, PixelFormat, PixelFormatPlanes, Window};
 use std::marker::PhantomData;
 
 /// Writes 3 Bytes for every visited pixel in R G B order
 pub(crate) struct RgbReader<'a, const REVERSE: bool, P: PrimitiveInternal> {
-    window: Rect,
+    window: Window,
 
     src_width: usize,
     src: *const P,
@@ -21,7 +21,7 @@ impl<'a, const REVERSE: bool, P: PrimitiveInternal> RgbReader<'a, REVERSE, P> {
         src_height: usize,
         src_planes: PixelFormatPlanes<&'a [P]>,
         bits_per_component: usize,
-        window: Option<Rect>,
+        window: Option<Window>,
     ) -> Result<Self, ConvertError> {
         if !src_planes.bounds_check(src_width, src_height) {
             return Err(ConvertError::InvalidPlaneSizeForDimensions);
@@ -35,7 +35,7 @@ impl<'a, const REVERSE: bool, P: PrimitiveInternal> RgbReader<'a, REVERSE, P> {
             }));
         };
 
-        let window = window.unwrap_or(Rect {
+        let window = window.unwrap_or(Window {
             x: 0,
             y: 0,
             width: src_width,

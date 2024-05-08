@@ -1,4 +1,4 @@
-use crate::{Image, PixelFormatPlanes, Primitive, Rect};
+use crate::{Image, PixelFormatPlanes, Primitive, Window};
 use std::num::NonZeroU32;
 
 #[cfg(feature = "multi-thread")]
@@ -6,12 +6,14 @@ use rayon::scope;
 #[cfg(not(feature = "multi-thread"))]
 use rayon_stub::scope;
 
+/// Everything that can go wrong when calling [`Resizer::resize`]
 #[derive(Debug, thiserror::Error)]
 pub enum ResizeError {
     #[error("source and destination images have different pixel formats")]
     DifferentFormats,
 }
 
+/// Wrapper over [`fast_image_resize`](fir) to resize [`Image`]s
 #[derive(Clone)]
 pub struct Resizer {
     alg: fir::ResizeAlg,
@@ -31,6 +33,9 @@ impl Resizer {
         std::array::from_fn(|_| iter.next().expect("just resized to the correct len"))
     }
 
+    /// Resize an image. `src` and `dst` must have the same pixel format.
+    ///
+    /// Transfer characteristics of the source image are ignored.
     #[allow(private_bounds)]
     pub fn resize<P>(&mut self, src: Image<&[P]>, dst: Image<&mut [P]>) -> Result<(), ResizeError>
     where
@@ -306,12 +311,12 @@ impl Resizer {
         src: &[P],
         src_width: u32,
         src_height: u32,
-        src_window: Option<Rect>,
+        src_window: Option<Window>,
 
         dst: &mut [P],
         dst_width: u32,
         dst_height: u32,
-        dst_window: Option<Rect>,
+        dst_window: Option<Window>,
     ) where
         P: Primitive,
         Px: fir::pixels::PixelExt,
@@ -374,8 +379,8 @@ impl Resizer {
     }
 }
 
-fn window_div_1x2(w: Rect) -> Rect {
-    Rect {
+fn window_div_1x2(w: Window) -> Window {
+    Window {
         x: w.x,
         y: w.y / 2,
         width: w.width,
@@ -383,8 +388,8 @@ fn window_div_1x2(w: Rect) -> Rect {
     }
 }
 
-fn window_div_2x2(w: Rect) -> Rect {
-    Rect {
+fn window_div_2x2(w: Window) -> Window {
+    Window {
         x: w.x / 2,
         y: w.y / 2,
         width: w.width / 2,

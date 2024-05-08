@@ -1,6 +1,6 @@
 use ezk_image::{
     convert_multi_thread, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, Image, PixelFormat,
-    PixelFormatPlanes, Rect, ResizeAlg, Resizer,
+    PixelFormatPlanes, ResizeAlg, Resizer, Window,
 };
 use image::{Rgb, Rgba};
 
@@ -167,7 +167,7 @@ fn i420_to_rgba_with_window() {
         8,
     )
     .unwrap()
-    .with_window(Rect {
+    .with_window(Window {
         x: 100,
         y: 200,
         width: 400,
@@ -189,7 +189,7 @@ fn i420_to_rgba_with_window() {
         8,
     )
     .unwrap()
-    .with_window(Rect {
+    .with_window(Window {
         x: 400,
         y: 700,
         width: 400,

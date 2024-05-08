@@ -1,6 +1,9 @@
-use crate::{PixelFormat, Rect};
+use crate::{PixelFormat, Window};
 use std::mem::take;
 
+/// All supported image plane formats
+///
+/// Has a bunch of convenience functions to split buffers up into image planes
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum PixelFormatPlanes<S: AnySlice> {
     /// See [`PixelFormat::I420`]
@@ -133,9 +136,9 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
     pub fn split(
         mut self,
         width: usize,
-        initial_window: Rect,
+        initial_window: Window,
         max_results: usize,
-    ) -> Vec<(Self, Rect)> {
+    ) -> Vec<(Self, Window)> {
         assert!(width >= initial_window.x + initial_window.width);
         assert!(self.bounds_check(
             initial_window.x + initial_window.width,
@@ -149,7 +152,7 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
         // then remove it in the result
         rects.insert(
             0,
-            Rect {
+            Window {
                 x: 0,
                 y: 0,
                 width: initial_window.width,
@@ -176,7 +179,7 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
                             u: u_,
                             v: v_,
                         },
-                        Rect {
+                        Window {
                             x: rect.x,
                             y: 0,
                             width: rect.width,
@@ -199,7 +202,7 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
                             u: u_,
                             v: v_,
                         },
-                        Rect {
+                        Window {
                             x: rect.x,
                             y: 0,
                             width: rect.width,
@@ -222,7 +225,7 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
                             u: u_,
                             v: v_,
                         },
-                        Rect {
+                        Window {
                             x: rect.x,
                             y: 0,
                             width: rect.width,
@@ -239,7 +242,7 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
 
                     ret.push((
                         Self::NV12 { y: y_, uv: uv_ },
-                        Rect {
+                        Window {
                             x: rect.x,
                             y: 0,
                             width: rect.width,
@@ -252,7 +255,7 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
                     *buf = remaining;
                     ret.push((
                         Self::RGB(x),
-                        Rect {
+                        Window {
                             x: rect.x,
                             y: 0,
                             width: rect.width,
@@ -265,7 +268,7 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
                     *buf = remaining;
                     ret.push((
                         Self::RGBA(x),
-                        Rect {
+                        Window {
                             x: rect.x,
                             y: 0,
                             width: rect.width,
@@ -334,7 +337,7 @@ impl<T> AnySlice for &mut [T] {
 }
 
 /// Split the work up into windows into the image by calculating the number of rows each thread should handle
-fn calculate_windows_by_rows(initial_window: Rect, threads: usize) -> Vec<Rect> {
+fn calculate_windows_by_rows(initial_window: Window, threads: usize) -> Vec<Window> {
     assert_eq!(initial_window.height & 1, 0);
 
     let sections = initial_window.height / 2;
@@ -353,14 +356,14 @@ fn calculate_windows_by_rows(initial_window: Rect, threads: usize) -> Vec<Rect> 
             0
         };
 
-        let prev = rects.last().unwrap_or(&Rect {
+        let prev = rects.last().unwrap_or(&Window {
             x: 0,
             y: 0,
             width: 0,
             height: 0,
         });
 
-        rects.push(Rect {
+        rects.push(Window {
             x: initial_window.x,
             y: prev.y + prev.height,
             width: initial_window.width,
@@ -375,7 +378,7 @@ fn calculate_windows_by_rows(initial_window: Rect, threads: usize) -> Vec<Rect> 
 #[test]
 fn verify_windows() {
     let windows = calculate_windows_by_rows(
-        Rect {
+        Window {
             x: 0,
             y: 0,
             width: 1920,
