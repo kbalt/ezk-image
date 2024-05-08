@@ -4,12 +4,14 @@ use formats::*;
 use primitive::PrimitiveInternal;
 
 pub use color::{ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer};
+#[cfg(feature = "resize")]
 pub use fir::{Filter, FilterType, ResizeAlg};
 pub use image::Image;
 #[cfg(feature = "multi-thread")]
 pub use multi_thread::convert_multi_thread;
 pub use planes::PixelFormatPlanes;
 pub use primitive::Primitive;
+#[cfg(feature = "resize")]
 pub use resize::{ResizeError, Resizer};
 
 mod color;
@@ -19,6 +21,7 @@ mod image;
 mod multi_thread;
 mod planes;
 mod primitive;
+#[cfg(feature = "resize")]
 mod resize;
 mod vector;
 

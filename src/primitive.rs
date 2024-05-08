@@ -4,9 +4,13 @@ use crate::vector::Vector;
 pub trait Primitive: PrimitiveInternal + Copy + Send + Sync + 'static {}
 
 pub(crate) trait PrimitiveInternal {
+    #[cfg(feature = "resize")]
     type FirPixel1: fir::pixels::PixelExt;
+    #[cfg(feature = "resize")]
     type FirPixel2: fir::pixels::PixelExt;
+    #[cfg(feature = "resize")]
     type FirPixel3: fir::pixels::PixelExt;
+    #[cfg(feature = "resize")]
     type FirPixel4: fir::pixels::PixelExt;
 
     unsafe fn load<V: Vector>(ptr: *const Self) -> V;
@@ -23,9 +27,13 @@ pub(crate) trait PrimitiveInternal {
 impl Primitive for u8 {}
 
 impl PrimitiveInternal for u8 {
+    #[cfg(feature = "resize")]
     type FirPixel1 = fir::pixels::U8;
+    #[cfg(feature = "resize")]
     type FirPixel2 = fir::pixels::U8x2;
+    #[cfg(feature = "resize")]
     type FirPixel3 = fir::pixels::U8x3;
+    #[cfg(feature = "resize")]
     type FirPixel4 = fir::pixels::U8x4;
 
     #[inline(always)]
@@ -64,9 +72,13 @@ impl PrimitiveInternal for u8 {
 impl Primitive for u16 {}
 
 impl PrimitiveInternal for u16 {
+    #[cfg(feature = "resize")]
     type FirPixel1 = fir::pixels::U16;
+    #[cfg(feature = "resize")]
     type FirPixel2 = fir::pixels::U16x2;
+    #[cfg(feature = "resize")]
     type FirPixel3 = fir::pixels::U16x3;
+    #[cfg(feature = "resize")]
     type FirPixel4 = fir::pixels::U16x4;
 
     #[inline(always)]

@@ -26,13 +26,16 @@ thiserror = "1"
 
 rayon = { version = "1.9", optional = true }
 num_cpus = "1.0"
-fir = { package = "fast_image_resize", version = "3" }
+fir = { package = "fast_image_resize", version = "3", optional = true }
 
 [features]
-default = ["multi-thread"]
+default = ["multi-thread", "resize"]
 
 # Enable multi threading for image conversion
 multi-thread = ["dep:rayon"]
+
+# Include Resizer using fast_image_resize
+resize = ["dep:fir"]
 
 [dev-dependencies]
 image = { version = "0.25", default-features = false, features = ["png"] }
