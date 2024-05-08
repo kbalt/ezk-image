@@ -234,7 +234,7 @@ unsafe impl Vector for __m256 {
         let a = util::interleave_f32x8x4_to_u8x32(this[0][0], this[0][1], this[0][2], this[0][3]);
         let b = util::interleave_f32x8x4_to_u8x32(this[1][0], this[1][1], this[1][2], this[1][3]);
 
-        ptr.cast::<[[u8; 32]; 2]>().write_unaligned([a, b])
+        ptr.cast::<[__m256i; 2]>().write_unaligned([a, b])
     }
 
     #[inline(always)]
@@ -242,7 +242,7 @@ unsafe impl Vector for __m256 {
         let a = util::interleave_f32x8x4_to_u16x32(this[0][0], this[0][1], this[0][2], this[0][3]);
         let b = util::interleave_f32x8x4_to_u16x32(this[1][0], this[1][1], this[1][2], this[1][3]);
 
-        ptr.cast::<[[u16; 32]; 2]>().write_unaligned([a, b])
+        ptr.cast::<[[__m256i; 2]; 2]>().write_unaligned([a, b])
     }
 
     #[inline(always)]
@@ -257,7 +257,8 @@ unsafe impl Vector for __m256 {
 
 #[inline(always)]
 unsafe fn deinterleave_3x(m1: __m256, m2: __m256, m3: __m256) -> (__m256, __m256, __m256) {
-    // TODO: write something smarter here, until then - let the compiler figure it out
+    // This gets auto vectorized. I tried to see if I get better results using std::simd::simd_sizzle!
+    // But it generates the same instructions, so this is fine for now.
 
     let [v00, v01, v02, v03, v04, v05, v06, v07] = transmute::<__m256, [f32; 8]>(m1);
     let [v08, v09, v10, v11, v12, v13, v14, v15] = transmute::<__m256, [f32; 8]>(m2);
@@ -498,13 +499,10 @@ pub(crate) mod util {
         g: __m256,
         b: __m256,
         a: __m256,
-    ) -> [u8; 32] {
-        let [rgba_lo, rgba_hi] =
-            transmute::<[u16; 32], [__m256i; 2]>(interleave_f32x8x4_to_u16x32(r, g, b, a));
+    ) -> __m256i {
+        let [rgba_lo, rgba_hi] = interleave_f32x8x4_to_u16x32(r, g, b, a);
 
-        let rgba = _mm256_packus_epi16(rgba_lo, rgba_hi);
-
-        transmute::<__m256i, [u8; 32]>(rgba)
+        _mm256_packus_epi16(rgba_lo, rgba_hi)
     }
 
     #[inline(always)]
@@ -513,7 +511,7 @@ pub(crate) mod util {
         g: __m256,
         b: __m256,
         a: __m256,
-    ) -> [u16; 32] {
+    ) -> [__m256i; 2] {
         let r = _mm256_cvtps_epi32(r);
         let g = _mm256_cvtps_epi32(g);
         let b = _mm256_cvtps_epi32(b);
@@ -530,7 +528,7 @@ pub(crate) mod util {
             _mm256_unpackhi_epi32(rgba_lo, rgba_hi),
         );
 
-        transmute::<[__m256i; 2], [u16; 32]>([rgba_lo, rgba_hi])
+        [rgba_lo, rgba_hi]
     }
 
     #[inline(always)]
@@ -551,7 +549,7 @@ pub(crate) mod util {
             -128, -128, -128, -128,
         );
 
-        let rgb = _mm256_shuffle_epi8(transmute::<[u8; 32], __m256i>(rgb), idx);
+        let rgb = _mm256_shuffle_epi8(rgb, idx);
 
         // This gets optimized to use avx2 by the compiler
         let [a0, b0, c0, _, a1, b1, c1, _]: [i32; 8] = transmute(rgb);
@@ -565,9 +563,7 @@ pub(crate) mod util {
         g: __m256,
         b: __m256,
     ) -> [u16; 24] {
-        let rgb = interleave_f32x8x4_to_u16x32(r, g, b, _mm256_setzero_ps());
-
-        let [rgb_lo, rgb_hi] = transmute::<[u16; 32], [__m256i; 2]>(rgb);
+        let [rgb_lo, rgb_hi] = interleave_f32x8x4_to_u16x32(r, g, b, _mm256_setzero_ps());
 
         #[rustfmt::skip]
         let idx = _mm256_setr_epi8(
