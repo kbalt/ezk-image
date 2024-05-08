@@ -1,4 +1,4 @@
-use crate::Rect;
+use crate::{PixelFormat, Rect};
 use std::mem::take;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -52,6 +52,22 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
             }
             Self::RGB(buf) => n_pixels * 3 <= buf.slice_len(),
             Self::RGBA(buf) => n_pixels * 4 <= buf.slice_len(),
+        }
+    }
+
+    /// Infer the planes for an image in the given format using the given dimensions
+    ///
+    /// # Panics
+    ///
+    /// If `buf` is too small for the given dimensions this function will panic
+    pub fn infer(format: PixelFormat, buf: S, width: usize, height: usize) -> Self {
+        match format {
+            PixelFormat::I420 => Self::infer_i420(buf, width, height),
+            PixelFormat::I422 => Self::infer_i422(buf, width, height),
+            PixelFormat::I444 => Self::infer_i444(buf, width, height),
+            PixelFormat::NV12 => Self::infer_nv12(buf, width, height),
+            PixelFormat::RGBA | PixelFormat::BGRA => Self::RGBA(buf),
+            PixelFormat::RGB | PixelFormat::BGR => Self::RGB(buf),
         }
     }
 

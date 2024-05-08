@@ -4,7 +4,7 @@ use formats::*;
 use primitive::PrimitiveInternal;
 
 pub use color::{ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer};
-pub use fir::ResizeAlg;
+pub use fir::{Filter, FilterType, ResizeAlg};
 pub use image::Image;
 #[cfg(feature = "multi-thread")]
 pub use multi_thread::convert_multi_thread;
