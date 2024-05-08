@@ -1,7 +1,9 @@
 use criterion::{criterion_group, criterion_main, Criterion};
+#[cfg(feature = "multi-thread")]
+use ezk_image::convert_multi_thread;
 use ezk_image::{
-    convert, convert_multi_thread, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, Image,
-    PixelFormat, PixelFormatPlanes,
+    convert, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, Image, PixelFormat,
+    PixelFormatPlanes,
 };
 use std::hint::black_box;
 
@@ -43,6 +45,7 @@ fn do_convert(
     convert(src, dst).unwrap();
 }
 
+#[cfg(feature = "multi-thread")]
 fn do_convert_multi_thread(
     src_format: PixelFormat,
     src_planes: PixelFormatPlanes<&[u8]>,
@@ -152,9 +155,15 @@ fn single_threaded(c: &mut Criterion) {
     run_benchmarks(c, do_convert, "single threaded")
 }
 
+#[cfg(feature = "multi-thread")]
 fn multi_threaded(c: &mut Criterion) {
     run_benchmarks(c, do_convert_multi_thread, "multi threaded")
 }
 
+#[cfg(feature = "multi-thread")]
 criterion_group!(img, single_threaded, multi_threaded);
+
+#[cfg(not(feature = "multi-thread"))]
+criterion_group!(img, single_threaded);
+
 criterion_main!(img);
