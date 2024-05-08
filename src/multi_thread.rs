@@ -1,10 +1,7 @@
-use crate::primitive::PrimitiveInternal;
-use crate::{convert, get_and_verify_input_windows, Image};
+use crate::{convert, get_and_verify_input_windows, Image, Primitive};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
-#[inline(never)]
-#[allow(private_bounds)]
-pub fn convert_multi_thread<SP: PrimitiveInternal, DP: PrimitiveInternal>(
+pub fn convert_multi_thread<SP: Primitive, DP: Primitive>(
     src: Image<&[SP]>,
     dst: Image<&mut [DP]>,
 ) -> Result<(), crate::ConvertError> {

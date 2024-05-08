@@ -1,4 +1,4 @@
-use crate::{primitive::PrimitiveInternal, Image, PixelFormatPlanes, Rect};
+use crate::{Image, PixelFormatPlanes, Primitive, Rect};
 use std::num::NonZeroU32;
 
 #[cfg(feature = "multi-thread")]
@@ -8,7 +8,7 @@ use rayon_stub::scope;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ResizeError {
-    #[error("source and destination images have different formats")]
+    #[error("source and destination images have different pixel formats")]
     DifferentFormats,
 }
 
@@ -34,13 +34,11 @@ impl Resizer {
     #[allow(private_bounds)]
     pub fn resize<P>(&mut self, src: Image<&[P]>, dst: Image<&mut [P]>) -> Result<(), ResizeError>
     where
-        P: PrimitiveInternal,
-
+        P: Primitive,
         for<'a> fir::DynamicImageView<'a>: From<fir::ImageView<'a, P::FirPixel1>>
             + From<fir::ImageView<'a, P::FirPixel2>>
             + From<fir::ImageView<'a, P::FirPixel3>>
             + From<fir::ImageView<'a, P::FirPixel4>>,
-
         for<'a> fir::DynamicImageViewMut<'a>: From<fir::ImageViewMut<'a, P::FirPixel1>>
             + From<fir::ImageViewMut<'a, P::FirPixel2>>
             + From<fir::ImageViewMut<'a, P::FirPixel3>>
@@ -315,7 +313,7 @@ impl Resizer {
         dst_height: u32,
         dst_window: Option<Rect>,
     ) where
-        P: PrimitiveInternal,
+        P: Primitive,
         Px: fir::pixels::PixelExt,
         for<'a> fir::DynamicImageView<'a>: From<fir::ImageView<'a, Px>>,
         for<'a> fir::DynamicImageViewMut<'a>: From<fir::ImageViewMut<'a, Px>>,
@@ -367,11 +365,12 @@ impl Resizer {
                 .expect("window size is already checked when creating Image");
         }
 
-        fir_resizer.resize(
-            &fir::DynamicImageView::from(src_view),
-            &mut fir::DynamicImageViewMut::from(dst_view),
-        )
-        .expect("Pixel type must be assured to be the same before calling fir's resize");
+        fir_resizer
+            .resize(
+                &fir::DynamicImageView::from(src_view),
+                &mut fir::DynamicImageViewMut::from(dst_view),
+            )
+            .expect("Pixel type must be assured to be the same before calling fir's resize");
     }
 }
 

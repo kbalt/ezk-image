@@ -1,8 +1,9 @@
 use crate::vector::Vector;
 
-pub trait Primitive: Copy + Send + Sync + 'static {}
+#[allow(private_bounds)]
+pub trait Primitive: PrimitiveInternal + Copy + Send + Sync + 'static {}
 
-pub(crate) trait PrimitiveInternal: Primitive {
+pub(crate) trait PrimitiveInternal {
     type FirPixel1: fir::pixels::PixelExt;
     type FirPixel2: fir::pixels::PixelExt;
     type FirPixel3: fir::pixels::PixelExt;

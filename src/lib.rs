@@ -138,12 +138,11 @@ pub enum ConvertError {
     InvalidPlaneSizeForDimensions,
 }
 
-#[allow(private_bounds)]
 #[inline(never)]
 pub fn convert<SP, DP>(src: Image<&[SP]>, dst: Image<&mut [DP]>) -> Result<(), ConvertError>
 where
-    SP: PrimitiveInternal,
-    DP: PrimitiveInternal,
+    SP: Primitive,
+    DP: Primitive,
 {
     get_and_verify_input_windows(&src, &dst)?;
 

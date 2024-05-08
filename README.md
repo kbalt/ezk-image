@@ -8,8 +8,8 @@ be explicitly called with [`convert_multi_thread`].
 
 Any format can be converted to any other format.
 
-[`Source`] and [`Destination`] describe the conversion source and destination. They can store a both window to only
-convert parts of an image, or write the converted image into a part of the destination image.
+[`Image`] describes the conversion source and destination. It can store a window to only
+convert parts of an image, or to write the converted image into a part of the destination image.
 
 ---
 
