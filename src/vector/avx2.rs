@@ -79,9 +79,13 @@ unsafe impl Vector for __m256 {
 
     #[inline(always)]
     unsafe fn unzip(self, other: Self) -> (Self, Self) {
-        let (a, b) = self.zip(other);
-        let (a, b) = a.zip(b);
-        a.zip(b)
+        let lo = _mm256_shuffle_ps(self, other, 0b10_00_10_00);
+        let lo = _mm256_permute4x64_epi64(_mm256_castps_si256(lo), 0b11_01_10_00);
+
+        let hi = _mm256_shuffle_ps(self, other, 0b11_01_11_01);
+        let hi = _mm256_permute4x64_epi64(_mm256_castps_si256(hi), 0b11_01_10_00);
+
+        (_mm256_castsi256_ps(lo), _mm256_castsi256_ps(hi))
     }
 
     #[inline(always)]
