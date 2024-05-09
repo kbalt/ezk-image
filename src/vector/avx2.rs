@@ -91,31 +91,14 @@ unsafe impl Vector for __m256 {
     #[inline(always)]
     unsafe fn load_u8(ptr: *const u8) -> Self {
         let v = ptr.cast::<i64>().read_unaligned();
-
-        let v = _mm256_set1_epi64x(v);
-
-        let lo = _mm256_unpacklo_epi8(v, _mm256_setzero_si256());
-        let lo = _mm256_unpacklo_epi8(lo, _mm256_setzero_si256());
-
-        let hi = _mm256_unpackhi_epi8(v, _mm256_setzero_si256());
-        let hi = _mm256_unpackhi_epi8(hi, _mm256_setzero_si256());
-
-        let v = _mm256_permute2x128_si256(lo, hi, 0b100000);
-
+        let v = _mm256_cvtepu8_epi32(_mm_set1_epi64x(v));
         _mm256_cvtepi32_ps(v)
     }
 
     #[inline(always)]
     unsafe fn load_u16(ptr: *const u16) -> Self {
         let v = ptr.cast::<__m128i>().read_unaligned();
-
-        let v = _mm256_set_m128i(v, v);
-
-        let lo = _mm256_unpacklo_epi16(v, _mm256_setzero_si256());
-        let hi = _mm256_unpackhi_epi16(v, _mm256_setzero_si256());
-
-        let v = _mm256_permute2x128_si256(lo, hi, 0b100000);
-
+        let v = _mm256_cvtepu16_epi32(v);
         _mm256_cvtepi32_ps(v)
     }
 
@@ -257,7 +240,7 @@ unsafe impl Vector for __m256 {
 
 #[inline(always)]
 unsafe fn deinterleave_3x(m1: __m256, m2: __m256, m3: __m256) -> (__m256, __m256, __m256) {
-    // This gets auto vectorized. I tried to see if I get better results using std::simd::simd_sizzle!
+    // This gets auto vectorized. I tried to see if I get better results using std::simd::simd_swizzle!
     // But it generates the same instructions, so this is fine for now.
 
     let [v00, v01, v02, v03, v04, v05, v06, v07] = transmute::<__m256, [f32; 8]>(m1);
