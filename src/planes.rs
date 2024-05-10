@@ -310,10 +310,17 @@ impl PixelFormatPlanes<&mut [u16]> {
     }
 }
 
-/// Abstract over &[T] and &mut [T]
-pub trait AnySlice: Default + Sized {
+#[diagnostic::on_unimplemented(message = "AnySlice is only implemented for &[T] and &mut [T].\n\
+               When using or Vec<T> or similar try .as_slice() or .as_mut_slice()")]
+pub trait AnySlice: sealed::Sealed + Default + Sized {
     fn slice_len(&self) -> usize;
     fn slice_split_at(self, at: usize) -> (Self, Self);
+}
+
+mod sealed {
+    pub trait Sealed {}
+    impl<T> Sealed for &[T] {}
+    impl<T> Sealed for &mut [T] {}
 }
 
 impl<T> AnySlice for &[T] {
