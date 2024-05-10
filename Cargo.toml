@@ -36,6 +36,9 @@ multi-thread = ["dep:rayon", "dep:num_cpus"]
 # Include Resizer using fast_image_resize
 resize = ["dep:fir"]
 
+# Enable features that are incomplete, untested and/or require a nightly compiler
+unstable = []
+
 [dev-dependencies]
 image = { version = "0.25", default-features = false, features = ["png"] }
 nalgebra = "0.32"

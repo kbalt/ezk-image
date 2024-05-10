@@ -46,10 +46,7 @@ unsafe impl Vector for __m256 {
     }
     #[inline(always)]
     unsafe fn select(a: Self, b: Self, mask: Self::Mask) -> Self {
-        let a = _mm256_and_ps(a, mask);
-        let b = _mm256_andnot_ps(mask, b);
-
-        _mm256_or_ps(a, b)
+        _mm256_blendv_ps(b, a, mask)
     }
     #[inline(always)]
     unsafe fn vsqrt(self) -> Self {

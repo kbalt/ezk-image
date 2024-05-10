@@ -28,6 +28,23 @@ where
     assert!((window.x + window.width) <= src_width);
     assert!((window.y + window.height) <= src_height);
 
+    #[cfg(all(feature = "unstable", any(target_arch = "x86", target_arch = "x86_64")))]
+    if is_x86_feature_detected!("avx512f") && is_x86_feature_detected!("avx512bw") {
+        #[target_feature(enable = "avx512f", enable = "avx512bw")]
+        unsafe fn call<R>(window: Window, visitor: R)
+        where
+            R: Image2x2Visitor,
+        {
+            visit_impl::<__m512, _>(window, visitor);
+        }
+
+        // Safety: Did a feature check
+        unsafe {
+            call::<R>(window, visitor);
+            return Ok(());
+        }
+    }
+
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     if is_x86_feature_detected!("avx2") && is_x86_feature_detected!("fma") {
         #[target_feature(enable = "avx2")]

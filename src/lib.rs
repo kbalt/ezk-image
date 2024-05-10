@@ -1,5 +1,9 @@
 #![doc = include_str!("../README.md")]
 #![warn(unreachable_pub)]
+#![cfg_attr(
+    feature = "unstable",
+    feature(stdarch_x86_avx512, avx512_target_feature)
+)]
 
 use formats::*;
 use primitive::PrimitiveInternal;

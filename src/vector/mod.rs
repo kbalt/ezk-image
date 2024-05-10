@@ -4,6 +4,9 @@ use std::fmt::Debug;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 pub(crate) mod avx2;
 
+#[cfg(all(feature = "unstable", any(target_arch = "x86", target_arch = "x86_64")))]
+pub(crate) mod avx512;
+
 #[cfg(target_arch = "aarch64")]
 pub(crate) mod neon;
 
