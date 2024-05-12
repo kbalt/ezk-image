@@ -244,23 +244,32 @@ unsafe impl Vector for __m512 {
 
 #[inline(always)]
 unsafe fn deinterleave_3x(m1: __m512, m2: __m512, m3: __m512) -> (__m512, __m512, __m512) {
-    // This gets auto vectorized. I tried to see if I get better results using std::simd::simd_swizzle!
-    // But it generates the same instructions, so this is fine for now.
-    let t = transmute::<__m512, [f32; 16]>;
+    // Red
+    let r = {
+        let ri = _mm512_setr_epi32(0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 0, 0, 0, 0, 0);
+        let r = _mm512_permutex2var_ps(m1, ri, m2);
 
-    let [v00, v01, v02, v03, v04, v05, v06, v07, v08, v09, v10, v11, v12, v13, v14, v15] = t(m1);
-    let [v16, v17, v18, v19, v20, v21, v22, v23, v24, v25, v26, v27, v28, v29, v30, v31] = t(m2);
-    let [v32, v33, v34, v35, v36, v37, v38, v39, v40, v41, v42, v43, v44, v45, v46, v47] = t(m3);
+        let ri = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 17, 20, 23, 26, 29);
+        _mm512_permutex2var_ps(r, ri, m3)
+    };
 
-    let r = _mm512_setr_ps(
-        v00, v03, v06, v09, v12, v15, v18, v21, v24, v27, v30, v33, v36, v39, v42, v45,
-    );
-    let g = _mm512_setr_ps(
-        v01, v04, v07, v10, v13, v16, v19, v22, v25, v28, v31, v34, v37, v40, v43, v46,
-    );
-    let b = _mm512_setr_ps(
-        v02, v05, v08, v11, v14, v17, v20, v23, v26, v29, v32, v35, v38, v41, v44, v47,
-    );
+    // Green
+    let g = {
+        let gi = _mm512_setr_epi32(1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 0, 0, 0, 0, 0);
+        let g = _mm512_permutex2var_ps(m1, gi, m2);
+
+        let gi = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 18, 21, 24, 27, 30);
+        _mm512_permutex2var_ps(g, gi, m3)
+    };
+
+    // Blue
+    let b = {
+        let bi = _mm512_setr_epi32(2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 0, 0, 0, 0, 0, 0);
+        let b = _mm512_permutex2var_ps(m1, bi, m2);
+
+        let bi = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 16, 19, 22, 25, 28, 31);
+        _mm512_permutex2var_ps(b, bi, m3)
+    };
 
     (r, g, b)
 }
@@ -272,25 +281,22 @@ unsafe fn deinterleave_4x(
     m3: __m512,
     m4: __m512,
 ) -> (__m512, __m512, __m512, __m512) {
-    let t = transmute::<__m512, [f32; 16]>;
+    let v1 = _mm512_unpacklo_ps(m1, m2);
+    let v2 = _mm512_unpacklo_ps(m3, m4);
+    let v3 = _mm512_unpackhi_ps(m1, m2);
+    let v4 = _mm512_unpackhi_ps(m3, m4);
 
-    let [v00, v01, v02, v03, v04, v05, v06, v07, v08, v09, v10, v11, v12, v13, v14, v15] = t(m1);
-    let [v16, v17, v18, v19, v20, v21, v22, v23, v24, v25, v26, v27, v28, v29, v30, v31] = t(m2);
-    let [v32, v33, v34, v35, v36, v37, v38, v39, v40, v41, v42, v43, v44, v45, v46, v47] = t(m3);
-    let [v48, v49, v50, v51, v52, v53, v54, v55, v56, v57, v58, v59, v60, v61, v62, v63] = t(m4);
+    let r = _mm512_unpacklo_ps(v1, v2);
+    let g = _mm512_unpackhi_ps(v1, v2);
+    let b = _mm512_unpacklo_ps(v3, v4);
+    let a = _mm512_unpackhi_ps(v3, v4);
 
-    let r = _mm512_setr_ps(
-        v00, v04, v08, v12, v16, v20, v24, v28, v32, v36, v40, v44, v48, v52, v56, v60,
-    );
-    let g = _mm512_setr_ps(
-        v01, v05, v09, v13, v17, v21, v25, v29, v33, v37, v41, v45, v49, v53, v57, v61,
-    );
-    let b = _mm512_setr_ps(
-        v02, v06, v10, v14, v18, v22, v26, v30, v34, v38, v42, v46, v50, v54, v58, v62,
-    );
-    let a = _mm512_setr_ps(
-        v03, v07, v11, v15, v19, v23, v27, v31, v35, v39, v43, v47, v51, v55, v59, v63,
-    );
+    let idx = _mm512_setr_epi32(0, 4, 8, 12, 2, 6, 10, 14, 1, 5, 9, 13, 3, 7, 11, 15);
+
+    let r = _mm512_permutexvar_ps(idx, r);
+    let g = _mm512_permutexvar_ps(idx, g);
+    let b = _mm512_permutexvar_ps(idx, b);
+    let a = _mm512_permutexvar_ps(idx, a);
 
     (r, g, b, a)
 }
@@ -370,28 +376,28 @@ pub(crate) unsafe fn interleave_f32x16x3_to_u8x64(r: __m512, g: __m512, b: __m51
     let rgb = interleave_f32x16x4_to_u8x64(r, g, b, _mm512_setzero_ps());
 
     #[rustfmt::skip]
-        let idx = _mm512_set_epi8(
-            -128 , -128 , -128 , -128,
-            14, 13, 12,
-            10, 9, 8,
-            6, 5, 4,
-            2, 1, 0,
-            -128 , -128 , -128 , -128,
-            14, 13, 12,
-            10, 9, 8,
-            6, 5, 4,
-            2, 1, 0,
-            -128 , -128 , -128 , -128,
-            14, 13, 12,
-            10, 9, 8,
-            6, 5, 4,
-            2, 1, 0,
-            -128 , -128 , -128 , -128,
-            14, 13, 12,
-            10, 9, 8,
-            6, 5, 4,
-            2, 1, 0,
-        );
+    let idx = _mm512_set_epi8(
+        -128 , -128 , -128 , -128,
+        14, 13, 12,
+        10, 9, 8,
+        6, 5, 4,
+        2, 1, 0,
+        -128 , -128 , -128 , -128,
+        14, 13, 12,
+        10, 9, 8,
+        6, 5, 4,
+        2, 1, 0,
+        -128 , -128 , -128 , -128,
+        14, 13, 12,
+        10, 9, 8,
+        6, 5, 4,
+        2, 1, 0,
+        -128 , -128 , -128 , -128,
+        14, 13, 12,
+        10, 9, 8,
+        6, 5, 4,
+        2, 1, 0,
+    );
 
     let rgb = _mm512_shuffle_epi8(rgb, idx);
 
@@ -406,14 +412,14 @@ pub(crate) unsafe fn interleave_f32x16x3_to_u16x48(r: __m512, g: __m512, b: __m5
     let [rgb_lo, rgb_hi] = interleave_f32x16x4_to_u16x64(r, g, b, _mm512_setzero_ps());
 
     #[rustfmt::skip]
-        let idx = _mm512_set_epi8(
-            -128, -128, -128, -128, -128, -128, -128, -128,
-            29, 28, 27, 26, 25, 24, 21, 20, 19, 18, 17,
-            16, 13, 12, 11, 10, 9, 8, 5, 4, 3, 2, 1, 0,
-            -128, -128, -128, -128, -128, -128, -128, -128,
-            29, 28, 27, 26, 25, 24, 21, 20, 19, 18, 17,
-            16, 13, 12, 11, 10, 9, 8, 5, 4, 3, 2, 1, 0,
-        );
+    let idx = _mm512_set_epi8(
+        -128, -128, -128, -128, -128, -128, -128, -128,
+        29, 28, 27, 26, 25, 24, 21, 20, 19, 18, 17,
+        16, 13, 12, 11, 10, 9, 8, 5, 4, 3, 2, 1, 0,
+        -128, -128, -128, -128, -128, -128, -128, -128,
+        29, 28, 27, 26, 25, 24, 21, 20, 19, 18, 17,
+        16, 13, 12, 11, 10, 9, 8, 5, 4, 3, 2, 1, 0,
+    );
 
     let rgb_lo = _mm512_shuffle_epi8(rgb_lo, idx);
     let rgb_hi = _mm512_shuffle_epi8(rgb_hi, idx);
