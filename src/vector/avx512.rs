@@ -53,12 +53,12 @@ unsafe impl Vector for __m512 {
         _mm512_sqrt_ps(self)
     }
 
-    #[target_feature(enable = "avx2", enable = "fma")]
+    #[target_feature(enable = "avx512f")]
     unsafe fn vpow(self, pow: Self) -> Self {
         math::pow(self, pow)
     }
 
-    #[target_feature(enable = "avx2", enable = "fma")]
+    #[target_feature(enable = "avx512f")]
     unsafe fn vln(self) -> Self {
         math::log(self)
     }
@@ -394,7 +394,6 @@ pub(crate) unsafe fn interleave_f32x16x3_to_u8x48(r: __m512, g: __m512, b: __m51
 
     let rgb = _mm512_shuffle_epi8(rgb, idx);
 
-    // This gets optimized to use avx2 by the compiler
     let [a0, b0, c0, _, a1, b1, c1, _, a2, b2, c2, _, a3, b3, c3, _]: [i32; 16] = transmute(rgb);
 
     transmute([a0, b0, c0, a1, b1, c1, a2, b2, c2, a3, b3, c3])
@@ -417,7 +416,6 @@ pub(crate) unsafe fn interleave_f32x16x3_to_u16x48(r: __m512, g: __m512, b: __m5
     let rgb_lo = _mm512_shuffle_epi8(rgb_lo, idx);
     let rgb_hi = _mm512_shuffle_epi8(rgb_hi, idx);
 
-    // // This gets optimized to use avx2 by the compiler
     let [a0, b0, c0, a1, b1, c1, _, _, a2, b2, c2, a3, b3, c3, _, _]: [i32; 16] = transmute(rgb_lo);
     let [a4, b4, c4, a5, b5, c5, _, _, a6, b6, c6, a7, b7, c7, _, _]: [i32; 16] = transmute(rgb_hi);
 
