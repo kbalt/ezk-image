@@ -202,8 +202,8 @@ unsafe impl Vector for __m512 {
 
     #[inline(always)]
     unsafe fn write_interleaved_3x_2x_u8(this: [[Self; 3]; 2], ptr: *mut u8) {
-        let a = interleave_f32x16x3_to_u8x64(this[0][0], this[0][1], this[0][2]);
-        let b = interleave_f32x16x3_to_u8x64(this[1][0], this[1][1], this[1][2]);
+        let a = interleave_f32x16x3_to_u8x48(this[0][0], this[0][1], this[0][2]);
+        let b = interleave_f32x16x3_to_u8x48(this[1][0], this[1][1], this[1][2]);
 
         ptr.cast::<[[u8; 48]; 2]>().write_unaligned([a, b])
     }
@@ -372,7 +372,7 @@ pub(crate) unsafe fn interleave_f32x16x4_to_u16x64(
 }
 
 #[inline(always)]
-pub(crate) unsafe fn interleave_f32x16x3_to_u8x64(r: __m512, g: __m512, b: __m512) -> [u8; 48] {
+pub(crate) unsafe fn interleave_f32x16x3_to_u8x48(r: __m512, g: __m512, b: __m512) -> [u8; 48] {
     let rgb = interleave_f32x16x4_to_u8x64(r, g, b, _mm512_setzero_ps());
 
     #[rustfmt::skip]
