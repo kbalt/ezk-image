@@ -224,7 +224,6 @@ dependencies = [
  "nalgebra",
  "num_cpus",
  "rayon",
- "thiserror",
 ]
 
 [[package]]

@@ -1,17 +1,38 @@
+use std::error::Error;
+use std::fmt;
+
 use crate::{planes::AnySlice, ColorInfo, PixelFormat, PixelFormatPlanes, Window};
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, PartialEq)]
 pub enum ImageError {
-    #[error("width or height must not be zero")]
     InvalidDimensions,
-
-    #[error("plane size does not match the provided dimensions and pixel format")]
     InvalidPlaneSize,
 }
 
-#[derive(Debug, thiserror::Error)]
-#[error("Window position and/or size does not fit in the Image")]
+impl fmt::Display for ImageError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ImageError::InvalidDimensions => write!(f, "width or height must not be zero"),
+            ImageError::InvalidPlaneSize => write!(
+                f,
+                "plane size does not match the provided dimensions and pixel format"
+            ),
+        }
+    }
+}
+
+impl Error for ImageError {}
+
+#[derive(Debug)]
 pub struct ImageWindowError;
+
+impl fmt::Display for ImageWindowError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "window position and/or size does not fit in the image")
+    }
+}
+
+impl Error for ImageWindowError {}
 
 #[derive(Debug, Clone, Copy)]
 pub struct Image<S: AnySlice> {

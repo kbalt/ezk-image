@@ -1,4 +1,6 @@
 use crate::{Image, PixelFormatPlanes, Primitive, Window};
+use std::error::Error;
+use std::fmt;
 use std::num::NonZeroU32;
 
 #[cfg(feature = "multi-thread")]
@@ -7,11 +9,23 @@ use rayon::scope;
 use rayon_stub::scope;
 
 /// Everything that can go wrong when calling [`Resizer::resize`]
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, PartialEq)]
 pub enum ResizeError {
-    #[error("source and destination images have different pixel formats")]
     DifferentFormats,
 }
+
+impl fmt::Display for ResizeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ResizeError::DifferentFormats => write!(
+                f,
+                "source and destination images have different pixel formats"
+            ),
+        }
+    }
+}
+
+impl Error for ResizeError {}
 
 /// Wrapper over [`fast_image_resize`](fir) to resize [`Image`]s
 #[derive(Clone)]

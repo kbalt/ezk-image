@@ -7,6 +7,7 @@
 
 use formats::*;
 use primitive::PrimitiveInternal;
+use std::{error::Error, fmt};
 
 pub use color::{ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer};
 #[cfg(feature = "resize")]
@@ -145,20 +146,35 @@ impl PixelFormat {
 }
 
 /// Errors that may occur when trying to convert an image
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, PartialEq)]
 pub enum ConvertError {
-    #[error("image dimensions are not divisible by 2")]
     OddImageDimensions,
-
-    #[error("source image has different size than destination image")]
     MismatchedImageSize,
-
-    #[error("provided planes mismatch with {0:?}")]
     InvalidPlanesForPixelFormat(PixelFormat),
-
-    #[error("provided planes are too small for the given image dimensions")]
     InvalidPlaneSizeForDimensions,
 }
+
+impl fmt::Display for ConvertError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ConvertError::OddImageDimensions => {
+                write!(f, "image dimensions are not divisible by 2")
+            }
+            ConvertError::MismatchedImageSize => {
+                write!(f, "source image has different size than destination image")
+            }
+            ConvertError::InvalidPlanesForPixelFormat(format) => {
+                write!(f, "provided planes mismatch with {format:?}")
+            }
+            ConvertError::InvalidPlaneSizeForDimensions => write!(
+                f,
+                "provided planes are too small for the given image dimensions"
+            ),
+        }
+    }
+}
+
+impl Error for ConvertError {}
 
 /// Convert pixel-format and color from the src-image to the specified dst-image.
 ///
