@@ -65,31 +65,24 @@ unsafe impl Vector for __m512 {
 
     #[inline(always)]
     unsafe fn zip(self, other: Self) -> (Self, Self) {
-        let zmm0 = self;
-        let zmm1 = other;
+        let i = _mm512_setr_epi32(0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23);
+        let a = _mm512_permutex2var_ps(self, i, other);
 
-        let zmm2 = _mm512_setr_epi32(0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23);
-        let zmm2 = _mm512_permutex2var_ps(zmm0, zmm2, zmm1);
+        let i = _mm512_setr_epi32(8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31);
+        let b = _mm512_permutex2var_ps(self, i, other);
 
-        let zmm3 = _mm512_setr_epi32(8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31);
-        let zmm3 = _mm512_permutex2var_ps(zmm0, zmm3, zmm1);
-
-        (zmm2, zmm3)
+        (a, b)
     }
 
     #[inline(always)]
     unsafe fn unzip(self, other: Self) -> (Self, Self) {
-        let zmm0 = self;
-        let zmm1 = other;
+        let i = _mm512_setr_epi32(0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30);
+        let a = _mm512_permutex2var_ps(self, i, other);
 
-        let zmm2 = _mm512_setr_epi32(0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30);
+        let i = _mm512_setr_epi32(1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31);
+        let b = _mm512_permutex2var_ps(self, i, other);
 
-        let zmm2 = _mm512_permutex2var_ps(zmm0, zmm2, zmm1);
-
-        let zmm3 = _mm512_setr_epi32(1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31);
-        let zmm3 = _mm512_permutex2var_ps(zmm0, zmm3, zmm1);
-
-        (zmm2, zmm3)
+        (a, b)
     }
 
     #[inline(always)]
@@ -109,7 +102,7 @@ unsafe impl Vector for __m512 {
     #[inline(always)]
     unsafe fn load_u8_3x_interleaved_2x(ptr: *const u8) -> [[Self; 3]; 2] {
         #[inline(always)]
-        pub(super) unsafe fn inner(ptr: *const u8) -> (__m512, __m512, __m512) {
+        unsafe fn inner(ptr: *const u8) -> (__m512, __m512, __m512) {
             let m1 = __m512::load_u8(ptr);
             let m2 = __m512::load_u8(ptr.add(__m512::LEN));
             let m3 = __m512::load_u8(ptr.add(__m512::LEN * 2));
@@ -126,7 +119,7 @@ unsafe impl Vector for __m512 {
     #[inline(always)]
     unsafe fn load_u16_3x_interleaved_2x(ptr: *const u16) -> [[Self; 3]; 2] {
         #[inline(always)]
-        pub(super) unsafe fn inner(ptr: *const u16) -> (__m512, __m512, __m512) {
+        unsafe fn inner(ptr: *const u16) -> (__m512, __m512, __m512) {
             let m1 = __m512::load_u16(ptr);
             let m2 = __m512::load_u16(ptr.add(__m512::LEN));
             let m3 = __m512::load_u16(ptr.add(__m512::LEN * 2));
@@ -143,7 +136,7 @@ unsafe impl Vector for __m512 {
     #[inline(always)]
     unsafe fn load_u8_4x_interleaved_2x(ptr: *const u8) -> [[Self; 4]; 2] {
         #[inline(always)]
-        pub(super) unsafe fn inner(ptr: *const u8) -> (__m512, __m512, __m512, __m512) {
+        unsafe fn inner(ptr: *const u8) -> (__m512, __m512, __m512, __m512) {
             let m1 = __m512::load_u8(ptr);
             let m2 = __m512::load_u8(ptr.add(__m512::LEN));
             let m3 = __m512::load_u8(ptr.add(__m512::LEN * 2));
@@ -161,7 +154,7 @@ unsafe impl Vector for __m512 {
     #[inline(always)]
     unsafe fn load_u16_4x_interleaved_2x(ptr: *const u16) -> [[Self; 4]; 2] {
         #[inline(always)]
-        pub(super) unsafe fn inner(ptr: *const u16) -> (__m512, __m512, __m512, __m512) {
+        unsafe fn inner(ptr: *const u16) -> (__m512, __m512, __m512, __m512) {
             let m1 = __m512::load_u16(ptr);
             let m2 = __m512::load_u16(ptr.add(__m512::LEN));
             let m3 = __m512::load_u16(ptr.add(__m512::LEN * 2));

@@ -102,7 +102,7 @@ unsafe impl Vector for __m256 {
     #[inline(always)]
     unsafe fn load_u8_3x_interleaved_2x(ptr: *const u8) -> [[Self; 3]; 2] {
         #[inline(always)]
-        pub(super) unsafe fn inner(ptr: *const u8) -> (__m256, __m256, __m256) {
+        unsafe fn inner(ptr: *const u8) -> (__m256, __m256, __m256) {
             let m1 = __m256::load_u8(ptr);
             let m2 = __m256::load_u8(ptr.add(__m256::LEN));
             let m3 = __m256::load_u8(ptr.add(__m256::LEN * 2));
@@ -119,7 +119,7 @@ unsafe impl Vector for __m256 {
     #[inline(always)]
     unsafe fn load_u16_3x_interleaved_2x(ptr: *const u16) -> [[Self; 3]; 2] {
         #[inline(always)]
-        pub(super) unsafe fn inner(ptr: *const u16) -> (__m256, __m256, __m256) {
+        unsafe fn inner(ptr: *const u16) -> (__m256, __m256, __m256) {
             let m1 = __m256::load_u16(ptr);
             let m2 = __m256::load_u16(ptr.add(__m256::LEN));
             let m3 = __m256::load_u16(ptr.add(__m256::LEN * 2));
@@ -136,7 +136,7 @@ unsafe impl Vector for __m256 {
     #[inline(always)]
     unsafe fn load_u8_4x_interleaved_2x(ptr: *const u8) -> [[Self; 4]; 2] {
         #[inline(always)]
-        pub(super) unsafe fn inner(ptr: *const u8) -> (__m256, __m256, __m256, __m256) {
+        unsafe fn inner(ptr: *const u8) -> (__m256, __m256, __m256, __m256) {
             let m1 = __m256::load_u8(ptr);
             let m2 = __m256::load_u8(ptr.add(__m256::LEN));
             let m3 = __m256::load_u8(ptr.add(__m256::LEN * 2));
@@ -154,7 +154,7 @@ unsafe impl Vector for __m256 {
     #[inline(always)]
     unsafe fn load_u16_4x_interleaved_2x(ptr: *const u16) -> [[Self; 4]; 2] {
         #[inline(always)]
-        pub(super) unsafe fn inner(ptr: *const u16) -> (__m256, __m256, __m256, __m256) {
+        unsafe fn inner(ptr: *const u16) -> (__m256, __m256, __m256, __m256) {
             let m1 = __m256::load_u16(ptr);
             let m2 = __m256::load_u16(ptr.add(__m256::LEN));
             let m3 = __m256::load_u16(ptr.add(__m256::LEN * 2));
@@ -171,56 +171,54 @@ unsafe impl Vector for __m256 {
 
     #[inline(always)]
     unsafe fn write_u8(self, ptr: *mut u8) {
-        ptr.cast::<[u8; 8]>()
-            .write_unaligned(util::f32x8_to_u8x8(self))
+        ptr.cast::<[u8; 8]>().write_unaligned(f32x8_to_u8x8(self))
     }
 
     #[inline(always)]
     unsafe fn write_u8_2x(v0: Self, v1: Self, ptr: *mut u8) {
         ptr.cast::<[u8; 16]>()
-            .write_unaligned(util::f32x8x2_to_u8x16(v0, v1))
+            .write_unaligned(f32x8x2_to_u8x16(v0, v1))
     }
 
     #[inline(always)]
     unsafe fn write_u16(self, ptr: *mut u16) {
-        ptr.cast::<[u16; 8]>()
-            .write_unaligned(util::f32x8_to_u16x8(self))
+        ptr.cast::<[u16; 8]>().write_unaligned(f32x8_to_u16x8(self))
     }
 
     #[inline(always)]
     unsafe fn write_u16_2x(v0: Self, v1: Self, ptr: *mut u16) {
         ptr.cast::<[u16; 16]>()
-            .write_unaligned(util::f32x8x2_to_u16x16(v0, v1))
+            .write_unaligned(f32x8x2_to_u16x16(v0, v1))
     }
 
     #[inline(always)]
     unsafe fn write_interleaved_3x_2x_u8(this: [[Self; 3]; 2], ptr: *mut u8) {
-        let a = util::interleave_f32x8x3_to_u8x24(this[0][0], this[0][1], this[0][2]);
-        let b = util::interleave_f32x8x3_to_u8x24(this[1][0], this[1][1], this[1][2]);
+        let a = interleave_f32x8x3_to_u8x24(this[0][0], this[0][1], this[0][2]);
+        let b = interleave_f32x8x3_to_u8x24(this[1][0], this[1][1], this[1][2]);
 
         ptr.cast::<[[u8; 24]; 2]>().write_unaligned([a, b])
     }
 
     #[inline(always)]
     unsafe fn write_interleaved_3x_2x_u16(this: [[Self; 3]; 2], ptr: *mut u16) {
-        let a = util::interleave_f32x8x3_to_u16x24(this[0][0], this[0][1], this[0][2]);
-        let b = util::interleave_f32x8x3_to_u16x24(this[1][0], this[1][1], this[1][2]);
+        let a = interleave_f32x8x3_to_u16x24(this[0][0], this[0][1], this[0][2]);
+        let b = interleave_f32x8x3_to_u16x24(this[1][0], this[1][1], this[1][2]);
 
         ptr.cast::<[[u16; 24]; 2]>().write_unaligned([a, b])
     }
 
     #[inline(always)]
     unsafe fn write_interleaved_4x_2x_u8(this: [[Self; 4]; 2], ptr: *mut u8) {
-        let a = util::interleave_f32x8x4_to_u8x32(this[0][0], this[0][1], this[0][2], this[0][3]);
-        let b = util::interleave_f32x8x4_to_u8x32(this[1][0], this[1][1], this[1][2], this[1][3]);
+        let a = interleave_f32x8x4_to_u8x32(this[0][0], this[0][1], this[0][2], this[0][3]);
+        let b = interleave_f32x8x4_to_u8x32(this[1][0], this[1][1], this[1][2], this[1][3]);
 
         ptr.cast::<[__m256i; 2]>().write_unaligned([a, b])
     }
 
     #[inline(always)]
     unsafe fn write_interleaved_4x_2x_u16(this: [[Self; 4]; 2], ptr: *mut u16) {
-        let a = util::interleave_f32x8x4_to_u16x32(this[0][0], this[0][1], this[0][2], this[0][3]);
-        let b = util::interleave_f32x8x4_to_u16x32(this[1][0], this[1][1], this[1][2], this[1][3]);
+        let a = interleave_f32x8x4_to_u16x32(this[0][0], this[0][1], this[0][2], this[0][3]);
+        let b = interleave_f32x8x4_to_u16x32(this[1][0], this[1][1], this[1][2], this[1][3]);
 
         ptr.cast::<[[__m256i; 2]; 2]>().write_unaligned([a, b])
     }
@@ -280,6 +278,132 @@ unsafe fn deinterleave_4x(
     let d = _mm256_permutevar8x32_ps(d, idx);
 
     (a, b, c, d)
+}
+
+#[inline(always)]
+unsafe fn f32x8x2_to_u8x16(l: __m256, h: __m256) -> [u8; 16] {
+    let l = _mm256_cvtps_epi32(l);
+    let h = _mm256_cvtps_epi32(h);
+
+    let v = _mm256_packus_epi32(l, h);
+    let v = _mm256_packus_epi16(v, v);
+
+    let v = _mm256_permutevar8x32_epi32(v, _mm256_setr_epi32(0, 4, 3, 5, 0, 4, 3, 5));
+
+    transmute(_mm256_castsi256_si128(v))
+}
+
+#[inline(always)]
+unsafe fn f32x8x2_to_u16x16(l: __m256, h: __m256) -> [u16; 16] {
+    let l = _mm256_cvtps_epi32(l);
+    let h = _mm256_cvtps_epi32(h);
+
+    let v = _mm256_packus_epi32(l, h);
+    let v = _mm256_permutevar8x32_epi32(v, _mm256_setr_epi32(0, 1, 4, 5, 2, 3, 6, 7));
+
+    transmute(v)
+}
+
+#[inline(always)]
+unsafe fn f32x8_to_u8x8(v: __m256) -> [u8; 8] {
+    let v = _mm256_cvtps_epi32(v);
+    let v = _mm256_packus_epi32(v, v);
+    let v = _mm256_packus_epi16(v, v);
+
+    let a = _mm256_extract_epi32(v, 0);
+    let b = _mm256_extract_epi32(v, 4);
+
+    transmute([a, b])
+}
+
+#[inline(always)]
+unsafe fn f32x8_to_u16x8(v: __m256) -> [u16; 8] {
+    let v = _mm256_cvtps_epi32(v);
+    let v = _mm256_packus_epi32(v, v);
+
+    let a = _mm256_extract_epi64(v, 0);
+    let b = _mm256_extract_epi64(v, 2);
+
+    let v = _mm_set_epi64x(b, a);
+
+    transmute(v)
+}
+
+#[inline(always)]
+unsafe fn interleave_f32x8x4_to_u8x32(r: __m256, g: __m256, b: __m256, a: __m256) -> __m256i {
+    let [rgba_lo, rgba_hi] = interleave_f32x8x4_to_u16x32(r, g, b, a);
+
+    _mm256_packus_epi16(rgba_lo, rgba_hi)
+}
+
+#[inline(always)]
+unsafe fn interleave_f32x8x4_to_u16x32(r: __m256, g: __m256, b: __m256, a: __m256) -> [__m256i; 2] {
+    let r = _mm256_cvtps_epi32(r);
+    let g = _mm256_cvtps_epi32(g);
+    let b = _mm256_cvtps_epi32(b);
+    let a = _mm256_cvtps_epi32(a);
+
+    let rb = _mm256_packus_epi32(r, b);
+    let ga = _mm256_packus_epi32(g, a);
+
+    let rgba_lo = _mm256_unpacklo_epi16(rb, ga);
+    let rgba_hi = _mm256_unpackhi_epi16(rb, ga);
+
+    let (rgba_lo, rgba_hi) = (
+        _mm256_unpacklo_epi32(rgba_lo, rgba_hi),
+        _mm256_unpackhi_epi32(rgba_lo, rgba_hi),
+    );
+
+    [rgba_lo, rgba_hi]
+}
+
+#[inline(always)]
+unsafe fn interleave_f32x8x3_to_u8x24(r: __m256, g: __m256, b: __m256) -> [u8; 24] {
+    let rgb = interleave_f32x8x4_to_u8x32(r, g, b, _mm256_setzero_ps());
+
+    #[rustfmt::skip]
+        let idx = _mm256_setr_epi8(
+            0, 1, 2,
+            4, 5, 6,
+            8, 9,10,
+            12, 13, 14,
+            -128, -128, -128, -128,
+            0, 1, 2,
+            4, 5, 6,
+            8, 9,10,
+            12, 13, 14,
+            -128, -128, -128, -128,
+        );
+
+    let rgb = _mm256_shuffle_epi8(rgb, idx);
+
+    // This gets optimized to use avx2 by the compiler
+    let [a0, b0, c0, _, a1, b1, c1, _]: [i32; 8] = transmute(rgb);
+
+    transmute([a0, b0, c0, a1, b1, c1])
+}
+
+#[inline(always)]
+unsafe fn interleave_f32x8x3_to_u16x24(r: __m256, g: __m256, b: __m256) -> [u16; 24] {
+    let [rgb_lo, rgb_hi] = interleave_f32x8x4_to_u16x32(r, g, b, _mm256_setzero_ps());
+
+    #[rustfmt::skip]
+        let idx = _mm256_setr_epi8(
+            0, 1, 2, 3, 4, 5,
+            8, 9, 10, 11, 12, 13,
+            16, 17, 18, 19, 20, 21,
+            24, 25, 26, 27, 28, 29,
+            -128,-128,-128,-128,-128,-128,-128,-128,
+        );
+
+    let rgb_lo = _mm256_shuffle_epi8(rgb_lo, idx);
+    let rgb_hi = _mm256_shuffle_epi8(rgb_hi, idx);
+
+    // This gets optimized to use avx2 by the compiler
+    let [a0, b0, c0, a1, b1, c1, _, _]: [i32; 8] = transmute(rgb_lo);
+    let [a2, b2, c2, a3, b3, c3, _, _]: [i32; 8] = transmute(rgb_hi);
+
+    transmute([a0, b0, c0, a1, b1, c1, a2, b2, c2, a3, b3, c3])
 }
 
 mod math {
@@ -418,150 +542,6 @@ mod math {
     #[inline(always)]
     pub(super) unsafe fn pow(x: __m256, y: __m256) -> __m256 {
         exp(_mm256_mul_ps(y, log(x)))
-    }
-}
-
-pub(crate) mod util {
-    use super::*;
-
-    #[inline(always)]
-    pub(crate) unsafe fn f32x8x2_to_u8x16(l: __m256, h: __m256) -> [u8; 16] {
-        let l = _mm256_cvtps_epi32(l);
-        let h = _mm256_cvtps_epi32(h);
-
-        let v = _mm256_packus_epi32(l, h);
-        let v = _mm256_packus_epi16(v, v);
-
-        let v = _mm256_permutevar8x32_epi32(v, _mm256_setr_epi32(0, 4, 3, 5, 0, 4, 3, 5));
-
-        transmute(_mm256_castsi256_si128(v))
-    }
-
-    #[inline(always)]
-    pub(crate) unsafe fn f32x8x2_to_u16x16(l: __m256, h: __m256) -> [u16; 16] {
-        let l = _mm256_cvtps_epi32(l);
-        let h = _mm256_cvtps_epi32(h);
-
-        let v = _mm256_packus_epi32(l, h);
-        let v = _mm256_permutevar8x32_epi32(v, _mm256_setr_epi32(0, 1, 4, 5, 2, 3, 6, 7));
-
-        transmute(v)
-    }
-
-    #[inline(always)]
-    pub(crate) unsafe fn f32x8_to_u8x8(v: __m256) -> [u8; 8] {
-        let v = _mm256_cvtps_epi32(v);
-        let v = _mm256_packus_epi32(v, v);
-        let v = _mm256_packus_epi16(v, v);
-
-        let a = _mm256_extract_epi32(v, 0);
-        let b = _mm256_extract_epi32(v, 4);
-
-        transmute([a, b])
-    }
-
-    #[inline(always)]
-    pub(crate) unsafe fn f32x8_to_u16x8(v: __m256) -> [u16; 8] {
-        let v = _mm256_cvtps_epi32(v);
-        let v = _mm256_packus_epi32(v, v);
-
-        let a = _mm256_extract_epi64(v, 0);
-        let b = _mm256_extract_epi64(v, 2);
-
-        let v = _mm_set_epi64x(b, a);
-
-        transmute(v)
-    }
-
-    #[inline(always)]
-    pub(crate) unsafe fn interleave_f32x8x4_to_u8x32(
-        r: __m256,
-        g: __m256,
-        b: __m256,
-        a: __m256,
-    ) -> __m256i {
-        let [rgba_lo, rgba_hi] = interleave_f32x8x4_to_u16x32(r, g, b, a);
-
-        _mm256_packus_epi16(rgba_lo, rgba_hi)
-    }
-
-    #[inline(always)]
-    pub(crate) unsafe fn interleave_f32x8x4_to_u16x32(
-        r: __m256,
-        g: __m256,
-        b: __m256,
-        a: __m256,
-    ) -> [__m256i; 2] {
-        let r = _mm256_cvtps_epi32(r);
-        let g = _mm256_cvtps_epi32(g);
-        let b = _mm256_cvtps_epi32(b);
-        let a = _mm256_cvtps_epi32(a);
-
-        let rb = _mm256_packus_epi32(r, b);
-        let ga = _mm256_packus_epi32(g, a);
-
-        let rgba_lo = _mm256_unpacklo_epi16(rb, ga);
-        let rgba_hi = _mm256_unpackhi_epi16(rb, ga);
-
-        let (rgba_lo, rgba_hi) = (
-            _mm256_unpacklo_epi32(rgba_lo, rgba_hi),
-            _mm256_unpackhi_epi32(rgba_lo, rgba_hi),
-        );
-
-        [rgba_lo, rgba_hi]
-    }
-
-    #[inline(always)]
-    pub(crate) unsafe fn interleave_f32x8x3_to_u8x24(r: __m256, g: __m256, b: __m256) -> [u8; 24] {
-        let rgb = interleave_f32x8x4_to_u8x32(r, g, b, _mm256_setzero_ps());
-
-        #[rustfmt::skip]
-        let idx = _mm256_setr_epi8(
-            0, 1, 2,
-            4, 5, 6,
-            8, 9,10,
-            12, 13, 14,
-            -128, -128, -128, -128,
-            0, 1, 2,
-            4, 5, 6,
-            8, 9,10,
-            12, 13, 14,
-            -128, -128, -128, -128,
-        );
-
-        let rgb = _mm256_shuffle_epi8(rgb, idx);
-
-        // This gets optimized to use avx2 by the compiler
-        let [a0, b0, c0, _, a1, b1, c1, _]: [i32; 8] = transmute(rgb);
-
-        transmute([a0, b0, c0, a1, b1, c1])
-    }
-
-    #[inline(always)]
-    pub(crate) unsafe fn interleave_f32x8x3_to_u16x24(
-        r: __m256,
-        g: __m256,
-        b: __m256,
-    ) -> [u16; 24] {
-        let [rgb_lo, rgb_hi] = interleave_f32x8x4_to_u16x32(r, g, b, _mm256_setzero_ps());
-
-        #[rustfmt::skip]
-        let idx = _mm256_setr_epi8(
-            0, 1, 2, 3, 4, 5,
-            8, 9, 10, 11, 12, 13,
-            16, 17, 18, 19, 20, 21,
-            24, 25, 26, 27, 28, 29,
-            -128,-128,-128,-128,-128,-128,-128,-128,
-        );
-
-        let rgb_lo = _mm256_shuffle_epi8(rgb_lo, idx);
-        let rgb_hi = _mm256_shuffle_epi8(rgb_hi, idx);
-
-        // This gets optimized to use avx2 by the compiler
-        let [a0, b0, c0, a1, b1, c1, _, _]: [i32; 8] = transmute(rgb_lo);
-        let [a2, b2, c2, a3, b3, c3, _, _]: [i32; 8] = transmute(rgb_hi);
-
-        transmute([a0, b0, c0, a1, b1, c1, a2, b2, c2, a3, b3, c3])
     }
 }
 

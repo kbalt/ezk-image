@@ -51,11 +51,11 @@ unsafe impl Vector for float32x4_t {
         vsqrtq_f32(self)
     }
 
-    #[inline(always)]
+    #[target_feature(enable = "neon")]
     unsafe fn vpow(self, pow: Self) -> Self {
         math::pow(self, pow)
     }
-    #[inline(always)]
+    #[target_feature(enable = "neon")]
     unsafe fn vln(self) -> Self {
         math::log(self)
     }
@@ -181,32 +181,32 @@ unsafe impl Vector for float32x4_t {
     #[inline(always)]
     unsafe fn write_u8(self, ptr: *mut u8) {
         ptr.cast::<[u8; 4]>()
-            .write_unaligned(util::float32x4_to_u8x4(self))
+            .write_unaligned(float32x4_to_u8x4(self))
     }
 
     #[inline(always)]
     unsafe fn write_u8_2x(v0: Self, v1: Self, ptr: *mut u8) {
         ptr.cast::<[u8; 8]>()
-            .write_unaligned(util::float32x4x2_to_u8x8(v0, v1))
+            .write_unaligned(float32x4x2_to_u8x8(v0, v1))
     }
 
     #[inline(always)]
     unsafe fn write_u16(self, ptr: *mut u16) {
         ptr.cast::<[u16; 4]>()
-            .write_unaligned(util::float32x4_to_u16x4(self))
+            .write_unaligned(float32x4_to_u16x4(self))
     }
 
     #[inline(always)]
     unsafe fn write_u16_2x(v0: Self, v1: Self, ptr: *mut u16) {
         ptr.cast::<[u16; 8]>()
-            .write_unaligned(util::float32x4x2_to_u16x8(v0, v1))
+            .write_unaligned(float32x4x2_to_u16x8(v0, v1))
     }
 
     #[inline(always)]
     unsafe fn write_interleaved_3x_2x_u8(this: [[Self; 3]; 2], ptr: *mut u8) {
-        let v0 = util::float32x4x2_to_u8x8(this[0][0], this[1][0]);
-        let v1 = util::float32x4x2_to_u8x8(this[0][1], this[1][1]);
-        let v2 = util::float32x4x2_to_u8x8(this[0][2], this[1][2]);
+        let v0 = float32x4x2_to_u8x8(this[0][0], this[1][0]);
+        let v1 = float32x4x2_to_u8x8(this[0][1], this[1][1]);
+        let v2 = float32x4x2_to_u8x8(this[0][2], this[1][2]);
 
         let v = transmute::<[[u8; 8]; 3], uint8x8x3_t>([v0, v1, v2]);
 
@@ -215,9 +215,9 @@ unsafe impl Vector for float32x4_t {
 
     #[inline(always)]
     unsafe fn write_interleaved_3x_2x_u16(this: [[Self; 3]; 2], ptr: *mut u16) {
-        let v0 = util::float32x4x2_to_u16x8(this[0][0], this[1][0]);
-        let v1 = util::float32x4x2_to_u16x8(this[0][1], this[1][1]);
-        let v2 = util::float32x4x2_to_u16x8(this[0][2], this[1][2]);
+        let v0 = float32x4x2_to_u16x8(this[0][0], this[1][0]);
+        let v1 = float32x4x2_to_u16x8(this[0][1], this[1][1]);
+        let v2 = float32x4x2_to_u16x8(this[0][2], this[1][2]);
 
         let v = transmute::<[[u16; 8]; 3], uint16x8x3_t>([v0, v1, v2]);
 
@@ -226,10 +226,10 @@ unsafe impl Vector for float32x4_t {
 
     #[inline(always)]
     unsafe fn write_interleaved_4x_2x_u8(this: [[Self; 4]; 2], ptr: *mut u8) {
-        let v0 = util::float32x4x2_to_u8x8(this[0][0], this[1][0]);
-        let v1 = util::float32x4x2_to_u8x8(this[0][1], this[1][1]);
-        let v2 = util::float32x4x2_to_u8x8(this[0][2], this[1][2]);
-        let v3 = util::float32x4x2_to_u8x8(this[0][3], this[1][3]);
+        let v0 = float32x4x2_to_u8x8(this[0][0], this[1][0]);
+        let v1 = float32x4x2_to_u8x8(this[0][1], this[1][1]);
+        let v2 = float32x4x2_to_u8x8(this[0][2], this[1][2]);
+        let v3 = float32x4x2_to_u8x8(this[0][3], this[1][3]);
 
         let v = transmute::<[[u8; 8]; 4], uint8x8x4_t>([v0, v1, v2, v3]);
 
@@ -238,10 +238,10 @@ unsafe impl Vector for float32x4_t {
 
     #[inline(always)]
     unsafe fn write_interleaved_4x_2x_u16(this: [[Self; 4]; 2], ptr: *mut u16) {
-        let v0 = util::float32x4x2_to_u16x8(this[0][0], this[1][0]);
-        let v1 = util::float32x4x2_to_u16x8(this[0][1], this[1][1]);
-        let v2 = util::float32x4x2_to_u16x8(this[0][2], this[1][2]);
-        let v3 = util::float32x4x2_to_u16x8(this[0][3], this[1][3]);
+        let v0 = float32x4x2_to_u16x8(this[0][0], this[1][0]);
+        let v1 = float32x4x2_to_u16x8(this[0][1], this[1][1]);
+        let v2 = float32x4x2_to_u16x8(this[0][2], this[1][2]);
+        let v3 = float32x4x2_to_u16x8(this[0][3], this[1][3]);
 
         let v = transmute::<[[u16; 8]; 4], uint16x8x4_t>([v0, v1, v2, v3]);
 
@@ -256,6 +256,56 @@ unsafe impl Vector for float32x4_t {
     ) -> RgbaBlock<Self> {
         DynRgbaReaderSpec::<float32x4_t>::dyn_read(v, x, y)
     }
+}
+
+#[inline(always)]
+unsafe fn float32x4x2_to_u8x8(l: float32x4_t, h: float32x4_t) -> [u8; 8] {
+    let l = vcvtq_u32_f32(l);
+    let l = vminq_u32(l, vdupq_n_u32(u8::MAX as u32));
+    let l = vmovn_u32(l);
+
+    let h = vcvtq_u32_f32(h);
+    let h = vminq_u32(h, vdupq_n_u32(u8::MAX as u32));
+    let h = vmovn_u32(h);
+
+    let v = transmute::<[uint16x4_t; 2], uint16x8_t>([l, h]);
+
+    transmute(vmovn_u16(v))
+}
+
+#[inline(always)]
+unsafe fn float32x4x2_to_u16x8(l: float32x4_t, h: float32x4_t) -> [u16; 8] {
+    let l = vcvtq_u32_f32(l);
+    let l = vminq_u32(l, vdupq_n_u32(u16::MAX as u32));
+    let l = vmovn_u32(l);
+
+    let h = vcvtq_u32_f32(h);
+    let h = vminq_u32(h, vdupq_n_u32(u16::MAX as u32));
+    let h = vmovn_u32(h);
+
+    transmute([l, h])
+}
+
+#[inline(always)]
+unsafe fn float32x4_to_u8x4(i: float32x4_t) -> [u8; 4] {
+    let i = vcvtq_u32_f32(i);
+    let i = vminq_u32(i, vdupq_n_u32(255));
+    let i = vmovn_u32(i);
+
+    let v = transmute::<[uint16x4_t; 2], uint16x8_t>([i, i]);
+
+    let [a, b, c, d, ..] = transmute::<uint8x8_t, [u8; 8]>(vmovn_u16(v));
+
+    [a, b, c, d]
+}
+
+#[inline(always)]
+unsafe fn float32x4_to_u16x4(i: float32x4_t) -> [u16; 4] {
+    let i = vcvtq_u32_f32(i);
+    let i = vminq_u32(i, vdupq_n_u32(u16::MAX as u32));
+    let i = vmovn_u32(i);
+
+    transmute(i)
 }
 
 mod math {
@@ -423,61 +473,6 @@ mod math {
     #[inline(always)]
     pub(super) unsafe fn pow(x: float32x4_t, y: float32x4_t) -> float32x4_t {
         exp(vmulq_f32(y, log(x)))
-    }
-}
-
-pub(crate) mod util {
-    use crate::arch::*;
-    use std::mem::transmute;
-
-    #[inline(always)]
-    pub(crate) unsafe fn float32x4x2_to_u8x8(l: float32x4_t, h: float32x4_t) -> [u8; 8] {
-        let l = vcvtq_u32_f32(l);
-        let l = vminq_u32(l, vdupq_n_u32(u8::MAX as u32));
-        let l = vmovn_u32(l);
-
-        let h = vcvtq_u32_f32(h);
-        let h = vminq_u32(h, vdupq_n_u32(u8::MAX as u32));
-        let h = vmovn_u32(h);
-
-        let v = transmute::<[uint16x4_t; 2], uint16x8_t>([l, h]);
-
-        transmute(vmovn_u16(v))
-    }
-
-    #[inline(always)]
-    pub(crate) unsafe fn float32x4x2_to_u16x8(l: float32x4_t, h: float32x4_t) -> [u16; 8] {
-        let l = vcvtq_u32_f32(l);
-        let l = vminq_u32(l, vdupq_n_u32(u16::MAX as u32));
-        let l = vmovn_u32(l);
-
-        let h = vcvtq_u32_f32(h);
-        let h = vminq_u32(h, vdupq_n_u32(u16::MAX as u32));
-        let h = vmovn_u32(h);
-
-        transmute([l, h])
-    }
-
-    #[inline(always)]
-    pub(crate) unsafe fn float32x4_to_u8x4(i: float32x4_t) -> [u8; 4] {
-        let i = vcvtq_u32_f32(i);
-        let i = vminq_u32(i, vdupq_n_u32(255));
-        let i = vmovn_u32(i);
-
-        let v = transmute::<[uint16x4_t; 2], uint16x8_t>([i, i]);
-
-        let [a, b, c, d, ..] = transmute::<uint8x8_t, [u8; 8]>(vmovn_u16(v));
-
-        [a, b, c, d]
-    }
-
-    #[inline(always)]
-    pub(crate) unsafe fn float32x4_to_u16x4(i: float32x4_t) -> [u16; 4] {
-        let i = vcvtq_u32_f32(i);
-        let i = vminq_u32(i, vdupq_n_u32(u16::MAX as u32));
-        let i = vmovn_u32(i);
-
-        transmute(i)
     }
 }
 
