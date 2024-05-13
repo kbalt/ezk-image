@@ -8,6 +8,8 @@ use rayon::scope;
 #[cfg(not(feature = "multi-thread"))]
 use rayon_stub::scope;
 
+pub use fir::{Filter, FilterType, ResizeAlg};
+
 /// Everything that can go wrong when calling [`Resizer::resize`]
 #[derive(Debug, PartialEq)]
 pub enum ResizeError {
@@ -49,7 +51,7 @@ impl Resizer {
 
     /// Resize an image. `src` and `dst` must have the same pixel format.
     ///
-    /// Transfer characteristics of the source image are ignored.
+    /// Color characteristics of the images are ignored.
     #[allow(private_bounds)]
     pub fn resize<P>(&mut self, src: Image<&[P]>, dst: Image<&mut [P]>) -> Result<(), ResizeError>
     where

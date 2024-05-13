@@ -122,6 +122,17 @@ pub(crate) fn swap_bytes(b: &mut [u16]) {
         }
     }
 
+    #[cfg(all(feature = "unstable", any(target_arch = "x86", target_arch = "x86_64")))]
+    if is_x86_feature_detected!("avx512f") && is_x86_feature_detected!("avx512bw") {
+        #[target_feature(enable = "avx512f", enable = "avx512bw")]
+        unsafe fn call(b: &mut [u16]) {
+            impl_(b);
+        }
+
+        // Safety: Did a feature check
+        unsafe { call(b) }
+    }
+
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     if is_x86_feature_detected!("avx2") {
         #[target_feature(enable = "avx2")]

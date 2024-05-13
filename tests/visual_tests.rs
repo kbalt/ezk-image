@@ -1,6 +1,7 @@
+use ezk_image::resize::*;
 use ezk_image::{
     convert_multi_thread, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, Image, PixelFormat,
-    PixelFormatPlanes, ResizeAlg, Resizer, Window,
+    PixelFormatPlanes, Window,
 };
 use image::{Rgb, Rgba};
 

@@ -10,15 +10,11 @@ use primitive::PrimitiveInternal;
 use std::{error::Error, fmt};
 
 pub use color::{ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer};
-#[cfg(feature = "resize")]
-pub use fir::{Filter, FilterType, ResizeAlg};
-pub use image::{Image, ImageError, ImageWindowError};
+pub use image::{Image, ImageError, ImageWindowError, Window};
 #[cfg(feature = "multi-thread")]
 pub use multi_thread::convert_multi_thread;
 pub use planes::PixelFormatPlanes;
 pub use primitive::Primitive;
-#[cfg(feature = "resize")]
-pub use resize::{ResizeError, Resizer};
 
 mod color;
 mod formats;
@@ -28,7 +24,7 @@ mod multi_thread;
 mod planes;
 mod primitive;
 #[cfg(feature = "resize")]
-mod resize;
+pub mod resize;
 mod vector;
 
 mod arch {
@@ -41,47 +37,6 @@ mod arch {
     pub(crate) use std::arch::aarch64::*;
     #[cfg(target_arch = "aarch64")]
     pub(crate) use std::arch::is_aarch64_feature_detected;
-}
-
-/// Window into an image
-#[derive(Debug, Clone, Copy)]
-pub struct Window {
-    pub x: usize,
-    pub y: usize,
-    pub width: usize,
-    pub height: usize,
-}
-
-/// Verify that the input values are all valid and safe to move on to
-fn get_and_verify_input_windows<SP: Primitive, DP: Primitive>(
-    src: &Image<&[SP]>,
-    dst: &Image<&mut [DP]>,
-) -> Result<(Window, Window), ConvertError> {
-    let src_window = src.window.unwrap_or(Window {
-        x: 0,
-        y: 0,
-        width: src.width,
-        height: src.height,
-    });
-
-    let dst_window = dst.window.unwrap_or(Window {
-        x: 0,
-        y: 0,
-        width: dst.width,
-        height: dst.height,
-    });
-
-    // Src and Dst window must be the same size
-    if src_window.width != dst_window.width || src_window.height != dst_window.height {
-        return Err(ConvertError::MismatchedImageSize);
-    }
-
-    // Src and Dst window must have even dimensions
-    if src_window.width % 2 == 1 || src_window.height % 2 == 1 {
-        return Err(ConvertError::OddImageDimensions);
-    }
-
-    Ok((src_window, dst_window))
 }
 
 /// Supported pixel formats
@@ -351,4 +306,36 @@ where
             reader,
         ),
     }
+}
+
+/// Verify that the input values are all valid and safe to move on to
+fn get_and_verify_input_windows<SP: Primitive, DP: Primitive>(
+    src: &Image<&[SP]>,
+    dst: &Image<&mut [DP]>,
+) -> Result<(Window, Window), ConvertError> {
+    let src_window = src.window.unwrap_or(Window {
+        x: 0,
+        y: 0,
+        width: src.width,
+        height: src.height,
+    });
+
+    let dst_window = dst.window.unwrap_or(Window {
+        x: 0,
+        y: 0,
+        width: dst.width,
+        height: dst.height,
+    });
+
+    // Src and Dst window must be the same size
+    if src_window.width != dst_window.width || src_window.height != dst_window.height {
+        return Err(ConvertError::MismatchedImageSize);
+    }
+
+    // Src and Dst window must have even dimensions
+    if src_window.width % 2 == 1 || src_window.height % 2 == 1 {
+        return Err(ConvertError::OddImageDimensions);
+    }
+
+    Ok((src_window, dst_window))
 }

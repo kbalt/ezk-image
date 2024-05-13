@@ -8,9 +8,6 @@ be explicitly called with [`convert_multi_thread`].
 
 Any format can be converted to any other format.
 
-[`Image`] describes the conversion source and destination. It can store a window to only
-convert parts of an image, or to write the converted image into a part of the destination image.
-
 ---
 
 ## Supported Pixel formats
@@ -26,9 +23,9 @@ Bit depth of up to 16 bit per component is supported.
 
 ## Supported Color Primaries (color gamut)
 
-- BT601NTSC
-- BT709 (SDR)
-- BT2020 (HDR)
+- SMTPE ST 240
+- BT.709 (SDR)
+- BT.2020 (HDR)
 
 ## Supported Color Transfer Functions (opto-electronic transfer characteristics of samples)
 

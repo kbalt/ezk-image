@@ -3,8 +3,11 @@ use crate::vector::Vector;
 /// Color gamut of an image
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColorPrimaries {
-    BT601NTSC,
+    /// SMPTE ST 240
+    ST240,
+    /// ITU-R BT.709
     BT709,
+    /// ITU-R BT.2020
     BT2020,
 }
 
@@ -14,7 +17,7 @@ impl ColorPrimaries {
         use ColorPrimaries::*;
 
         match self {
-            BT601NTSC => &generated_consts::BT601NTSC_RGB_TO_XYZ,
+            ST240 => &generated_consts::ST240_RGB_TO_XYZ,
             BT709 => &generated_consts::BT709_RGB_TO_XYZ,
             BT2020 => &generated_consts::BT2020_RGB_TO_XYZ,
         }
@@ -25,7 +28,7 @@ impl ColorPrimaries {
         use ColorPrimaries::*;
 
         match self {
-            BT601NTSC => &generated_consts::BT601NTSC_XYZ_TO_RGB,
+            ST240 => &generated_consts::ST240_XYZ_TO_RGB,
             BT709 => &generated_consts::BT709_XYZ_TO_RGB,
             BT2020 => &generated_consts::BT2020_XYZ_TO_RGB,
         }
@@ -69,12 +72,12 @@ pub(crate) unsafe fn xyz_to_rgb<V: Vector>(bw: &[[f32; 3]; 3], x: V, y: V, z: V)
 }
 
 mod generated_consts {
-    pub(super) const BT601NTSC_RGB_TO_XYZ: [[f32; 3]; 3] = [
+    pub(super) const ST240_RGB_TO_XYZ: [[f32; 3]; 3] = [
         [0.39031416, 0.20383073, 0.025401404],
         [0.3700937, 0.71034116, 0.11341577],
         [0.19004808, 0.08582816, 0.95024043],
     ];
-    pub(super) const BT601NTSC_XYZ_TO_RGB: [[f32; 3]; 3] = [
+    pub(super) const ST240_XYZ_TO_RGB: [[f32; 3]; 3] = [
         [3.506003, -1.0092703, 0.026740361],
         [-1.7397907, 1.9292052, -0.18375263],
         [-0.5440582, 0.027603257, 1.0636142],
@@ -114,16 +117,16 @@ mod generate_matrices {
 
     fn xyz_rgbw(primaries: ColorPrimaries) -> [Vector3<f32>; 4] {
         match primaries {
+            ST240 => [
+                xy(0.63, 0.3290),
+                xy(0.31, 0.595),
+                xy(0.155, 0.07),
+                xy(0.3127, 0.3290),
+            ],
             BT709 => [
                 xy(0.64, 0.33),
                 xy(0.3, 0.6),
                 xy(0.15, 0.06),
-                xy(0.3127, 0.3290),
-            ],
-            BT601NTSC => [
-                xy(0.63, 0.3290),
-                xy(0.31, 0.595),
-                xy(0.155, 0.07),
                 xy(0.3127, 0.3290),
             ],
             BT2020 => [
@@ -165,7 +168,7 @@ mod generate_matrices {
     #[test]
     #[ignore]
     fn run() {
-        let primaries = [BT601NTSC, BT709, BT2020];
+        let primaries = [ST240, BT709, BT2020];
 
         for primaries in primaries {
             let rgb_to_xyz = rgb_to_xyz_mat(primaries);

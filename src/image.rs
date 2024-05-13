@@ -1,8 +1,8 @@
+use crate::{planes::AnySlice, ColorInfo, PixelFormat, PixelFormatPlanes};
 use std::error::Error;
 use std::fmt;
 
-use crate::{planes::AnySlice, ColorInfo, PixelFormat, PixelFormatPlanes, Window};
-
+/// Everything that can go wrong when constructing an [`Image`]
 #[derive(Debug, PartialEq)]
 pub enum ImageError {
     InvalidDimensions,
@@ -23,6 +23,7 @@ impl fmt::Display for ImageError {
 
 impl Error for ImageError {}
 
+/// Error indicating an invalid [`Window`]
 #[derive(Debug)]
 pub struct ImageWindowError;
 
@@ -34,6 +35,9 @@ impl fmt::Display for ImageWindowError {
 
 impl Error for ImageWindowError {}
 
+/// Raw image data with information about dimensions, cropping, colorimetry, bit depth and pixel format
+///
+/// Type parameter `S` can be any of `&[u8]`, `&[u16]`, `&mut [u8]` or `&mut [u16]`, referencing the raw image data.
 #[derive(Debug, Clone, Copy)]
 pub struct Image<S: AnySlice> {
     pub(crate) format: PixelFormat,
@@ -48,6 +52,7 @@ pub struct Image<S: AnySlice> {
 }
 
 impl<S: AnySlice> Image<S> {
+    /// Create a new image from all non-optional fields
     pub fn new(
         format: PixelFormat,
         planes: PixelFormatPlanes<S>,
@@ -75,11 +80,14 @@ impl<S: AnySlice> Image<S> {
         })
     }
 
+    /// Set a cropping window but in a builder pattern
     pub fn with_window(mut self, window: Window) -> Result<Self, ImageWindowError> {
         self.set_window(window)?;
+
         Ok(self)
     }
 
+    /// Set a cropping window
     pub fn set_window(&mut self, window: Window) -> Result<(), ImageWindowError> {
         if (window.x + window.width > self.width) || (window.y + window.height > self.height) {
             return Err(ImageWindowError);
@@ -89,4 +97,13 @@ impl<S: AnySlice> Image<S> {
 
         Ok(())
     }
+}
+
+/// Cropping window of an [`Image`]
+#[derive(Debug, Clone, Copy)]
+pub struct Window {
+    pub x: usize,
+    pub y: usize,
+    pub width: usize,
+    pub height: usize,
 }
