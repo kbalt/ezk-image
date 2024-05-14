@@ -19,6 +19,7 @@ keywords = [
 ]
 readme = "README.md"
 repository = "https://github.com/kbalt/ezk-image"
+license = "MIT"
 
 [dependencies]
 rayon = { version = "1.9", optional = true }
