@@ -5,13 +5,13 @@ pub trait Primitive: PrimitiveInternal + Copy + Send + Sync + 'static {}
 
 pub(crate) trait PrimitiveInternal {
     #[cfg(feature = "resize")]
-    type FirPixel1: fir::pixels::PixelExt;
+    type FirPixel1: fir::PixelTrait;
     #[cfg(feature = "resize")]
-    type FirPixel2: fir::pixels::PixelExt;
+    type FirPixel2: fir::PixelTrait;
     #[cfg(feature = "resize")]
-    type FirPixel3: fir::pixels::PixelExt;
+    type FirPixel3: fir::PixelTrait;
     #[cfg(feature = "resize")]
-    type FirPixel4: fir::pixels::PixelExt;
+    type FirPixel4: fir::PixelTrait;
 
     unsafe fn load<V: Vector>(ptr: *const Self) -> V;
     unsafe fn load_3x_interleaved_2x<V: Vector>(ptr: *const Self) -> [[V; 3]; 2];

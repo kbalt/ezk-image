@@ -1,7 +1,6 @@
 use crate::{Image, PixelFormatPlanes, Primitive, Window};
 use std::error::Error;
 use std::fmt;
-use std::num::NonZeroU32;
 
 #[cfg(feature = "multi-thread")]
 use rayon::scope;
@@ -42,7 +41,7 @@ impl Resizer {
     }
 
     fn ensure_resizer_len<const N: usize>(&mut self) -> [&mut fir::Resizer; N] {
-        self.fir.resize_with(N, || fir::Resizer::new(self.alg));
+        self.fir.resize_with(N, fir::Resizer::new);
 
         let mut iter = self.fir.iter_mut();
 
@@ -52,22 +51,15 @@ impl Resizer {
     /// Resize an image. `src` and `dst` must have the same pixel format.
     ///
     /// Color characteristics of the images are ignored.
-    #[allow(private_bounds)]
     pub fn resize<P>(&mut self, src: Image<&[P]>, dst: Image<&mut [P]>) -> Result<(), ResizeError>
     where
         P: Primitive,
-        for<'a> fir::DynamicImageView<'a>: From<fir::ImageView<'a, P::FirPixel1>>
-            + From<fir::ImageView<'a, P::FirPixel2>>
-            + From<fir::ImageView<'a, P::FirPixel3>>
-            + From<fir::ImageView<'a, P::FirPixel4>>,
-        for<'a> fir::DynamicImageViewMut<'a>: From<fir::ImageViewMut<'a, P::FirPixel1>>
-            + From<fir::ImageViewMut<'a, P::FirPixel2>>
-            + From<fir::ImageViewMut<'a, P::FirPixel3>>
-            + From<fir::ImageViewMut<'a, P::FirPixel4>>,
     {
         if src.format != dst.format {
             return Err(ResizeError::DifferentFormats);
         }
+
+        let alg = self.alg;
 
         match (src.planes, dst.planes) {
             (
@@ -88,6 +80,7 @@ impl Resizer {
                     s.spawn(move |_| {
                         Self::resize_plane::<P, P::FirPixel1>(
                             fir_resizer0,
+                            alg,
                             src_y,
                             src.width as u32,
                             src.height as u32,
@@ -102,6 +95,7 @@ impl Resizer {
                     s.spawn(move |_| {
                         Self::resize_plane::<P, P::FirPixel1>(
                             fir_resizer1,
+                            alg,
                             src_u,
                             src.width as u32 / 2,
                             src.height as u32 / 2,
@@ -116,6 +110,7 @@ impl Resizer {
                     s.spawn(move |_| {
                         Self::resize_plane::<P, P::FirPixel1>(
                             fir_resizer2,
+                            alg,
                             src_v,
                             src.width as u32 / 2,
                             src.height as u32 / 2,
@@ -146,6 +141,7 @@ impl Resizer {
                     s.spawn(move |_| {
                         Self::resize_plane::<P, P::FirPixel1>(
                             fir_resizer0,
+                            alg,
                             src_y,
                             src.width as u32,
                             src.height as u32,
@@ -159,6 +155,7 @@ impl Resizer {
                     s.spawn(move |_| {
                         Self::resize_plane::<P, P::FirPixel1>(
                             fir_resizer1,
+                            alg,
                             src_u,
                             src.width as u32,
                             src.height as u32 / 2,
@@ -172,6 +169,7 @@ impl Resizer {
                     s.spawn(move |_| {
                         Self::resize_plane::<P, P::FirPixel1>(
                             fir_resizer2,
+                            alg,
                             src_v,
                             src.width as u32,
                             src.height as u32 / 2,
@@ -202,6 +200,7 @@ impl Resizer {
                     s.spawn(move |_| {
                         Self::resize_plane::<P, P::FirPixel1>(
                             fir_resizer0,
+                            alg,
                             src_y,
                             src.width as u32,
                             src.height as u32,
@@ -216,6 +215,7 @@ impl Resizer {
                     s.spawn(move |_| {
                         Self::resize_plane::<P, P::FirPixel1>(
                             fir_resizer1,
+                            alg,
                             src_u,
                             src.width as u32,
                             src.height as u32,
@@ -230,6 +230,7 @@ impl Resizer {
                     s.spawn(move |_| {
                         Self::resize_plane::<P, P::FirPixel1>(
                             fir_resizer2,
+                            alg,
                             src_v,
                             src.width as u32,
                             src.height as u32,
@@ -258,6 +259,7 @@ impl Resizer {
                     s.spawn(move |_| {
                         Self::resize_plane::<P, P::FirPixel1>(
                             fir_resizer0,
+                            alg,
                             src_y,
                             src.width as u32,
                             src.height as u32,
@@ -272,6 +274,7 @@ impl Resizer {
                     s.spawn(move |_| {
                         Self::resize_plane::<P, P::FirPixel2>(
                             fir_resizer1,
+                            alg,
                             src_uv,
                             src.width as u32 / 2,
                             src.height as u32 / 2,
@@ -289,6 +292,7 @@ impl Resizer {
 
                 Self::resize_plane::<P, P::FirPixel3>(
                     fir_resizer,
+                    alg,
                     src_rgb,
                     src.width as u32,
                     src.height as u32,
@@ -304,6 +308,7 @@ impl Resizer {
 
                 Self::resize_plane::<P, P::FirPixel4>(
                     fir_resizer,
+                    alg,
                     src_rgba,
                     src.width as u32,
                     src.height as u32,
@@ -323,6 +328,7 @@ impl Resizer {
     #[allow(clippy::too_many_arguments)]
     fn resize_plane<P, Px>(
         fir_resizer: &mut fir::Resizer,
+        alg: ResizeAlg,
 
         src: &[P],
         src_width: u32,
@@ -335,61 +341,54 @@ impl Resizer {
         dst_window: Option<Window>,
     ) where
         P: Primitive,
-        Px: fir::pixels::PixelExt,
-        for<'a> fir::DynamicImageView<'a>: From<fir::ImageView<'a, Px>>,
-        for<'a> fir::DynamicImageViewMut<'a>: From<fir::ImageViewMut<'a, Px>>,
+        Px: fir::PixelTrait,
     {
         // Safety:
         // P is either u8 or u16, so transmuting to u8 isn't an issue
         let src_slice = unsafe { src.align_to::<u8>().1 };
         let dst_slice = unsafe { dst.align_to_mut::<u8>().1 };
 
-        let mut src_view = fir::ImageView::<Px>::from_buffer(
-            src_width
-                .try_into()
-                .expect("Image::new() must prevent non-zero width"),
-            src_height
-                .try_into()
-                .expect("Image::new() must prevent non-zero height"),
-            src_slice,
-        )
-        .expect("ImageBuffer invariants should have been checked beforehand");
+        let src_view =
+            fir::images::ImageRef::new(src_width, src_height, src_slice, Px::pixel_type())
+                .expect("ImageBuffer invariants should have been checked beforehand");
 
-        if let Some(src_window) = src_window {
-            src_view
-                .set_crop_box(fir::CropBox {
-                    left: src_window.x as f64,
-                    top: src_window.y as f64,
-                    width: src_window.width as f64,
-                    height: src_window.height as f64,
-                })
-                .expect("window size is already checked when creating Image");
-        }
+        let src_image = if let Some(window) = src_window {
+            fir::images::CroppedImage::new(
+                &src_view,
+                window.x as u32,
+                window.y as u32,
+                window.width as u32,
+                window.height as u32,
+            )
+        } else {
+            fir::images::CroppedImage::new(&src_view, 0, 0, src_width, src_height)
+        };
 
-        let mut dst_view = fir::ImageViewMut::<Px>::from_buffer(
-            dst_width.try_into().unwrap(),
-            dst_height.try_into().unwrap(),
-            dst_slice,
-        )
-        .expect("ImageBuffer invariants should have been checked beforehand");
+        let mut dst_view =
+            fir::images::Image::from_slice_u8(dst_width, dst_height, dst_slice, Px::pixel_type())
+                .expect("ImageBuffer invariants should have been checked beforehand");
 
-        if let Some(dst_window) = dst_window {
-            dst_view = dst_view
-                .crop(
-                    dst_window.x as u32,
-                    dst_window.y as u32,
-                    NonZeroU32::try_from(dst_window.width as u32)
-                        .expect("Image::new() must prevent non-zero width"),
-                    NonZeroU32::try_from(dst_window.height as u32)
-                        .expect("Image::new() must prevent non-zero height"),
-                )
-                .expect("window size is already checked when creating Image");
-        }
+        let dst_image = if let Some(window) = dst_window {
+            fir::images::CroppedImageMut::new(
+                &mut dst_view,
+                window.x as u32,
+                window.y as u32,
+                window.width as u32,
+                window.height as u32,
+            )
+        } else {
+            fir::images::CroppedImageMut::new(&mut dst_view, 0, 0, dst_width, dst_height)
+        };
 
         fir_resizer
             .resize(
-                &fir::DynamicImageView::from(src_view),
-                &mut fir::DynamicImageViewMut::from(dst_view),
+                &src_image.expect("Crop must be checked by Image"),
+                &mut dst_image.expect("Crop must be checked by Image"),
+                Some(&fir::ResizeOptions {
+                    algorithm: alg,
+                    cropping: fir::SrcCropping::None,
+                    mul_div_alpha: false,
+                }),
             )
             .expect("Pixel type must be assured to be the same before calling fir's resize");
     }
