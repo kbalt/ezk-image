@@ -9,7 +9,7 @@ use formats::*;
 use primitive::PrimitiveInternal;
 use std::{error::Error, fmt};
 
-pub use color::{ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer};
+pub use color::{ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, RgbColorInfo, YuvColorInfo};
 pub use image::{Image, ImageError, ImageWindowError, Window};
 #[cfg(feature = "multi-thread")]
 pub use multi_thread::convert_multi_thread;
@@ -105,6 +105,7 @@ impl PixelFormat {
 pub enum ConvertError {
     OddImageDimensions,
     MismatchedImageSize,
+    InvalidColorInfo,
     InvalidPlanesForPixelFormat(PixelFormat),
     InvalidPlaneSizeForDimensions,
 }
@@ -117,6 +118,9 @@ impl fmt::Display for ConvertError {
             }
             ConvertError::MismatchedImageSize => {
                 write!(f, "source image has different size than destination image")
+            }
+            ConvertError::InvalidColorInfo => {
+                write!(f, "invalid color info for pixel format")
             }
             ConvertError::InvalidPlanesForPixelFormat(format) => {
                 write!(f, "provided planes mismatch with {format:?}")
@@ -170,7 +174,7 @@ where
                 src.bits_per_component,
                 src.window,
             )?,
-        ))),
+        )?)),
         PixelFormat::I422 => Ok(Box::new(I422ToRgb::new(
             &src.color,
             I422Reader::<P>::new(
@@ -180,7 +184,7 @@ where
                 src.bits_per_component,
                 src.window,
             )?,
-        ))),
+        )?)),
         PixelFormat::I444 => Ok(Box::new(I444ToRgb::new(
             &src.color,
             I444Reader::<P>::new(
@@ -190,7 +194,7 @@ where
                 src.bits_per_component,
                 src.window,
             )?,
-        ))),
+        )?)),
         PixelFormat::NV12 => Ok(Box::new(I420ToRgb::new(
             &src.color,
             NV12Reader::<P>::new(
@@ -200,7 +204,7 @@ where
                 src.bits_per_component,
                 src.window,
             )?,
-        ))),
+        )?)),
         PixelFormat::RGBA => Ok(Box::new(RgbaReader::<false, P>::new(
             src.width,
             src.height,
@@ -247,7 +251,7 @@ where
             dst.planes,
             dst.bits_per_component,
             dst.window,
-            RgbToI420::new(&dst.color, reader),
+            RgbToI420::new(&dst.color, reader)?,
         ),
         PixelFormat::I422 => I422Writer::<DP, _>::write(
             dst.width,
@@ -255,7 +259,7 @@ where
             dst.planes,
             dst.bits_per_component,
             dst.window,
-            RgbToI422::new(&dst.color, reader),
+            RgbToI422::new(&dst.color, reader)?,
         ),
         PixelFormat::I444 => I444Writer::<DP, _>::write(
             dst.width,
@@ -263,7 +267,7 @@ where
             dst.planes,
             dst.bits_per_component,
             dst.window,
-            RgbToI444::new(&dst.color, reader),
+            RgbToI444::new(&dst.color, reader)?,
         ),
         PixelFormat::NV12 => NV12Writer::<DP, _>::write(
             dst.width,
@@ -271,7 +275,7 @@ where
             dst.planes,
             dst.bits_per_component,
             dst.window,
-            RgbToI420::new(&dst.color, reader),
+            RgbToI420::new(&dst.color, reader)?,
         ),
         PixelFormat::RGBA => RgbaWriter::<false, DP, _>::write(
             dst.width,

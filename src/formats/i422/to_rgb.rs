@@ -1,22 +1,30 @@
 use super::{I422Block, I422Src};
-use crate::color::{ColorInfo, ColorOps};
 use crate::formats::rgba::{RgbaBlock, RgbaPixel, RgbaSrc};
 use crate::vector::Vector;
+use crate::{ColorInfo, ColorSpace, ColorTransfer, ConvertError};
 
 pub(crate) struct I422ToRgb<S> {
     i422_src: S,
 
-    color: ColorOps,
+    space: ColorSpace,
+    transfer: ColorTransfer,
+    xyz_to_rgb: &'static [[f32; 3]; 3],
     full_range: bool,
 }
 
 impl<S: I422Src> I422ToRgb<S> {
-    pub(crate) fn new(color: &ColorInfo, i422_src: S) -> Self {
-        Self {
+    pub(crate) fn new(color: &ColorInfo, i422_src: S) -> Result<Self, ConvertError> {
+        let ColorInfo::YUV(yuv) = color else {
+            return Err(ConvertError::MismatchedImageSize);
+        };
+
+        Ok(Self {
             i422_src,
-            color: ColorOps::from_info(color),
-            full_range: color.full_range,
-        }
+            space: yuv.space,
+            transfer: yuv.transfer,
+            xyz_to_rgb: yuv.primaries.xyz_to_rgb_mat(),
+            full_range: yuv.full_range,
+        })
     }
 }
 
@@ -70,23 +78,19 @@ impl<S: I422Src> RgbaSrc for I422ToRgb<S> {
         v0 = v0.vsubf(0.5);
         v1 = v1.vsubf(0.5);
 
-        let (r00, g00, b00) =
-            self.color
-                .space
-                .yuv_to_rgb(self.color.transfer, self.color.xyz_to_rgb, y00, u0, v0);
-        let (r01, g01, b01) =
-            self.color
-                .space
-                .yuv_to_rgb(self.color.transfer, self.color.xyz_to_rgb, y01, u0, v0);
+        let (r00, g00, b00) = self
+            .space
+            .yuv_to_rgb(self.transfer, self.xyz_to_rgb, y00, u0, v0);
+        let (r01, g01, b01) = self
+            .space
+            .yuv_to_rgb(self.transfer, self.xyz_to_rgb, y01, u0, v0);
 
-        let (r10, g10, b10) =
-            self.color
-                .space
-                .yuv_to_rgb(self.color.transfer, self.color.xyz_to_rgb, y10, u1, v1);
-        let (r11, g11, b11) =
-            self.color
-                .space
-                .yuv_to_rgb(self.color.transfer, self.color.xyz_to_rgb, y11, u1, v1);
+        let (r10, g10, b10) = self
+            .space
+            .yuv_to_rgb(self.transfer, self.xyz_to_rgb, y10, u1, v1);
+        let (r11, g11, b11) = self
+            .space
+            .yuv_to_rgb(self.transfer, self.xyz_to_rgb, y11, u1, v1);
 
         RgbaBlock {
             px00: RgbaPixel {

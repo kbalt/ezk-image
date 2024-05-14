@@ -3,19 +3,19 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use ezk_image::convert_multi_thread;
 use ezk_image::{
     convert, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, Image, PixelFormat,
-    PixelFormatPlanes,
+    PixelFormatPlanes, YuvColorInfo,
 };
 use std::hint::black_box;
 
 const IMAGE_WIDTH: usize = 1920;
 const IMAGE_HEIGHT: usize = 1080;
 
-const NOOP_COLOR_INFO: ColorInfo = ColorInfo {
+const NOOP_COLOR_INFO: ColorInfo = ColorInfo::YUV(YuvColorInfo {
     space: ColorSpace::BT709,
     transfer: ColorTransfer::Linear,
     primaries: ColorPrimaries::BT709,
     full_range: true,
-};
+});
 
 fn do_convert(
     src_format: PixelFormat,

@@ -1,11 +1,15 @@
 use super::rgba::{RgbaBlock, RgbaSrc};
 use crate::color::primaries::{rgb_to_xyz, xyz_to_rgb};
-use crate::color::{ColorInfo, ColorOps};
+use crate::color::ColorInfo;
 use crate::vector::Vector;
+use crate::ColorTransfer;
 
 pub(crate) struct TransferAndPrimariesConvert<S> {
-    src_color: ColorOps,
-    dst_color: ColorOps,
+    rgb_to_xyz: &'static [[f32; 3]; 3],
+    xyz_to_rgb: &'static [[f32; 3]; 3],
+
+    src_transfer: ColorTransfer,
+    dst_transfer: ColorTransfer,
 
     src: S,
 }
@@ -14,14 +18,16 @@ pub(crate) fn need_transfer_and_primaries_convert(
     src_color: &ColorInfo,
     dst_color: &ColorInfo,
 ) -> bool {
-    src_color.transfer != dst_color.transfer || src_color.primaries != dst_color.primaries
+    src_color.transfer() != dst_color.transfer() || src_color.primaries() != dst_color.primaries()
 }
 
 impl<S> TransferAndPrimariesConvert<S> {
     pub(crate) fn new(src_color: &ColorInfo, dst_color: &ColorInfo, src: S) -> Self {
         Self {
-            src_color: ColorOps::from_info(src_color),
-            dst_color: ColorOps::from_info(dst_color),
+            rgb_to_xyz: src_color.primaries().rgb_to_xyz_mat(),
+            xyz_to_rgb: dst_color.primaries().xyz_to_rgb_mat(),
+            src_transfer: src_color.transfer(),
+            dst_transfer: dst_color.transfer(),
             src,
         }
     }
@@ -47,24 +53,22 @@ impl<S: RgbaSrc> RgbaSrc for TransferAndPrimariesConvert<S> {
             &mut block.px11.b,
         ];
 
-        self.src_color.transfer.scaled_to_linear_v(&mut i);
-
-        let fw = self.src_color.rgb_to_xyz;
-        let bw = self.dst_color.xyz_to_rgb;
+        self.src_transfer.scaled_to_linear_v(&mut i);
 
         let mut iter = i.chunks_exact_mut(3);
 
         while let Some([r, g, b]) = iter.next() {
-            let [x, y, z] = rgb_to_xyz(fw, **r, **g, **b);
+            let [x, y, z] = rgb_to_xyz(self.rgb_to_xyz, **r, **g, **b);
 
-            let [r_, g_, b_] = xyz_to_rgb(bw, x, y, z);
+            let [r_, g_, b_] = xyz_to_rgb(self.xyz_to_rgb, x, y, z);
 
             **r = r_;
             **g = g_;
             **b = b_;
         }
 
-        self.dst_color.transfer.linear_to_scaled_v(&mut i);
+        self.dst_transfer.linear_to_scaled_v(&mut i);
+
         block
     }
 }

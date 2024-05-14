@@ -1,8 +1,8 @@
-use ezk_image::resize::*;
 use ezk_image::{
     convert_multi_thread, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, Image, PixelFormat,
     PixelFormatPlanes, Window,
 };
+use ezk_image::{resize::*, RgbColorInfo, YuvColorInfo};
 use image::{Rgb, Rgba};
 
 fn make_rgba8_image(primaries: ColorPrimaries, transfer: ColorTransfer) -> (Vec<u8>, usize, usize) {
@@ -36,7 +36,7 @@ fn make_rgba8_image(primaries: ColorPrimaries, transfer: ColorTransfer) -> (Vec<
     (out, width, height)
 }
 
-fn make_i420_image(color: ColorInfo) -> (Vec<u8>, usize, usize) {
+fn make_i420_image(color: YuvColorInfo) -> (Vec<u8>, usize, usize) {
     let (rgba, width, height) = make_rgba8_image(color.primaries, color.transfer);
     let mut i420 = vec![255u8; PixelFormat::I420.buffer_size(width, height)];
 
@@ -46,7 +46,10 @@ fn make_i420_image(color: ColorInfo) -> (Vec<u8>, usize, usize) {
             PixelFormatPlanes::RGBA(&rgba[..]),
             width,
             height,
-            color,
+            ColorInfo::RGB(RgbColorInfo {
+                transfer: color.transfer,
+                primaries: color.primaries,
+            }),
             8,
         )
         .unwrap(),
@@ -55,7 +58,7 @@ fn make_i420_image(color: ColorInfo) -> (Vec<u8>, usize, usize) {
             PixelFormatPlanes::infer_i420(&mut i420[..], width, height),
             width,
             height,
-            color,
+            ColorInfo::YUV(color),
             8,
         )
         .unwrap(),
@@ -65,7 +68,7 @@ fn make_i420_image(color: ColorInfo) -> (Vec<u8>, usize, usize) {
     (i420, width, height)
 }
 
-fn make_nv12_image(color: ColorInfo) -> (Vec<u8>, usize, usize) {
+fn make_nv12_image(color: YuvColorInfo) -> (Vec<u8>, usize, usize) {
     let (rgba, width, height) = make_rgba8_image(color.primaries, color.transfer);
     let mut nv12 = vec![255u8; PixelFormat::NV12.buffer_size(width, height)];
 
@@ -75,7 +78,10 @@ fn make_nv12_image(color: ColorInfo) -> (Vec<u8>, usize, usize) {
             PixelFormatPlanes::RGBA(&rgba[..]),
             width,
             height,
-            color,
+            ColorInfo::RGB(RgbColorInfo {
+                transfer: color.transfer,
+                primaries: color.primaries,
+            }),
             8,
         )
         .unwrap(),
@@ -84,7 +90,7 @@ fn make_nv12_image(color: ColorInfo) -> (Vec<u8>, usize, usize) {
             PixelFormatPlanes::infer_nv12(&mut nv12[..], width, height),
             width,
             height,
-            color,
+            ColorInfo::YUV(color),
             8,
         )
         .unwrap(),
@@ -96,7 +102,7 @@ fn make_nv12_image(color: ColorInfo) -> (Vec<u8>, usize, usize) {
 
 #[test]
 fn i420_to_rgb() {
-    let (i420, width, height) = make_i420_image(ColorInfo {
+    let (i420, width, height) = make_i420_image(YuvColorInfo {
         space: ColorSpace::BT709,
         transfer: ColorTransfer::Linear,
         primaries: ColorPrimaries::BT709,
@@ -110,12 +116,12 @@ fn i420_to_rgb() {
         PixelFormatPlanes::infer_i420(&i420[..], width, height),
         width,
         height,
-        ColorInfo {
+        ColorInfo::YUV(YuvColorInfo {
             space: ColorSpace::BT709,
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
             full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();
@@ -125,12 +131,10 @@ fn i420_to_rgb() {
         PixelFormatPlanes::RGB(&mut rgb[..]),
         width,
         height,
-        ColorInfo {
-            space: ColorSpace::BT709,
+        ColorInfo::RGB(RgbColorInfo {
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
-            full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();
@@ -145,7 +149,7 @@ fn i420_to_rgb() {
 
 #[test]
 fn i420_to_rgba_with_window() {
-    let (i420, width, height) = make_i420_image(ColorInfo {
+    let (i420, width, height) = make_i420_image(YuvColorInfo {
         space: ColorSpace::BT709,
         transfer: ColorTransfer::Linear,
         primaries: ColorPrimaries::BT709,
@@ -159,12 +163,12 @@ fn i420_to_rgba_with_window() {
         PixelFormatPlanes::infer_i420(&i420[..], width, height),
         width,
         height,
-        ColorInfo {
+        ColorInfo::YUV(YuvColorInfo {
             space: ColorSpace::BT709,
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
             full_range: false,
-        },
+        }),
         8,
     )
     .unwrap()
@@ -181,12 +185,10 @@ fn i420_to_rgba_with_window() {
         PixelFormatPlanes::RGB(&mut rgb[..]),
         width,
         height,
-        ColorInfo {
-            space: ColorSpace::BT709,
+        ColorInfo::RGB(RgbColorInfo {
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
-            full_range: false,
-        },
+        }),
         8,
     )
     .unwrap()
@@ -218,12 +220,10 @@ fn rgba_to_rgba() {
         PixelFormatPlanes::RGBA(&rgba[..]),
         width,
         height,
-        ColorInfo {
-            space: ColorSpace::BT709,
+        ColorInfo::RGB(RgbColorInfo {
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
-            full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();
@@ -233,12 +233,10 @@ fn rgba_to_rgba() {
         PixelFormatPlanes::RGBA(&mut rgba_dst[..]),
         width,
         height,
-        ColorInfo {
-            space: ColorSpace::BT709,
+        ColorInfo::RGB(RgbColorInfo {
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
-            full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();
@@ -263,12 +261,10 @@ fn rgba_to_rgb() {
         PixelFormatPlanes::RGBA(&rgba[..]),
         width,
         height,
-        ColorInfo {
-            space: ColorSpace::BT709,
+        ColorInfo::RGB(RgbColorInfo {
             transfer: ColorTransfer::SRGB,
             primaries: ColorPrimaries::BT709,
-            full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();
@@ -278,12 +274,10 @@ fn rgba_to_rgb() {
         PixelFormatPlanes::RGB(&mut rgb_dst[..]),
         width,
         height,
-        ColorInfo {
-            space: ColorSpace::BT709,
+        ColorInfo::RGB(RgbColorInfo {
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
-            full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();
@@ -298,7 +292,7 @@ fn rgba_to_rgb() {
 
 #[test]
 fn i420_to_rgb_scale() {
-    let (nv12, width, height) = make_nv12_image(ColorInfo {
+    let (nv12, width, height) = make_nv12_image(YuvColorInfo {
         space: ColorSpace::BT709,
         transfer: ColorTransfer::Linear,
         primaries: ColorPrimaries::BT709,
@@ -315,12 +309,12 @@ fn i420_to_rgb_scale() {
         PixelFormatPlanes::infer_nv12(&nv12[..], width, height),
         width,
         height,
-        ColorInfo {
+        ColorInfo::YUV(YuvColorInfo {
             space: ColorSpace::BT709,
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
             full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();
@@ -332,12 +326,12 @@ fn i420_to_rgb_scale() {
         PixelFormatPlanes::infer_nv12(&mut nv12_upscaled[..], scaled_width, scaled_height),
         scaled_width,
         scaled_height,
-        ColorInfo {
+        ColorInfo::YUV(YuvColorInfo {
             space: ColorSpace::BT709,
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
             full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();
@@ -351,12 +345,12 @@ fn i420_to_rgb_scale() {
         PixelFormatPlanes::infer_nv12(&nv12_upscaled[..], scaled_width, scaled_height),
         scaled_width,
         scaled_height,
-        ColorInfo {
+        ColorInfo::YUV(YuvColorInfo {
             space: ColorSpace::BT709,
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
             full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();
@@ -368,12 +362,10 @@ fn i420_to_rgb_scale() {
         PixelFormatPlanes::RGB(&mut rgb[..]),
         scaled_width,
         scaled_height,
-        ColorInfo {
-            space: ColorSpace::BT709,
+        ColorInfo::RGB(RgbColorInfo {
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
-            full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();
@@ -401,12 +393,10 @@ fn rgba8_to_rgba16_and_back() {
         PixelFormatPlanes::RGBA(&rgba8[..]),
         width,
         height,
-        ColorInfo {
-            space: ColorSpace::BT709,
+        ColorInfo::RGB(RgbColorInfo {
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
-            full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();
@@ -416,12 +406,10 @@ fn rgba8_to_rgba16_and_back() {
         PixelFormatPlanes::RGB(&mut rgb16[..]),
         width,
         height,
-        ColorInfo {
-            space: ColorSpace::BT709,
+        ColorInfo::RGB(RgbColorInfo {
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
-            full_range: false,
-        },
+        }),
         16,
     )
     .unwrap();
@@ -444,12 +432,10 @@ fn rgba8_to_rgba16_and_back() {
         PixelFormatPlanes::RGB(&rgb16[..]),
         width,
         height,
-        ColorInfo {
-            space: ColorSpace::BT709,
+        ColorInfo::RGB(RgbColorInfo {
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
-            full_range: false,
-        },
+        }),
         16,
     )
     .unwrap();
@@ -459,12 +445,10 @@ fn rgba8_to_rgba16_and_back() {
         PixelFormatPlanes::RGBA(&mut rgba8[..]),
         width,
         height,
-        ColorInfo {
-            space: ColorSpace::BT709,
+        ColorInfo::RGB(RgbColorInfo {
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
-            full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();
@@ -488,12 +472,10 @@ fn rgba8_to_nv12_and_back() {
         PixelFormatPlanes::RGBA(&rgba8[..]),
         width,
         height,
-        ColorInfo {
-            space: ColorSpace::BT709,
+        ColorInfo::RGB(RgbColorInfo {
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
-            full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();
@@ -503,12 +485,12 @@ fn rgba8_to_nv12_and_back() {
         PixelFormatPlanes::infer_nv12(&mut nv12[..], width, height),
         width,
         height,
-        ColorInfo {
+        ColorInfo::YUV(YuvColorInfo {
             space: ColorSpace::BT709,
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
             full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();
@@ -520,12 +502,12 @@ fn rgba8_to_nv12_and_back() {
         PixelFormatPlanes::infer_nv12(&nv12[..], width, height),
         width,
         height,
-        ColorInfo {
+        ColorInfo::YUV(YuvColorInfo {
             space: ColorSpace::BT709,
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
             full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();
@@ -535,12 +517,10 @@ fn rgba8_to_nv12_and_back() {
         PixelFormatPlanes::RGBA(&mut rgba8[..]),
         width,
         height,
-        ColorInfo {
-            space: ColorSpace::BT709,
+        ColorInfo::RGB(RgbColorInfo {
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
-            full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();
@@ -564,12 +544,10 @@ fn rgba8_to_i422_and_back() {
         PixelFormatPlanes::RGBA(&rgba8[..]),
         width,
         height,
-        ColorInfo {
-            space: ColorSpace::BT709,
+        ColorInfo::RGB(RgbColorInfo {
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
-            full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();
@@ -579,12 +557,12 @@ fn rgba8_to_i422_and_back() {
         PixelFormatPlanes::infer_i422(&mut i422[..], width, height),
         width,
         height,
-        ColorInfo {
+        ColorInfo::YUV(YuvColorInfo {
             space: ColorSpace::BT709,
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
             full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();
@@ -596,12 +574,12 @@ fn rgba8_to_i422_and_back() {
         PixelFormatPlanes::infer_i422(&i422[..], width, height),
         width,
         height,
-        ColorInfo {
+        ColorInfo::YUV(YuvColorInfo {
             space: ColorSpace::BT709,
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
             full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();
@@ -611,12 +589,10 @@ fn rgba8_to_i422_and_back() {
         PixelFormatPlanes::RGBA(&mut rgba8[..]),
         width,
         height,
-        ColorInfo {
-            space: ColorSpace::BT709,
+        ColorInfo::RGB(RgbColorInfo {
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
-            full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();
@@ -640,12 +616,10 @@ fn rgba8_to_i444_and_back() {
         PixelFormatPlanes::RGBA(&rgba8[..]),
         width,
         height,
-        ColorInfo {
-            space: ColorSpace::BT709,
+        ColorInfo::RGB(RgbColorInfo {
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
-            full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();
@@ -655,12 +629,12 @@ fn rgba8_to_i444_and_back() {
         PixelFormatPlanes::infer_i444(&mut i444[..], width, height),
         width,
         height,
-        ColorInfo {
+        ColorInfo::YUV(YuvColorInfo {
             space: ColorSpace::BT709,
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
             full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();
@@ -672,12 +646,12 @@ fn rgba8_to_i444_and_back() {
         PixelFormatPlanes::infer_i444(&i444[..], width, height),
         width,
         height,
-        ColorInfo {
+        ColorInfo::YUV(YuvColorInfo {
             space: ColorSpace::BT709,
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
             full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();
@@ -687,12 +661,10 @@ fn rgba8_to_i444_and_back() {
         PixelFormatPlanes::RGBA(&mut rgba8[..]),
         width,
         height,
-        ColorInfo {
-            space: ColorSpace::BT709,
+        ColorInfo::RGB(RgbColorInfo {
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
-            full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();
@@ -716,12 +688,10 @@ fn rgba8_to_nv12_and_back_ictcp_pq() {
         PixelFormatPlanes::RGBA(&rgba8[..]),
         width,
         height,
-        ColorInfo {
-            space: ColorSpace::BT709,
+        ColorInfo::RGB(RgbColorInfo {
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
-            full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();
@@ -731,12 +701,12 @@ fn rgba8_to_nv12_and_back_ictcp_pq() {
         PixelFormatPlanes::infer_nv12(&mut nv12[..], width, height),
         width,
         height,
-        ColorInfo {
+        ColorInfo::YUV(YuvColorInfo {
             space: ColorSpace::ICtCpPQ,
             transfer: ColorTransfer::BT2100PQ,
             primaries: ColorPrimaries::BT709,
             full_range: false,
-        },
+        }),
         16,
     )
     .unwrap();
@@ -748,12 +718,12 @@ fn rgba8_to_nv12_and_back_ictcp_pq() {
         PixelFormatPlanes::infer_nv12(&nv12[..], width, height),
         width,
         height,
-        ColorInfo {
+        ColorInfo::YUV(YuvColorInfo {
             space: ColorSpace::ICtCpPQ,
             transfer: ColorTransfer::BT2100PQ,
             primaries: ColorPrimaries::BT709,
             full_range: false,
-        },
+        }),
         16,
     )
     .unwrap();
@@ -763,12 +733,10 @@ fn rgba8_to_nv12_and_back_ictcp_pq() {
         PixelFormatPlanes::RGBA(&mut rgba8[..]),
         width,
         height,
-        ColorInfo {
-            space: ColorSpace::BT709,
+        ColorInfo::RGB(RgbColorInfo {
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
-            full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();
@@ -792,12 +760,10 @@ fn rgba8_to_nv12_and_back_ictcp_hlg() {
         PixelFormatPlanes::RGBA(&rgba8[..]),
         width,
         height,
-        ColorInfo {
-            space: ColorSpace::BT709,
+        ColorInfo::RGB(RgbColorInfo {
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
-            full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();
@@ -807,12 +773,12 @@ fn rgba8_to_nv12_and_back_ictcp_hlg() {
         PixelFormatPlanes::infer_nv12(&mut nv12[..], width, height),
         width,
         height,
-        ColorInfo {
+        ColorInfo::YUV(YuvColorInfo {
             space: ColorSpace::ICtCpHLG,
             transfer: ColorTransfer::BT2100HLG,
             primaries: ColorPrimaries::BT709,
             full_range: false,
-        },
+        }),
         16,
     )
     .unwrap();
@@ -824,12 +790,12 @@ fn rgba8_to_nv12_and_back_ictcp_hlg() {
         PixelFormatPlanes::infer_nv12(&nv12[..], width, height),
         width,
         height,
-        ColorInfo {
+        ColorInfo::YUV(YuvColorInfo {
             space: ColorSpace::ICtCpHLG,
             transfer: ColorTransfer::BT2100HLG,
             primaries: ColorPrimaries::BT709,
             full_range: false,
-        },
+        }),
         16,
     )
     .unwrap();
@@ -839,12 +805,10 @@ fn rgba8_to_nv12_and_back_ictcp_hlg() {
         PixelFormatPlanes::RGBA(&mut rgba8[..]),
         width,
         height,
-        ColorInfo {
-            space: ColorSpace::BT709,
+        ColorInfo::RGB(RgbColorInfo {
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
-            full_range: false,
-        },
+        }),
         8,
     )
     .unwrap();

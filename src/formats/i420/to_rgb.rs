@@ -1,22 +1,30 @@
 use super::{I420Block, I420Src};
-use crate::color::{ColorInfo, ColorOps};
 use crate::formats::rgba::{RgbaBlock, RgbaPixel, RgbaSrc};
 use crate::vector::Vector;
+use crate::{ColorInfo, ColorSpace, ColorTransfer, ConvertError};
 
 pub(crate) struct I420ToRgb<S> {
     i420_src: S,
 
-    color: ColorOps,
+    space: ColorSpace,
+    transfer: ColorTransfer,
+    xyz_to_rgb: &'static [[f32; 3]; 3],
     full_range: bool,
 }
 
 impl<S: I420Src> I420ToRgb<S> {
-    pub(crate) fn new(color: &ColorInfo, i420_src: S) -> Self {
-        Self {
+    pub(crate) fn new(color: &ColorInfo, i420_src: S) -> Result<Self, ConvertError> {
+        let ColorInfo::YUV(yuv) = color else {
+            return Err(ConvertError::MismatchedImageSize);
+        };
+
+        Ok(Self {
             i420_src,
-            color: ColorOps::from_info(color),
-            full_range: color.full_range,
-        }
+            space: yuv.space,
+            transfer: yuv.transfer,
+            xyz_to_rgb: yuv.primaries.xyz_to_rgb_mat(),
+            full_range: yuv.full_range,
+        })
     }
 }
 
@@ -60,17 +68,9 @@ impl<S: I420Src> RgbaSrc for I420ToRgb<S> {
         u = u.vsubf(0.5);
         v = v.vsubf(0.5);
 
-        let [[r00, g00, b00], [r01, g01, b01], [r10, g10, b10], [r11, g11, b11]] =
-            self.color.space.yx4_uv_to_rgb(
-                self.color.transfer,
-                self.color.xyz_to_rgb,
-                y00,
-                y01,
-                y10,
-                y11,
-                u,
-                v,
-            );
+        let [[r00, g00, b00], [r01, g01, b01], [r10, g10, b10], [r11, g11, b11]] = self
+            .space
+            .yx4_uv_to_rgb(self.transfer, self.xyz_to_rgb, y00, y01, y10, y11, u, v);
 
         RgbaBlock {
             px00: RgbaPixel {

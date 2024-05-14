@@ -66,27 +66,25 @@ let source = Image::new(
     PixelFormatPlanes::RGB(&rgb_image[..]), // RGB only has one plane
     width,
     height,
-    ColorInfo { // Describe the color of this image
-        space: ColorSpace::BT709, // Doesn't really matter since we're not going to use the color.space in RGB images
+    ColorInfo::RGB(RgbColorInfo {
         transfer: ColorTransfer::Linear,
-        primaries: ColorPrimaries::BT709, // BT.709 is the most commonly used color gamut for SDR content
-        full_range: false, // just like the ColorSpace, this isn't used in RGB images
-    },
+        primaries: ColorPrimaries::BT709,
+    }),
     8, // there's 8 bits per component (R, G or B)
 ).unwrap();
 
-// Crate the image buffer we're converting to
+// Create the image buffer we're converting to
 let destination = Image::new(
     PixelFormat::NV12, // We're converting to NV12
     PixelFormatPlanes::infer_nv12(&mut nv12_image[..], width, height), // NV12 has 2 planes, `PixelFormatPlanes` has convenience functions to calculate them from a single buffer
     width,
     height,
-    ColorInfo {
-        space: ColorSpace::BT709, // NV12 is YUV so this is now relevant
+    ColorInfo::YUV(YuvColorInfo {
+        space: ColorSpace::BT709,
         transfer: ColorTransfer::Linear,
         primaries: ColorPrimaries::BT709,
-        full_range: false, // just like the ColorSpace this must now be considered, because the target is YUV
-    },
+        full_range: false,
+    }),
     8, // there's 8 bits per component (Y, U or V)
 ).unwrap();
 

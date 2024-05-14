@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use ezk_image::resize::*;
+use ezk_image::{resize::*, YuvColorInfo};
 use ezk_image::{
     ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, Image, PixelFormat, PixelFormatPlanes,
 };
@@ -8,12 +8,12 @@ use std::hint::black_box;
 const IMAGE_DIM_LO: (usize, usize) = (1280, 720);
 const IMAGE_DIM_HI: (usize, usize) = (1920, 1080);
 
-const NOOP_COLOR_INFO: ColorInfo = ColorInfo {
+const NOOP_COLOR_INFO: ColorInfo = ColorInfo::YUV(YuvColorInfo {
     space: ColorSpace::BT709,
     transfer: ColorTransfer::Linear,
     primaries: ColorPrimaries::BT709,
     full_range: true,
-};
+});
 
 fn do_resize(
     format: PixelFormat,
