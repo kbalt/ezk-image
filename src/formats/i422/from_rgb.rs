@@ -40,6 +40,9 @@ impl<S: RgbaSrc> RgbToI422<S> {
             self.space
                 .rgb_to_yuv(self.transfer, self.rgb_to_xyz, px1.r, px1.g, px1.b);
 
+        let (u0, u1) = u0.unzip(u1);
+        let (v0, v1) = v0.unzip(v1);
+
         let mut u = u0.vadd(u1).vdivf(2.0);
         let mut v = v0.vadd(v1).vdivf(2.0);
 

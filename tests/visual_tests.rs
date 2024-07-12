@@ -820,3 +820,115 @@ fn rgba8_to_nv12_and_back_ictcp_hlg() {
 
     buffer.save("tests/NV12_TO_RGBA_ICTCP_HLG.png").unwrap();
 }
+
+#[test]
+fn yuyv_to_rgb() {
+    let yuyv = std::fs::read("tests/data/switch.yuyv").unwrap();
+
+    // YUYV -> RGB
+    let mut rgb_dst = vec![0u8; PixelFormat::RGB.buffer_size(1920, 1080)];
+
+    let src = Image::new(
+        PixelFormat::YUYV,
+        PixelFormatPlanes::YUYV(&yuyv[..]),
+        1920,
+        1080,
+        ColorInfo::YUV(YuvColorInfo {
+            transfer: ColorTransfer::SRGB,
+            primaries: ColorPrimaries::ST240,
+            space: ColorSpace::BT601,
+            full_range: false,
+        }),
+        8,
+    )
+    .unwrap();
+
+    let dst = Image::new(
+        PixelFormat::RGB,
+        PixelFormatPlanes::RGB(&mut rgb_dst[..]),
+        1920,
+        1080,
+        ColorInfo::RGB(RgbColorInfo {
+            transfer: ColorTransfer::SRGB,
+            primaries: ColorPrimaries::BT709,
+        }),
+        8,
+    )
+    .unwrap();
+
+    convert_multi_thread(src, dst).unwrap();
+
+    let buffer =
+        image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(1920, 1080, rgb_dst.clone()).unwrap();
+
+    buffer.save("tests/YUYV_TO_RGB.png").unwrap();
+
+    // RGB -> YUYV
+    let mut yuyv_dst = vec![0u8; PixelFormat::YUYV.buffer_size(1920, 1080)];
+
+    let src = Image::new(
+        PixelFormat::RGB,
+        PixelFormatPlanes::RGB(&rgb_dst[..]),
+        1920,
+        1080,
+        ColorInfo::RGB(RgbColorInfo {
+            transfer: ColorTransfer::SRGB,
+            primaries: ColorPrimaries::BT709,
+        }),
+        8,
+    )
+    .unwrap();
+
+    let dst = Image::new(
+        PixelFormat::YUYV,
+        PixelFormatPlanes::YUYV(&mut yuyv_dst[..]),
+        1920,
+        1080,
+        ColorInfo::YUV(YuvColorInfo {
+            transfer: ColorTransfer::SRGB,
+            primaries: ColorPrimaries::ST240,
+            space: ColorSpace::BT601,
+            full_range: false,
+        }),
+        8,
+    )
+    .unwrap();
+
+    convert_multi_thread(src, dst).unwrap();
+
+    // YUYV -> RGB
+    let src = Image::new(
+        PixelFormat::YUYV,
+        PixelFormatPlanes::YUYV(&yuyv_dst[..]),
+        1920,
+        1080,
+        ColorInfo::YUV(YuvColorInfo {
+            transfer: ColorTransfer::SRGB,
+            primaries: ColorPrimaries::ST240,
+            space: ColorSpace::BT601,
+            full_range: false,
+        }),
+        8,
+    )
+    .unwrap();
+
+    let dst = Image::new(
+        PixelFormat::RGB,
+        PixelFormatPlanes::RGB(&mut rgb_dst[..]),
+        1920,
+        1080,
+        ColorInfo::RGB(RgbColorInfo {
+            transfer: ColorTransfer::SRGB,
+            primaries: ColorPrimaries::BT709,
+        }),
+        8,
+    )
+    .unwrap();
+
+    convert_multi_thread(src, dst).unwrap();
+
+    let buffer =
+        image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(1920, 1080, rgb_dst.clone()).unwrap();
+
+    buffer.save("tests/RGB_TO_YUYV.png").unwrap();
+}

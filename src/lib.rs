@@ -62,6 +62,11 @@ pub enum PixelFormat {
     /// 2 Planes Y and UV interleaved
     NV12,
 
+    /// YUV with U and V sub-sampled in the horizontal dimension
+    ///
+    /// 1 Plane, YUYV
+    YUYV,
+
     /// RGBA
     ///
     /// 1 Plane RGBA interleaved
@@ -92,7 +97,7 @@ impl PixelFormat {
 
         match self {
             I420 | NV12 => (width * height * 12).div_ceil(8),
-            I422 => (width * height * 16).div_ceil(8),
+            I422 | YUYV => width * height * 2,
             I444 => width * height * 3,
             RGBA | BGRA => width * height * 4,
             RGB | BGR => width * height * 3,
@@ -205,6 +210,16 @@ where
                 src.window,
             )?,
         )?)),
+        PixelFormat::YUYV => Ok(Box::new(I422ToRgb::new(
+            &src.color,
+            YUYVReader::<P>::new(
+                src.width,
+                src.height,
+                src.planes,
+                src.bits_per_component,
+                src.window,
+            )?,
+        )?)),
         PixelFormat::RGBA => Ok(Box::new(RgbaReader::<false, P>::new(
             src.width,
             src.height,
@@ -276,6 +291,14 @@ where
             dst.bits_per_component,
             dst.window,
             RgbToI420::new(&dst.color, reader)?,
+        ),
+        PixelFormat::YUYV => YUYVWriter::<DP, _>::write(
+            dst.width,
+            dst.height,
+            dst.planes,
+            dst.bits_per_component,
+            dst.window,
+            RgbToI422::new(&dst.color, reader)?,
         ),
         PixelFormat::RGBA => RgbaWriter::<false, DP, _>::write(
             dst.width,

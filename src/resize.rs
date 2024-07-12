@@ -287,6 +287,23 @@ impl Resizer {
                     });
                 });
             }
+            (PixelFormatPlanes::YUYV(src_yuyv), PixelFormatPlanes::YUYV(dst_yuyv)) => {
+                let [fir_resizer] = self.ensure_resizer_len::<1>();
+
+                // Pretend this is a 4 byte per pixel image (even though its 2) by dividing the width in half
+                Self::resize_plane::<P, P::FirPixel4>(
+                    fir_resizer,
+                    alg,
+                    src_yuyv,
+                    (src.width / 2) as u32,
+                    (src.height) as u32,
+                    src.window,
+                    dst_yuyv,
+                    (dst.width / 2) as u32,
+                    (dst.height) as u32,
+                    dst.window,
+                );
+            }
             (PixelFormatPlanes::RGB(src_rgb), PixelFormatPlanes::RGB(dst_rgb)) => {
                 let [fir_resizer] = self.ensure_resizer_len::<1>();
 

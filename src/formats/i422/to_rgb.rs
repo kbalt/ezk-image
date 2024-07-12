@@ -63,7 +63,7 @@ impl<S: I422Src> RgbaSrc for I422ToRgb<S> {
             u0 = u0.vsub(v16);
             u1 = u1.vsub(v16);
 
-            v1 = v1.vsub(v16);
+            v0 = v0.vsub(v16);
             v1 = v1.vsub(v16);
 
             u0 = u0.vmul(uv_scale);
@@ -78,19 +78,25 @@ impl<S: I422Src> RgbaSrc for I422ToRgb<S> {
         v0 = v0.vsubf(0.5);
         v1 = v1.vsubf(0.5);
 
-        let (r00, g00, b00) = self
-            .space
-            .yuv_to_rgb(self.transfer, self.xyz_to_rgb, y00, u0, v0);
-        let (r01, g01, b01) = self
-            .space
-            .yuv_to_rgb(self.transfer, self.xyz_to_rgb, y01, u0, v0);
+        let (u0_left, u0_right) = u0.zip(u0);
+        let (v0_left, v0_right) = v0.zip(v0);
 
-        let (r10, g10, b10) = self
-            .space
-            .yuv_to_rgb(self.transfer, self.xyz_to_rgb, y10, u1, v1);
-        let (r11, g11, b11) = self
-            .space
-            .yuv_to_rgb(self.transfer, self.xyz_to_rgb, y11, u1, v1);
+        let (r00, g00, b00) =
+            self.space
+                .yuv_to_rgb(self.transfer, self.xyz_to_rgb, y00, u0_left, v0_left);
+        let (r01, g01, b01) =
+            self.space
+                .yuv_to_rgb(self.transfer, self.xyz_to_rgb, y01, u0_right, v0_right);
+
+        let (u1_left, u1_right) = u1.zip(u1);
+        let (v1_left, v1_right) = v1.zip(v1);
+
+        let (r10, g10, b10) =
+            self.space
+                .yuv_to_rgb(self.transfer, self.xyz_to_rgb, y10, u1_left, v1_left);
+        let (r11, g11, b11) =
+            self.space
+                .yuv_to_rgb(self.transfer, self.xyz_to_rgb, y11, u1_right, v1_right);
 
         RgbaBlock {
             px00: RgbaPixel {

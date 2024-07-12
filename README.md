@@ -18,6 +18,7 @@ Bit depth of up to 16 bit per component is supported.
 - I422
 - I444
 - NV12
+- YUYV
 - RGBA, BGRA
 - RGB, BGR
 

@@ -8,6 +8,7 @@ mod nv12;
 mod rgb;
 mod transfer_and_primaries_convert;
 mod visit_2x2;
+mod yuyv;
 
 pub(crate) use dyn_rgba_src::{DynRgbaReader, DynRgbaReaderSpec};
 pub(crate) use i420::*;
@@ -19,6 +20,7 @@ pub(crate) use rgba::*;
 pub(crate) use transfer_and_primaries_convert::{
     need_transfer_and_primaries_convert, TransferAndPrimariesConvert,
 };
+pub(crate) use yuyv::*;
 
 fn max_value_for_bits(bits: usize) -> f32 {
     ((1 << bits) - 1) as f32

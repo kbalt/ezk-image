@@ -18,6 +18,9 @@ pub enum PixelFormatPlanes<S: AnySlice> {
     /// See [`PixelFormat::NV12`]
     NV12 { y: S, uv: S },
 
+    /// See [`PixelFormat::YUYV`]
+    YUYV(S),
+
     /// See [`PixelFormat::RGB`] and [`PixelFormat::BGR`],
     RGB(S),
 
@@ -53,6 +56,7 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
 
                 n_pixels <= y.slice_len() && uv_req_len <= uv.slice_len()
             }
+            Self::YUYV(buf) => n_pixels * 2 <= buf.slice_len(),
             Self::RGB(buf) => n_pixels * 3 <= buf.slice_len(),
             Self::RGBA(buf) => n_pixels * 4 <= buf.slice_len(),
         }
@@ -69,6 +73,7 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
             PixelFormat::I422 => Self::infer_i422(buf, width, height),
             PixelFormat::I444 => Self::infer_i444(buf, width, height),
             PixelFormat::NV12 => Self::infer_nv12(buf, width, height),
+            PixelFormat::YUYV => Self::YUYV(buf),
             PixelFormat::RGBA | PixelFormat::BGRA => Self::RGBA(buf),
             PixelFormat::RGB | PixelFormat::BGR => Self::RGB(buf),
         }
@@ -250,6 +255,20 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
                         },
                     ));
                 }
+                Self::YUYV(buf) => {
+                    let (x, remaining) = take(buf).slice_split_at(width * 2 * rect.height);
+                    *buf = remaining;
+
+                    ret.push((
+                        Self::YUYV(x),
+                        Window {
+                            x: rect.x,
+                            y: 0,
+                            width: rect.width,
+                            height: rect.height,
+                        },
+                    ));
+                }
                 Self::RGB(buf) => {
                     let (x, remaining) = take(buf).slice_split_at(width * 3 * rect.height);
                     *buf = remaining;
@@ -302,6 +321,9 @@ impl PixelFormatPlanes<&mut [u16]> {
             PixelFormatPlanes::NV12 { y, uv } => {
                 swap_bytes(y);
                 swap_bytes(uv);
+            }
+            PixelFormatPlanes::YUYV(buf) => {
+                swap_bytes(buf);
             }
             PixelFormatPlanes::RGB(rgb) | PixelFormatPlanes::RGBA(rgb) => {
                 swap_bytes(rgb);
