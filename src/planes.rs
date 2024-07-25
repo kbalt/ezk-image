@@ -18,8 +18,8 @@ pub enum PixelFormatPlanes<S: AnySlice> {
     /// See [`PixelFormat::NV12`]
     NV12 { y: S, uv: S },
 
-    /// See [`PixelFormat::YUYV`]
-    YUYV(S),
+    /// See [`PixelFormat::YUYV`] and [`PixelFormat::UYVY`]
+    PackedYuv422(S),
 
     /// See [`PixelFormat::RGB`] and [`PixelFormat::BGR`],
     RGB(S),
@@ -56,7 +56,7 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
 
                 n_pixels <= y.slice_len() && uv_req_len <= uv.slice_len()
             }
-            Self::YUYV(buf) => n_pixels * 2 <= buf.slice_len(),
+            Self::PackedYuv422(buf) => n_pixels * 2 <= buf.slice_len(),
             Self::RGB(buf) => n_pixels * 3 <= buf.slice_len(),
             Self::RGBA(buf) => n_pixels * 4 <= buf.slice_len(),
         }
@@ -73,7 +73,7 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
             PixelFormat::I422 => Self::infer_i422(buf, width, height),
             PixelFormat::I444 => Self::infer_i444(buf, width, height),
             PixelFormat::NV12 => Self::infer_nv12(buf, width, height),
-            PixelFormat::YUYV => Self::YUYV(buf),
+            PixelFormat::YUYV | PixelFormat::UYVY => Self::PackedYuv422(buf),
             PixelFormat::RGBA | PixelFormat::BGRA | PixelFormat::ARGB | PixelFormat::ABGR => {
                 Self::RGBA(buf)
             }
@@ -257,12 +257,12 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
                         },
                     ));
                 }
-                Self::YUYV(buf) => {
+                Self::PackedYuv422(buf) => {
                     let (x, remaining) = take(buf).slice_split_at(width * 2 * rect.height);
                     *buf = remaining;
 
                     ret.push((
-                        Self::YUYV(x),
+                        Self::PackedYuv422(x),
                         Window {
                             x: rect.x,
                             y: 0,
@@ -324,7 +324,7 @@ impl PixelFormatPlanes<&mut [u16]> {
                 swap_bytes(y);
                 swap_bytes(uv);
             }
-            PixelFormatPlanes::YUYV(buf) => {
+            PixelFormatPlanes::PackedYuv422(buf) => {
                 swap_bytes(buf);
             }
             PixelFormatPlanes::RGB(rgb) | PixelFormatPlanes::RGBA(rgb) => {

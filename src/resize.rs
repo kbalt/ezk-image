@@ -287,7 +287,10 @@ impl Resizer {
                     });
                 });
             }
-            (PixelFormatPlanes::YUYV(src_yuyv), PixelFormatPlanes::YUYV(dst_yuyv)) => {
+            (
+                PixelFormatPlanes::PackedYuv422(src_yuyv),
+                PixelFormatPlanes::PackedYuv422(dst_yuyv),
+            ) => {
                 let [fir_resizer] = self.ensure_resizer_len::<1>();
 
                 // Pretend this is a 4 byte per pixel image (even though its 2) by dividing the width in half

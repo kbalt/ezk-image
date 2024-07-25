@@ -830,7 +830,7 @@ fn yuyv_to_rgb() {
 
     let src = Image::new(
         PixelFormat::YUYV,
-        PixelFormatPlanes::YUYV(&yuyv[..]),
+        PixelFormatPlanes::PackedYuv422(&yuyv[..]),
         1920,
         1080,
         ColorInfo::YUV(YuvColorInfo {
@@ -881,7 +881,7 @@ fn yuyv_to_rgb() {
 
     let dst = Image::new(
         PixelFormat::YUYV,
-        PixelFormatPlanes::YUYV(&mut yuyv_dst[..]),
+        PixelFormatPlanes::PackedYuv422(&mut yuyv_dst[..]),
         1920,
         1080,
         ColorInfo::YUV(YuvColorInfo {
@@ -899,7 +899,7 @@ fn yuyv_to_rgb() {
     // YUYV -> RGB
     let src = Image::new(
         PixelFormat::YUYV,
-        PixelFormatPlanes::YUYV(&yuyv_dst[..]),
+        PixelFormatPlanes::PackedYuv422(&yuyv_dst[..]),
         1920,
         1080,
         ColorInfo::YUV(YuvColorInfo {

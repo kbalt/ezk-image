@@ -6,13 +6,13 @@ use crate::vector::Vector;
 use crate::{ConvertError, I422Block, I422Src, PixelFormat, PixelFormatPlanes, Window};
 use std::marker::PhantomData;
 
-pub(crate) struct YUYVWriter<'a, P, S>
+pub(crate) struct PackedYuv422Writer<'a, const FORMAT: u8, P, S>
 where
     P: PrimitiveInternal,
     S: I422Src,
 {
     dst_width: usize,
-    dst_yuyv: *mut P,
+    dst: *mut P,
     max_value: f32,
 
     i422_src: S,
@@ -20,7 +20,7 @@ where
     _m: PhantomData<&'a mut [P]>,
 }
 
-impl<'a, P, S> YUYVWriter<'a, P, S>
+impl<'a, const FORMAT: u8, P, S> PackedYuv422Writer<'a, FORMAT, P, S>
 where
     P: PrimitiveInternal,
     S: I422Src,
@@ -37,7 +37,7 @@ where
             return Err(ConvertError::InvalidPlaneSizeForDimensions);
         }
 
-        let PixelFormatPlanes::YUYV(yuyv) = dst_planes else {
+        let PixelFormatPlanes::PackedYuv422(yuyv) = dst_planes else {
             return Err(ConvertError::InvalidPlanesForPixelFormat(PixelFormat::YUYV));
         };
 
@@ -47,7 +47,7 @@ where
             window,
             Self {
                 dst_width,
-                dst_yuyv: yuyv.as_mut_ptr(),
+                dst: yuyv.as_mut_ptr(),
                 max_value: crate::formats::max_value_for_bits(bits_per_component),
                 i422_src,
                 _m: PhantomData,
@@ -56,17 +56,17 @@ where
     }
 
     #[inline(always)]
-    unsafe fn write_yuyv<V: Vector>(&mut self, y: V, uv: V, offset0: usize)
+    unsafe fn write_yuv<V: Vector>(&mut self, y: V, uv: V, offset0: usize)
     where
         P: PrimitiveInternal,
     {
         let (yuyv00, yuyv01) = y.zip(uv);
 
-        P::write_2x(self.dst_yuyv.add(offset0), yuyv00, yuyv01);
+        P::write_2x(self.dst.add(offset0), yuyv00, yuyv01);
     }
 }
 
-impl<P, S> Image2x2Visitor for YUYVWriter<'_, P, S>
+impl<const FORMAT: u8, P, S> Image2x2Visitor for PackedYuv422Writer<'_, FORMAT, P, S>
 where
     P: PrimitiveInternal,
     S: I422Src,
@@ -99,9 +99,9 @@ where
         let (uv00, uv01) = u0.zip(v0);
         let (uv10, uv11) = u1.zip(v1);
 
-        self.write_yuyv(y00, uv00, offset0 * 2);
-        self.write_yuyv(y01, uv01, (offset0 + V::LEN) * 2);
-        self.write_yuyv(y10, uv10, offset1 * 2);
-        self.write_yuyv(y11, uv11, (offset1 + V::LEN) * 2);
+        self.write_yuv(y00, uv00, offset0 * 2);
+        self.write_yuv(y01, uv01, (offset0 + V::LEN) * 2);
+        self.write_yuv(y10, uv10, offset1 * 2);
+        self.write_yuv(y11, uv11, (offset1 + V::LEN) * 2);
     }
 }
