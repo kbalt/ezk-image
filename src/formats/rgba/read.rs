@@ -4,8 +4,7 @@ use crate::vector::Vector;
 use crate::{ConvertError, PixelFormat, PixelFormatPlanes, Window};
 use std::marker::PhantomData;
 
-/// Writes 3 Bytes for every visited pixel in R G B order
-pub(crate) struct RgbaReader<'a, const REVERSE: bool, P: PrimitiveInternal> {
+pub(crate) struct RgbaReader<'a, const ALPHA_FIRST: bool, const BGR: bool, P: PrimitiveInternal> {
     window: Window,
 
     src_width: usize,
@@ -15,7 +14,9 @@ pub(crate) struct RgbaReader<'a, const REVERSE: bool, P: PrimitiveInternal> {
     _m: PhantomData<&'a [P]>,
 }
 
-impl<'a, const REVERSE: bool, P: PrimitiveInternal> RgbaReader<'a, REVERSE, P> {
+impl<'a, const ALPHA_FIRST: bool, const BGR: bool, P: PrimitiveInternal>
+    RgbaReader<'a, ALPHA_FIRST, BGR, P>
+{
     pub(crate) fn new(
         src_width: usize,
         src_height: usize,
@@ -28,10 +29,18 @@ impl<'a, const REVERSE: bool, P: PrimitiveInternal> RgbaReader<'a, REVERSE, P> {
         }
 
         let PixelFormatPlanes::RGBA(src) = src_planes else {
-            return Err(ConvertError::InvalidPlanesForPixelFormat(if REVERSE {
-                PixelFormat::BGRA
+            return Err(ConvertError::InvalidPlanesForPixelFormat(if ALPHA_FIRST {
+                if BGR {
+                    PixelFormat::ABGR
+                } else {
+                    PixelFormat::ARGB
+                }
             } else {
-                PixelFormat::RGBA
+                if BGR {
+                    PixelFormat::BGRA
+                } else {
+                    PixelFormat::RGBA
+                }
             }));
         };
 
@@ -53,9 +62,23 @@ impl<'a, const REVERSE: bool, P: PrimitiveInternal> RgbaReader<'a, REVERSE, P> {
             _m: PhantomData,
         })
     }
+
+    #[inline(always)]
+    unsafe fn read_rgba_2x<V: Vector>(&mut self, offset: usize) -> (V, V, V, V, V, V, V, V) {
+        let [[r00, g00, b00, a00], [r01, g01, b01, a01]] =
+            P::load_4x_interleaved_2x::<V>(self.src.add(offset * 4));
+
+        if ALPHA_FIRST {
+            (a00, r00, g00, b00, a01, r01, g01, b01)
+        } else {
+            (r00, g00, b00, a00, r01, g01, b01, a01)
+        }
+    }
 }
 
-impl<'a, const REVERSE: bool, B: PrimitiveInternal> RgbaSrc for RgbaReader<'a, REVERSE, B> {
+impl<'a, const ALPHA_FIRST: bool, const BGR: bool, P: PrimitiveInternal> RgbaSrc
+    for RgbaReader<'a, ALPHA_FIRST, BGR, P>
+{
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbaBlock<V> {
         let x = self.window.x + x;
@@ -64,10 +87,8 @@ impl<'a, const REVERSE: bool, B: PrimitiveInternal> RgbaSrc for RgbaReader<'a, R
         let rgba00offset = (y * self.src_width) + x;
         let rgba10offset = ((y + 1) * self.src_width) + x;
 
-        let [[r00, g00, b00, a00], [r01, g01, b01, a01]] =
-            B::load_4x_interleaved_2x::<V>(self.src.add(rgba00offset * 4));
-        let [[r10, g10, b10, a10], [r11, g11, b11, a11]] =
-            B::load_4x_interleaved_2x::<V>(self.src.add(rgba10offset * 4));
+        let (r00, g00, b00, a00, r01, g01, b01, a01) = self.read_rgba_2x::<V>(rgba00offset);
+        let (r10, g10, b10, a10, r11, g11, b11, a11) = self.read_rgba_2x::<V>(rgba10offset);
 
         let r00 = r00.vdivf(self.max_value);
         let g00 = g00.vdivf(self.max_value);
@@ -89,10 +110,10 @@ impl<'a, const REVERSE: bool, B: PrimitiveInternal> RgbaSrc for RgbaReader<'a, R
         let b11 = b11.vdivf(self.max_value);
         let a11 = a11.vdivf(self.max_value);
 
-        let px00 = RgbaPixel::from_loaded::<REVERSE>(r00, g00, b00, a00);
-        let px01 = RgbaPixel::from_loaded::<REVERSE>(r01, g01, b01, a01);
-        let px10 = RgbaPixel::from_loaded::<REVERSE>(r10, g10, b10, a10);
-        let px11 = RgbaPixel::from_loaded::<REVERSE>(r11, g11, b11, a11);
+        let px00 = RgbaPixel::from_loaded::<BGR>(r00, g00, b00, a00);
+        let px01 = RgbaPixel::from_loaded::<BGR>(r01, g01, b01, a01);
+        let px10 = RgbaPixel::from_loaded::<BGR>(r10, g10, b10, a10);
+        let px11 = RgbaPixel::from_loaded::<BGR>(r11, g11, b11, a11);
 
         RgbaBlock {
             px00,

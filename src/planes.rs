@@ -74,7 +74,9 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
             PixelFormat::I444 => Self::infer_i444(buf, width, height),
             PixelFormat::NV12 => Self::infer_nv12(buf, width, height),
             PixelFormat::YUYV => Self::YUYV(buf),
-            PixelFormat::RGBA | PixelFormat::BGRA => Self::RGBA(buf),
+            PixelFormat::RGBA | PixelFormat::BGRA | PixelFormat::ARGB | PixelFormat::ABGR => {
+                Self::RGBA(buf)
+            }
             PixelFormat::RGB | PixelFormat::BGR => Self::RGB(buf),
         }
     }

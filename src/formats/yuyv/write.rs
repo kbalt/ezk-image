@@ -55,6 +55,7 @@ where
         )
     }
 
+    #[inline(always)]
     unsafe fn write_yuyv<V: Vector>(&mut self, y: V, uv: V, offset0: usize)
     where
         P: PrimitiveInternal,

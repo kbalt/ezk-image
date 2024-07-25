@@ -49,6 +49,7 @@ impl<'a, P: PrimitiveInternal> YUYVReader<'a, P> {
         })
     }
 
+    #[inline(always)]
     unsafe fn read_yuyv<V: Vector>(&mut self, offset: usize) -> (V, V) {
         let yuyv00 = P::load::<V>(self.yuyv.add(offset));
         let yuyv01 = P::load::<V>(self.yuyv.add(offset + V::LEN));

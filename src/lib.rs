@@ -77,6 +77,16 @@ pub enum PixelFormat {
     /// 1 Plane BGRA interleaved
     BGRA,
 
+    /// RGBA
+    ///
+    /// 1 Plane RGBA interleaved
+    ARGB,
+
+    /// BGRA
+    ///
+    /// 1 Plane BGRA interleaved
+    ABGR,
+
     /// RGB
     ///
     /// 1 Plane RGB interleaved
@@ -99,7 +109,7 @@ impl PixelFormat {
             I420 | NV12 => (width * height * 12).div_ceil(8),
             I422 | YUYV => width * height * 2,
             I444 => width * height * 3,
-            RGBA | BGRA => width * height * 4,
+            RGBA | BGRA | ARGB | ABGR => width * height * 4,
             RGB | BGR => width * height * 3,
         }
     }
@@ -220,14 +230,28 @@ where
                 src.window,
             )?,
         )?)),
-        PixelFormat::RGBA => Ok(Box::new(RgbaReader::<false, P>::new(
+        PixelFormat::RGBA => Ok(Box::new(RgbaReader::<false, false, P>::new(
             src.width,
             src.height,
             src.planes,
             src.bits_per_component,
             src.window,
         )?)),
-        PixelFormat::BGRA => Ok(Box::new(RgbaReader::<true, P>::new(
+        PixelFormat::BGRA => Ok(Box::new(RgbaReader::<false, true, P>::new(
+            src.width,
+            src.height,
+            src.planes,
+            src.bits_per_component,
+            src.window,
+        )?)),
+        PixelFormat::ARGB => Ok(Box::new(RgbaReader::<true, false, P>::new(
+            src.width,
+            src.height,
+            src.planes,
+            src.bits_per_component,
+            src.window,
+        )?)),
+        PixelFormat::ABGR => Ok(Box::new(RgbaReader::<true, true, P>::new(
             src.width,
             src.height,
             src.planes,
@@ -300,7 +324,7 @@ where
             dst.window,
             RgbToI422::new(&dst.color, reader)?,
         ),
-        PixelFormat::RGBA => RgbaWriter::<false, DP, _>::write(
+        PixelFormat::RGBA => RgbaWriter::<false, false, DP, _>::write(
             dst.width,
             dst.height,
             dst.planes,
@@ -308,7 +332,23 @@ where
             dst.window,
             reader,
         ),
-        PixelFormat::BGRA => RgbaWriter::<true, DP, _>::write(
+        PixelFormat::BGRA => RgbaWriter::<false, true, DP, _>::write(
+            dst.width,
+            dst.height,
+            dst.planes,
+            dst.bits_per_component,
+            dst.window,
+            reader,
+        ),
+        PixelFormat::ARGB => RgbaWriter::<true, false, DP, _>::write(
+            dst.width,
+            dst.height,
+            dst.planes,
+            dst.bits_per_component,
+            dst.window,
+            reader,
+        ),
+        PixelFormat::ABGR => RgbaWriter::<true, true, DP, _>::write(
             dst.width,
             dst.height,
             dst.planes,

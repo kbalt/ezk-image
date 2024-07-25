@@ -85,10 +85,10 @@ impl<'a, const REVERSE: bool, P: PrimitiveInternal> RgbaSrc for RgbReader<'a, RE
         let g11 = g11.vdivf(self.max_value);
         let b11 = b11.vdivf(self.max_value);
 
-        let px00 = RgbaPixel::from_loaded::<REVERSE>(r00, g00, b00, <V>::splat(1.0));
-        let px01 = RgbaPixel::from_loaded::<REVERSE>(r01, g01, b01, <V>::splat(1.0));
-        let px10 = RgbaPixel::from_loaded::<REVERSE>(r10, g10, b10, <V>::splat(1.0));
-        let px11 = RgbaPixel::from_loaded::<REVERSE>(r11, g11, b11, <V>::splat(1.0));
+        let px00 = RgbaPixel::from_loaded::<REVERSE>(r00, g00, b00, V::splat(1.0));
+        let px01 = RgbaPixel::from_loaded::<REVERSE>(r01, g01, b01, V::splat(1.0));
+        let px10 = RgbaPixel::from_loaded::<REVERSE>(r10, g10, b10, V::splat(1.0));
+        let px11 = RgbaPixel::from_loaded::<REVERSE>(r11, g11, b11, V::splat(1.0));
 
         RgbaBlock {
             px00,

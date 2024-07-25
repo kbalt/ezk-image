@@ -5,7 +5,7 @@ use crate::vector::Vector;
 use crate::{ConvertError, PixelFormat, PixelFormatPlanes, Window};
 use std::marker::PhantomData;
 
-pub(crate) struct RgbaWriter<'a, const REVERSE: bool, P, S>
+pub(crate) struct RgbaWriter<'a, const ALPHA_FIRST: bool, const BGR: bool, P, S>
 where
     P: PrimitiveInternal,
     S: RgbaSrc,
@@ -20,7 +20,7 @@ where
     _m: PhantomData<&'a mut [P]>,
 }
 
-impl<'a, const REVERSE: bool, P, S> RgbaWriter<'a, REVERSE, P, S>
+impl<'a, const ALPHA_FIRST: bool, const BGR: bool, P, S> RgbaWriter<'a, ALPHA_FIRST, BGR, P, S>
 where
     P: PrimitiveInternal,
     S: RgbaSrc,
@@ -38,7 +38,7 @@ where
         }
 
         let PixelFormatPlanes::RGBA(dst) = dst_planes else {
-            return Err(ConvertError::InvalidPlanesForPixelFormat(if REVERSE {
+            return Err(ConvertError::InvalidPlanesForPixelFormat(if BGR {
                 PixelFormat::BGRA
             } else {
                 PixelFormat::RGBA
@@ -58,9 +58,32 @@ where
             },
         )
     }
+
+    #[inline(always)]
+    unsafe fn multiply_and_reverse<V: Vector>(&self, px: RgbaPixel<V>) -> [V; 4] {
+        let r = px.r.vmulf(self.max_value);
+        let g = px.g.vmulf(self.max_value);
+        let b = px.b.vmulf(self.max_value);
+        let a = px.a.vmulf(self.max_value);
+
+        if ALPHA_FIRST {
+            if BGR {
+                [a, b, g, r]
+            } else {
+                [a, r, g, b]
+            }
+        } else {
+            if BGR {
+                [b, g, r, a]
+            } else {
+                [r, g, b, a]
+            }
+        }
+    }
 }
 
-impl<'a, const REVERSE: bool, B, S> Image2x2Visitor for RgbaWriter<'a, REVERSE, B, S>
+impl<'a, const ALPHA_FIRST: bool, const BGR: bool, B, S> Image2x2Visitor
+    for RgbaWriter<'a, ALPHA_FIRST, BGR, B, S>
 where
     B: PrimitiveInternal,
     S: RgbaSrc,
@@ -75,34 +98,17 @@ where
         B::write_interleaved_4x_2x(
             self.dst.add(offset00 * 4),
             [
-                multiply_and_reverse::<REVERSE, V>(block.px00, self.max_value),
-                multiply_and_reverse::<REVERSE, V>(block.px01, self.max_value),
+                self.multiply_and_reverse::<V>(block.px00),
+                self.multiply_and_reverse::<V>(block.px01),
             ],
         );
 
         B::write_interleaved_4x_2x(
             self.dst.add(offset10 * 4),
             [
-                multiply_and_reverse::<REVERSE, V>(block.px10, self.max_value),
-                multiply_and_reverse::<REVERSE, V>(block.px11, self.max_value),
+                self.multiply_and_reverse::<V>(block.px10),
+                self.multiply_and_reverse::<V>(block.px11),
             ],
         );
-    }
-}
-
-#[inline(always)]
-unsafe fn multiply_and_reverse<const REVERSE: bool, V: Vector>(
-    px: RgbaPixel<V>,
-    max_value: f32,
-) -> [V; 4] {
-    let r = px.r.vmulf(max_value);
-    let g = px.g.vmulf(max_value);
-    let b = px.b.vmulf(max_value);
-    let a = px.a.vmulf(max_value);
-
-    if REVERSE {
-        [b, g, r, a]
-    } else {
-        [r, g, b, a]
     }
 }
