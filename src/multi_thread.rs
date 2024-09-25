@@ -1,4 +1,4 @@
-use crate::{convert, get_and_verify_input_windows, Image, Primitive};
+use crate::{convert, copy, get_and_verify_input_windows, Image, Primitive};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 /// Parallelizes [`convert`] using as many threads as there are CPU cores.
@@ -7,6 +7,10 @@ pub fn convert_multi_thread<SP: Primitive, DP: Primitive>(
     dst: Image<&mut [DP]>,
 ) -> Result<(), crate::ConvertError> {
     let (src_window, dst_window) = get_and_verify_input_windows(&src, &dst)?;
+
+    if src.format == dst.format && src.color == dst.color {
+        return copy(src, dst);
+    }
 
     let threads = num_cpus::get();
 

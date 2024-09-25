@@ -151,6 +151,10 @@ where
 {
     get_and_verify_input_windows(&src, &dst)?;
 
+    if src.format == dst.format && src.color == dst.color {
+        return copy(src, dst);
+    }
+
     let reader: Box<dyn DynRgbaReader> = read_any_to_rgba(&src)?;
 
     if need_transfer_and_primaries_convert(&src.color, &dst.color) {
@@ -162,6 +166,143 @@ where
     }
 }
 
+#[inline(never)]
+fn copy<SP, DP>(src: Image<&[SP]>, dst: Image<&mut [DP]>) -> Result<(), ConvertError>
+where
+    SP: Primitive,
+    DP: Primitive,
+{
+    assert_eq!(src.format, dst.format);
+
+    match src.format {
+        PixelFormat::I420 => I420Writer::write(
+            dst.width,
+            dst.height,
+            dst.planes,
+            dst.bits_per_component,
+            dst.window,
+            I420Reader::new(
+                src.width,
+                src.height,
+                src.planes,
+                src.bits_per_component,
+                src.window,
+            )?,
+        ),
+        PixelFormat::I422 => I422Writer::write(
+            dst.width,
+            dst.height,
+            dst.planes,
+            dst.bits_per_component,
+            dst.window,
+            I422Reader::new(
+                src.width,
+                src.height,
+                src.planes,
+                src.bits_per_component,
+                src.window,
+            )?,
+        ),
+        PixelFormat::I444 => I444Writer::write(
+            dst.width,
+            dst.height,
+            dst.planes,
+            dst.bits_per_component,
+            dst.window,
+            I444Reader::new(
+                src.width,
+                src.height,
+                src.planes,
+                src.bits_per_component,
+                src.window,
+            )?,
+        ),
+        PixelFormat::NV12 => NV12Writer::write(
+            dst.width,
+            dst.height,
+            dst.planes,
+            dst.bits_per_component,
+            dst.window,
+            NV12Reader::new(
+                src.width,
+                src.height,
+                src.planes,
+                src.bits_per_component,
+                src.window,
+            )?,
+        ),
+        PixelFormat::YUYV => YUYVWriter::write(
+            dst.width,
+            dst.height,
+            dst.planes,
+            dst.bits_per_component,
+            dst.window,
+            YUYVReader::new(
+                src.width,
+                src.height,
+                src.planes,
+                src.bits_per_component,
+                src.window,
+            )?,
+        ),
+        PixelFormat::RGBA => RgbaWriter::<false, _, _>::write(
+            dst.width,
+            dst.height,
+            dst.planes,
+            dst.bits_per_component,
+            dst.window,
+            RgbaReader::<false, _>::new(
+                src.width,
+                src.height,
+                src.planes,
+                src.bits_per_component,
+                src.window,
+            )?,
+        ),
+        PixelFormat::BGRA => RgbaWriter::<true, _, _>::write(
+            dst.width,
+            dst.height,
+            dst.planes,
+            dst.bits_per_component,
+            dst.window,
+            RgbaReader::<true, _>::new(
+                src.width,
+                src.height,
+                src.planes,
+                src.bits_per_component,
+                src.window,
+            )?,
+        ),
+        PixelFormat::RGB => RgbWriter::<false, _, _>::write(
+            dst.width,
+            dst.height,
+            dst.planes,
+            dst.bits_per_component,
+            dst.window,
+            RgbReader::<false, _>::new(
+                src.width,
+                src.height,
+                src.planes,
+                src.bits_per_component,
+                src.window,
+            )?,
+        ),
+        PixelFormat::BGR => RgbWriter::<true, _, _>::write(
+            dst.width,
+            dst.height,
+            dst.planes,
+            dst.bits_per_component,
+            dst.window,
+            RgbReader::<true, _>::new(
+                src.width,
+                src.height,
+                src.planes,
+                src.bits_per_component,
+                src.window,
+            )?,
+        ),
+    }
+}
 #[inline(never)]
 fn read_any_to_rgba<'src, P>(
     src: &Image<&'src [P]>,
