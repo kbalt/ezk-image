@@ -8,9 +8,12 @@ pub(crate) struct I420Reader<'a, P: PrimitiveInternal> {
     window: Window,
 
     src_width: usize,
-    y: *const P,
-    u: *const P,
+    y: *const P, // width * height
+    u: *const P, // (width / 2) * (height / 2)
     v: *const P,
+
+    y_len: usize,
+    uv_len: usize,
 
     max_value: f32,
 
@@ -49,6 +52,8 @@ impl<'a, P: PrimitiveInternal> I420Reader<'a, P> {
             y: y.as_ptr(),
             u: u.as_ptr(),
             v: v.as_ptr(),
+            y_len: y.len(),
+            uv_len: u.len(),
             max_value: crate::formats::max_value_for_bits(bits_per_component),
             _m: PhantomData,
         })
@@ -65,6 +70,13 @@ impl<'a, P: PrimitiveInternal> I420Src for I420Reader<'a, P> {
 
         let y00_offset = (y * self.src_width) + x;
         let y10_offset = ((y + 1) * self.src_width) + x;
+
+        debug_assert!(
+            y00_offset <= self.y_len,
+            "x: {x}, y:{y} - y00_offset: {y00_offset} >= y_len: {}",
+            self.y_len
+        );
+        debug_assert!(uv_offset <= self.uv_len);
 
         // Load Y pixels
         let y00 = P::load::<V>(self.y.add(y00_offset));

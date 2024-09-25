@@ -9,6 +9,7 @@ where
     P: PrimitiveInternal,
     S: RgbaSrc,
 {
+    window: Window,
     dst_width: usize,
     dst: *mut P,
 
@@ -49,6 +50,12 @@ where
             dst_height,
             window,
             Self {
+                window: window.unwrap_or(Window {
+                    x: 0,
+                    y: 0,
+                    width: dst_width,
+                    height: dst_height,
+                }),
                 dst_width,
                 dst: dst.as_mut_ptr(),
                 max_value: crate::formats::max_value_for_bits(bits_per_component),
@@ -66,7 +73,9 @@ where
 {
     #[inline(always)]
     unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize) {
-        let block = self.rgba_src.read::<V>(x, y);
+        let block = self
+            .rgba_src
+            .read::<V>(x - self.window.x, y - self.window.y);
 
         let offset00 = y * self.dst_width + x;
         let offset10 = (y + 1) * self.dst_width + x;

@@ -11,6 +11,7 @@ where
     P: PrimitiveInternal,
     S: I422Src,
 {
+    window: Window,
     dst_width: usize,
     dst_yuyv: *mut P,
     max_value: f32,
@@ -46,6 +47,12 @@ where
             dst_height,
             window,
             Self {
+                window: window.unwrap_or(Window {
+                    x: 0,
+                    y: 0,
+                    width: dst_width,
+                    height: dst_height,
+                }),
                 dst_width,
                 dst_yuyv: yuyv.as_mut_ptr(),
                 max_value: crate::formats::max_value_for_bits(bits_per_component),
@@ -81,7 +88,9 @@ where
             u1,
             v0,
             v1,
-        } = self.i422_src.read::<V>(x, y);
+        } = self
+            .i422_src
+            .read::<V>(x - self.window.x, y - self.window.y);
 
         let y00 = y00.vmulf(self.max_value);
         let y01 = y01.vmulf(self.max_value);

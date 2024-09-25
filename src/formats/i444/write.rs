@@ -12,6 +12,7 @@ where
     P: PrimitiveInternal,
     S: I444Src,
 {
+    window: Window,
     dst_width: usize,
     dst_y: *mut P,
     dst_u: *mut P,
@@ -50,6 +51,12 @@ where
             dst_height,
             window,
             Self {
+                window: window.unwrap_or(Window {
+                    x: 0,
+                    y: 0,
+                    width: dst_width,
+                    height: dst_height,
+                }),
                 dst_width,
                 dst_y: y.as_mut_ptr(),
                 dst_u: u.as_mut_ptr(),
@@ -69,7 +76,9 @@ where
 {
     #[inline(always)]
     unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize) {
-        let block = self.i444_src.read::<V>(x, y);
+        let block = self
+            .i444_src
+            .read::<V>(x - self.window.x, y - self.window.y);
 
         let I444Block {
             px00,

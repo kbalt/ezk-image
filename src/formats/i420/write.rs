@@ -12,6 +12,7 @@ where
     P: PrimitiveInternal,
     S: I420Src,
 {
+    window: Window,
     dst_width: usize,
     dst_y: *mut P,
     dst_u: *mut P,
@@ -50,6 +51,12 @@ where
             dst_height,
             window,
             Self {
+                window: window.unwrap_or(Window {
+                    x: 0,
+                    y: 0,
+                    width: dst_width,
+                    height: dst_height,
+                }),
                 dst_width,
                 dst_y: y.as_mut_ptr(),
                 dst_u: u.as_mut_ptr(),
@@ -76,7 +83,9 @@ where
             y11,
             u,
             v,
-        } = self.i420_src.read::<V>(x, y);
+        } = self
+            .i420_src
+            .read::<V>(x - self.window.x, y - self.window.y);
 
         let y00 = y00.vmulf(self.max_value);
         let y01 = y01.vmulf(self.max_value);

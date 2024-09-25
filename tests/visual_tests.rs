@@ -1,6 +1,6 @@
 use ezk_image::{
-    convert_multi_thread, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, Image, PixelFormat,
-    PixelFormatPlanes, Window,
+    convert, convert_multi_thread, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, Image,
+    PixelFormat, PixelFormatPlanes, Window,
 };
 use ezk_image::{resize::*, RgbColorInfo, YuvColorInfo};
 use image::{Rgb, Rgba};
@@ -9,18 +9,18 @@ fn make_rgba8_image(primaries: ColorPrimaries, transfer: ColorTransfer) -> (Vec<
     let primaries = primaries.xyz_to_rgb_mat();
 
     // Use odd image size to force non-simd paths
-    let width = 2050;
-    let height = 2050;
+    let width = 640;
+    let height = 360;
 
     let mut out = Vec::with_capacity(width * height * 4);
 
     let y = 0.5;
 
     for x in 0..height {
-        let x = (x as f32) / 2050.0;
+        let x = (x as f32) / 640.0;
 
         for z in 0..width {
-            let z = (z as f32) / 2050.0;
+            let z = (z as f32) / 360.0;
 
             let r = x * primaries[0][0] + y * primaries[1][0] + z * primaries[2][0];
             let g = x * primaries[0][1] + y * primaries[1][1] + z * primaries[2][1];
@@ -174,9 +174,9 @@ fn i420_to_rgba_with_window() {
     .unwrap()
     .with_window(Window {
         x: 100,
-        y: 200,
-        width: 400,
-        height: 400,
+        y: 100,
+        width: 200,
+        height: 200,
     })
     .unwrap();
 
@@ -193,10 +193,10 @@ fn i420_to_rgba_with_window() {
     )
     .unwrap()
     .with_window(Window {
-        x: 400,
-        y: 700,
-        width: 400,
-        height: 400,
+        x: 100,
+        y: 100,
+        width: 200,
+        height: 200,
     })
     .unwrap();
 
@@ -931,4 +931,82 @@ fn yuyv_to_rgb() {
         image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(1920, 1080, rgb_dst.clone()).unwrap();
 
     buffer.save("tests/RGB_TO_YUYV.png").unwrap();
+}
+
+#[test]
+fn windows_offsets() {
+    let color = YuvColorInfo {
+        transfer: ColorTransfer::Linear,
+        primaries: ColorPrimaries::BT709,
+        space: ColorSpace::BT709,
+        full_range: false,
+    };
+
+    let (i420_src, width, height) = make_i420_image(color);
+
+    let mut dst_image_buffer = vec![128u8; PixelFormat::I420.buffer_size(1920, 1080)];
+
+    for x in 2..3 {
+        for y in 2..3 {
+            convert(
+                Image::new(
+                    PixelFormat::I420,
+                    PixelFormatPlanes::infer_i420(i420_src.as_slice(), width, height),
+                    dbg!(width),
+                    dbg!(height),
+                    ColorInfo::YUV(color),
+                    8,
+                )
+                .unwrap(),
+                Image::new(
+                    PixelFormat::I420,
+                    PixelFormatPlanes::infer_i420(dst_image_buffer.as_mut_slice(), 1920, 1080),
+                    1920,
+                    1080,
+                    ColorInfo::YUV(color),
+                    8,
+                )
+                .unwrap()
+                .with_window(Window {
+                    x: dbg!(640 * x),
+                    y: dbg!(360 * y),
+                    width,
+                    height,
+                })
+                .unwrap(),
+            )
+            .unwrap();
+        }
+    }
+    // I420 -> RGB
+    let src = Image::new(
+        PixelFormat::I420,
+        PixelFormatPlanes::infer_i420(dst_image_buffer.as_slice(), 1920, 1080),
+        1920,
+        1080,
+        ColorInfo::YUV(color),
+        8,
+    )
+    .unwrap();
+
+    let mut rgb_dst = vec![0u8; PixelFormat::RGB.buffer_size(1920, 1080)];
+    let dst = Image::new(
+        PixelFormat::RGB,
+        PixelFormatPlanes::RGB(&mut rgb_dst[..]),
+        1920,
+        1080,
+        ColorInfo::RGB(RgbColorInfo {
+            transfer: ColorTransfer::SRGB,
+            primaries: ColorPrimaries::BT709,
+        }),
+        8,
+    )
+    .unwrap();
+
+    convert_multi_thread(src, dst).unwrap();
+
+    let buffer =
+        image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(1920, 1080, rgb_dst.clone()).unwrap();
+
+    buffer.save("tests/WINDOW_OFFSETS.png").unwrap();
 }
