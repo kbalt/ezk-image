@@ -92,15 +92,16 @@ impl PixelFormat {
     /// Calculate the required buffer size given the [`PixelFormat`] self and image dimensions (in pixel width, height).
     ///
     /// The size is the amount of primitives (u8, u16) so when allocating size this must be accounted for.
+    #[deny(clippy::arithmetic_side_effects)]
     pub fn buffer_size(self, width: usize, height: usize) -> usize {
         use PixelFormat::*;
 
         match self {
-            I420 | NV12 => (width * height * 12).div_ceil(8),
-            I422 | YUYV => width * height * 2,
-            I444 => width * height * 3,
-            RGBA | BGRA => width * height * 4,
-            RGB | BGR => width * height * 3,
+            I420 | NV12 => (width.strict_mul_(height).strict_mul_(12)).div_ceil(8),
+            I422 | YUYV => width.strict_mul_(height).strict_mul_(2),
+            I444 => width.strict_mul_(height).strict_mul_(3),
+            RGBA | BGRA => width.strict_mul_(height).strict_mul_(4),
+            RGB | BGR => width.strict_mul_(height).strict_mul_(3),
         }
     }
 }
@@ -477,6 +478,7 @@ where
 }
 
 /// Verify that the input values are all valid and safe to move on to
+#[deny(clippy::arithmetic_side_effects)]
 fn get_and_verify_input_windows<SP: Primitive, DP: Primitive>(
     src: &Image<&[SP]>,
     dst: &Image<&mut [DP]>,
@@ -506,4 +508,21 @@ fn get_and_verify_input_windows<SP: Primitive, DP: Primitive>(
     }
 
     Ok((src_window, dst_window))
+}
+
+trait StrictApi {
+    fn strict_add_(self, rhs: Self) -> Self;
+    fn strict_mul_(self, rhs: Self) -> Self;
+}
+
+impl StrictApi for usize {
+    #[track_caller]
+    fn strict_add_(self, rhs: Self) -> Self {
+        self.checked_add(rhs).expect("attempt to add with overflow")
+    }
+
+    #[track_caller]
+    fn strict_mul_(self, rhs: Self) -> Self {
+        self.checked_mul(rhs).expect("attempt to multiply with overflow")
+    }
 }

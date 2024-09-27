@@ -1,4 +1,4 @@
-use crate::{convert, copy, get_and_verify_input_windows, Image, Primitive};
+use crate::{convert, copy, get_and_verify_input_windows, Image, Primitive, StrictApi};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 /// Parallelizes [`convert`] using as many threads as there are CPU cores.
@@ -27,7 +27,7 @@ pub fn convert_multi_thread<SP: Primitive, DP: Primitive>(
                 src.format,
                 src_planes,
                 src.width,
-                src_window.y + src_window.height,
+                src_window.y.strict_add_(src_window.height),
                 src.color,
                 src.bits_per_component,
             )
@@ -39,7 +39,7 @@ pub fn convert_multi_thread<SP: Primitive, DP: Primitive>(
                 dst.format,
                 dst_planes,
                 dst.width,
-                dst_window.y + dst_window.height,
+                dst_window.y.strict_add_(dst_window.height),
                 dst.color,
                 dst.bits_per_component,
             )

@@ -1,4 +1,4 @@
-use crate::{PixelFormat, Window};
+use crate::{PixelFormat, StrictApi, Window};
 use std::mem::take;
 
 /// All supported image plane formats
@@ -30,8 +30,11 @@ pub enum PixelFormatPlanes<S: AnySlice> {
 
 impl<S: AnySlice> PixelFormatPlanes<S> {
     /// Returns if the given planes are large enough for the given dimensions
+    #[deny(clippy::arithmetic_side_effects)]
     pub fn bounds_check(&self, width: usize, height: usize) -> bool {
-        let n_pixels = width * height;
+        let Some(n_pixels) = width.checked_mul(height) else {
+            return false;
+        };
 
         match self {
             Self::I420 { y, u, v } => {
@@ -56,9 +59,27 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
 
                 n_pixels <= y.slice_len() && uv_req_len <= uv.slice_len()
             }
-            Self::YUYV(buf) => n_pixels * 2 <= buf.slice_len(),
-            Self::RGB(buf) => n_pixels * 3 <= buf.slice_len(),
-            Self::RGBA(buf) => n_pixels * 4 <= buf.slice_len(),
+            Self::YUYV(buf) => {
+                let Some(n_bytes) = n_pixels.checked_mul(2) else {
+                    return false;
+                };
+
+                n_bytes <= buf.slice_len()
+            }
+            Self::RGB(buf) => {
+                let Some(n_bytes) = n_pixels.checked_mul(3) else {
+                    return false;
+                };
+
+                n_bytes <= buf.slice_len()
+            }
+            Self::RGBA(buf) => {
+                let Some(n_bytes) = n_pixels.checked_mul(4) else {
+                    return false;
+                };
+
+                n_bytes <= buf.slice_len()
+            }
         }
     }
 
@@ -67,6 +88,7 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
     /// # Panics
     ///
     /// If `buf` is too small for the given dimensions this function will panic
+    #[deny(clippy::arithmetic_side_effects)]
     pub fn infer(format: PixelFormat, buf: S, width: usize, height: usize) -> Self {
         match format {
             PixelFormat::I420 => Self::infer_i420(buf, width, height),
@@ -84,9 +106,10 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
     /// # Panics
     ///
     /// If `buf` is too small for the given dimensions this function will panic
+    #[deny(clippy::arithmetic_side_effects)]
     pub fn infer_i420(buf: S, width: usize, height: usize) -> Self {
-        let (y, tmp) = buf.slice_split_at(width * height);
-        let (u, v) = tmp.slice_split_at((width * height) / 4);
+        let (y, tmp) = buf.slice_split_at(width.strict_mul_(height));
+        let (u, v) = tmp.slice_split_at(width.strict_mul_(height) / 4);
 
         Self::I420 { y, u, v }
     }
@@ -96,10 +119,11 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
     /// # Panics
     ///
     /// If `buf` is too small for the given dimensions this function will panic
+    #[deny(clippy::arithmetic_side_effects)]
     pub fn infer_nv12(buf: S, width: usize, height: usize) -> Self {
-        let (y, uv) = buf.slice_split_at(width * height);
+        let (y, uv) = buf.slice_split_at(width.strict_mul_(height));
 
-        assert!(uv.slice_len() >= (width * height) / 2);
+        assert!(uv.slice_len() >= width.strict_mul_(height) / 2);
 
         Self::NV12 { y, uv }
     }
@@ -109,9 +133,10 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
     /// # Panics
     ///
     /// If `buf` is too small for the given dimensions this function will panic
+    #[deny(clippy::arithmetic_side_effects)]
     pub fn infer_i422(buf: S, width: usize, height: usize) -> Self {
-        let (y, tmp) = buf.slice_split_at(width * height);
-        let (u, v) = tmp.slice_split_at((width * height) / 2);
+        let (y, tmp) = buf.slice_split_at(width.strict_mul_(height));
+        let (u, v) = tmp.slice_split_at(width.strict_mul_(height) / 2);
 
         Self::I422 { y, u, v }
     }
@@ -121,9 +146,10 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
     /// # Panics
     ///
     /// If `buf` is too small for the given dimensions this function will panic
+    #[deny(clippy::arithmetic_side_effects)]
     pub fn infer_i444(buf: S, width: usize, height: usize) -> Self {
-        let (y, tmp) = buf.slice_split_at(width * height);
-        let (u, v) = tmp.slice_split_at(width * height);
+        let (y, tmp) = buf.slice_split_at(width.strict_mul_(height));
+        let (u, v) = tmp.slice_split_at(width.strict_mul_(height));
 
         Self::I444 { y, u, v }
     }
@@ -138,16 +164,17 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
     /// # Panics
     ///
     /// Panics when the initial window is larger than the image's dimensions
+    #[deny(clippy::arithmetic_side_effects)]
     pub fn split(
         mut self,
         width: usize,
         initial_window: Window,
         max_results: usize,
     ) -> Vec<(Self, Window)> {
-        assert!(width >= initial_window.x + initial_window.width);
+        assert!(width >= initial_window.x.strict_add_(initial_window.width));
         assert!(self.bounds_check(
-            initial_window.x + initial_window.width,
-            initial_window.y + initial_window.height
+            initial_window.x.strict_add_(initial_window.width),
+            initial_window.y.strict_add_(initial_window.height)
         ));
 
         let mut rects = calculate_windows_by_rows(initial_window, max_results);
@@ -170,9 +197,11 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
         for rect in rects {
             match &mut self {
                 Self::I420 { y, u, v } => {
-                    let (y_, y_remaining) = take(y).slice_split_at(width * rect.height);
-                    let (u_, u_remaining) = take(u).slice_split_at((width * rect.height) / 4);
-                    let (v_, v_remaining) = take(v).slice_split_at((width * rect.height) / 4);
+                    let (y_, y_remaining) = take(y).slice_split_at(width.strict_mul_(rect.height));
+                    let (u_, u_remaining) =
+                        take(u).slice_split_at(width.strict_mul_(rect.height) / 4);
+                    let (v_, v_remaining) =
+                        take(v).slice_split_at(width.strict_mul_(rect.height) / 4);
 
                     *y = y_remaining;
                     *u = u_remaining;
@@ -193,9 +222,11 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
                     ));
                 }
                 Self::I422 { y, u, v } => {
-                    let (y_, y_remaining) = take(y).slice_split_at(width * rect.height);
-                    let (u_, u_remaining) = take(u).slice_split_at((width * rect.height) / 2);
-                    let (v_, v_remaining) = take(v).slice_split_at((width * rect.height) / 2);
+                    let (y_, y_remaining) = take(y).slice_split_at(width.strict_mul_(rect.height));
+                    let (u_, u_remaining) =
+                        take(u).slice_split_at(width.strict_mul_(rect.height) / 2);
+                    let (v_, v_remaining) =
+                        take(v).slice_split_at(width.strict_mul_(rect.height) / 2);
 
                     *y = y_remaining;
                     *u = u_remaining;
@@ -216,9 +247,9 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
                     ));
                 }
                 Self::I444 { y, u, v } => {
-                    let (y_, y_remaining) = take(y).slice_split_at(width * rect.height);
-                    let (u_, u_remaining) = take(u).slice_split_at(width * rect.height);
-                    let (v_, v_remaining) = take(v).slice_split_at(width * rect.height);
+                    let (y_, y_remaining) = take(y).slice_split_at(width.strict_mul_(rect.height));
+                    let (u_, u_remaining) = take(u).slice_split_at(width.strict_mul_(rect.height));
+                    let (v_, v_remaining) = take(v).slice_split_at(width.strict_mul_(rect.height));
 
                     *y = y_remaining;
                     *u = u_remaining;
@@ -239,8 +270,9 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
                     ));
                 }
                 Self::NV12 { y, uv } => {
-                    let (y_, y_remaining) = take(y).slice_split_at(width * rect.height);
-                    let (uv_, uv_remaining) = take(uv).slice_split_at((width * rect.height) / 2);
+                    let (y_, y_remaining) = take(y).slice_split_at(width.strict_mul_(rect.height));
+                    let (uv_, uv_remaining) =
+                        take(uv).slice_split_at(width.strict_mul_(rect.height) / 2);
 
                     *y = y_remaining;
                     *uv = uv_remaining;
@@ -256,7 +288,8 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
                     ));
                 }
                 Self::YUYV(buf) => {
-                    let (x, remaining) = take(buf).slice_split_at(width * 2 * rect.height);
+                    let (x, remaining) =
+                        take(buf).slice_split_at(width.strict_mul_(rect.height).strict_mul_(2));
                     *buf = remaining;
 
                     ret.push((
@@ -270,7 +303,8 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
                     ));
                 }
                 Self::RGB(buf) => {
-                    let (x, remaining) = take(buf).slice_split_at(width * 3 * rect.height);
+                    let (x, remaining) =
+                        take(buf).slice_split_at(width.strict_mul_(rect.height).strict_mul_(3));
                     *buf = remaining;
                     ret.push((
                         Self::RGB(x),
@@ -283,7 +317,8 @@ impl<S: AnySlice> PixelFormatPlanes<S> {
                     ));
                 }
                 Self::RGBA(buf) => {
-                    let (x, remaining) = take(buf).slice_split_at(width * 4 * rect.height);
+                    let (x, remaining) =
+                        take(buf).slice_split_at(width.strict_mul_(rect.height).strict_mul_(4));
                     *buf = remaining;
                     ret.push((
                         Self::RGBA(x),

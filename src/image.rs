@@ -53,6 +53,7 @@ pub struct Image<S: AnySlice> {
 
 impl<S: AnySlice> Image<S> {
     /// Create a new image from all non-optional fields
+    #[deny(clippy::arithmetic_side_effects)]
     pub fn new(
         format: PixelFormat,
         planes: PixelFormatPlanes<S>,
@@ -88,8 +89,13 @@ impl<S: AnySlice> Image<S> {
     }
 
     /// Set a cropping window
+    #[deny(clippy::arithmetic_side_effects)]
     pub fn set_window(&mut self, window: Window) -> Result<(), ImageWindowError> {
-        if (window.x + window.width > self.width) || (window.y + window.height > self.height) {
+        type Error = ImageWindowError;
+
+        if (window.x.checked_add(window.width).ok_or(Error {})? > self.width)
+            || (window.y.checked_add(window.height).ok_or(Error {})? > self.height)
+        {
             return Err(ImageWindowError);
         }
 
