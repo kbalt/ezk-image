@@ -9,14 +9,8 @@ use formats::*;
 use primitive::PrimitiveInternal;
 use std::{error::Error, fmt};
 
-pub use color::{ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, RgbColorInfo, YuvColorInfo};
-pub use image::{Image, ImageError, ImageWindowError, Window};
-#[cfg(feature = "multi-thread")]
-pub use multi_thread::convert_multi_thread;
-pub use planes::PixelFormatPlanes;
-pub use primitive::Primitive;
-
 mod color;
+mod copy;
 mod formats;
 mod image;
 #[cfg(feature = "multi-thread")]
@@ -38,6 +32,15 @@ mod arch {
     #[cfg(target_arch = "aarch64")]
     pub(crate) use std::arch::is_aarch64_feature_detected;
 }
+
+pub use color::{ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, RgbColorInfo, YuvColorInfo};
+#[doc(hidden)]
+pub use copy::copy;
+pub use image::{Image, ImageError, ImageWindowError, Window};
+#[cfg(feature = "multi-thread")]
+pub use multi_thread::convert_multi_thread;
+pub use planes::PixelFormatPlanes;
+pub use primitive::Primitive;
 
 /// Supported pixel formats
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -153,7 +156,8 @@ where
     get_and_verify_input_windows(&src, &dst)?;
 
     if src.format == dst.format && src.color == dst.color {
-        return copy(src, dst);
+        // No color or pixel conversion needed just copy it over
+        return convert_same_color_and_pixel_format(src, dst);
     }
 
     let reader: Box<dyn DynRgbaReader> = read_any_to_rgba(&src)?;
@@ -168,7 +172,10 @@ where
 }
 
 #[inline(never)]
-fn copy<SP, DP>(src: Image<&[SP]>, dst: Image<&mut [DP]>) -> Result<(), ConvertError>
+fn convert_same_color_and_pixel_format<SP, DP>(
+    src: Image<&[SP]>,
+    dst: Image<&mut [DP]>,
+) -> Result<(), ConvertError>
 where
     SP: Primitive,
     DP: Primitive,
@@ -304,6 +311,7 @@ where
         ),
     }
 }
+
 #[inline(never)]
 fn read_any_to_rgba<'src, P>(
     src: &Image<&'src [P]>,
@@ -523,6 +531,7 @@ impl StrictApi for usize {
 
     #[track_caller]
     fn strict_mul_(self, rhs: Self) -> Self {
-        self.checked_mul(rhs).expect("attempt to multiply with overflow")
+        self.checked_mul(rhs)
+            .expect("attempt to multiply with overflow")
     }
 }
