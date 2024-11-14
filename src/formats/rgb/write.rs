@@ -1,4 +1,5 @@
 use crate::formats::visit_2x2::{visit, Image2x2Visitor};
+use crate::image::read_planes_mut;
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
 use crate::{ConvertError, ImageMut, RgbaPixel, RgbaSrc};
@@ -25,21 +26,20 @@ where
     P: PrimitiveInternal,
     S: RgbaSrc,
 {
-    pub(crate) fn write(mut dst: impl ImageMut<'a>, rgba_src: S) -> Result<(), ConvertError> {
+    pub(crate) fn write(dst: &'a mut impl ImageMut<'a>, rgba_src: S) -> Result<(), ConvertError> {
         if !dst.bounds_check() {
             return Err(ConvertError::InvalidPlaneSizeForDimensions);
         }
 
         let dst_width = dst.width();
         let dst_height = dst.height();
+        let dst_format = dst.format();
 
         let [rgb_stride] = *dst.strides() else {
             return Err(ConvertError::InvalidStridesForPixelFormat(dst.format()));
         };
 
-        let [rgb] = dst.planes_mut() else {
-            return Err(ConvertError::InvalidPlanesForPixelFormat(dst.format()));
-        };
+        let [rgb] = read_planes_mut(dst.planes_mut(), dst_format)?;
 
         visit(
             dst_width,
@@ -47,7 +47,7 @@ where
             Self {
                 rgb: rgb.as_mut_ptr(),
                 rgb_stride,
-                max_value: crate::formats::max_value_for_bits(dst.format().bits_per_component()),
+                max_value: crate::formats::max_value_for_bits(dst_format.bits_per_component()),
                 rgba_src,
                 _m: PhantomData,
             },
@@ -64,11 +64,11 @@ where
     unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize) {
         let block = self.rgba_src.read::<V>(x, y);
 
-        let offset00 = y * self.rgb_stride + x;
-        let offset10 = (y + 1) * self.rgb_stride + x;
+        let offset00 = y * self.rgb_stride + (x * 3);
+        let offset10 = (y + 1) * self.rgb_stride + (x * 3);
 
         B::write_interleaved_3x_2x(
-            self.rgb.add(offset00 * 3),
+            self.rgb.add(offset00),
             [
                 multiply_and_reverse::<REVERSE, V>(block.px00, self.max_value),
                 multiply_and_reverse::<REVERSE, V>(block.px01, self.max_value),
@@ -76,7 +76,7 @@ where
         );
 
         B::write_interleaved_3x_2x(
-            self.rgb.add(offset10 * 3),
+            self.rgb.add(offset10),
             [
                 multiply_and_reverse::<REVERSE, V>(block.px10, self.max_value),
                 multiply_and_reverse::<REVERSE, V>(block.px11, self.max_value),

@@ -1,4 +1,5 @@
 use super::{I422Block, I422Src};
+use crate::image::read_planes;
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
 use crate::{ConvertError, ImageRef};
@@ -19,18 +20,16 @@ pub(crate) struct I422Reader<'a, P: PrimitiveInternal> {
 }
 
 impl<'a, P: PrimitiveInternal> I422Reader<'a, P> {
-    pub(crate) fn new(src: impl ImageRef<'a>) -> Result<Self, ConvertError> {
+    pub(crate) fn new(src: &impl ImageRef<'a>) -> Result<Self, ConvertError> {
         if !src.bounds_check() {
             return Err(ConvertError::InvalidPlaneSizeForDimensions);
         }
 
-        let [y, u, v] = src.planes() else {
-            return Err(ConvertError::InvalidPlanesForPixelFormat(src.format()));
-        };
-
         let [y_stride, u_stride, v_stride] = *src.strides() else {
             return Err(ConvertError::InvalidStridesForPixelFormat(src.format()));
         };
+
+        let [y, u, v] = read_planes(src.planes(), src.format())?;
 
         Ok(Self {
             y: y.as_ptr(),

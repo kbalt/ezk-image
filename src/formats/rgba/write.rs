@@ -1,5 +1,6 @@
 use super::{RgbaPixel, RgbaSrc};
 use crate::formats::visit_2x2::{visit, Image2x2Visitor};
+use crate::image::read_planes_mut;
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
 use crate::{ConvertError, ImageMut};
@@ -26,21 +27,20 @@ where
     P: PrimitiveInternal,
     S: RgbaSrc,
 {
-    pub(crate) fn write(mut dst: impl ImageMut<'a>, rgba_src: S) -> Result<(), ConvertError> {
+    pub(crate) fn write(dst: &'a mut impl ImageMut<'a>, rgba_src: S) -> Result<(), ConvertError> {
         if !dst.bounds_check() {
             return Err(ConvertError::InvalidPlaneSizeForDimensions);
         }
 
         let dst_width = dst.width();
         let dst_height = dst.height();
+        let dst_format = dst.format();
 
         let [rgba_stride] = *dst.strides() else {
             return Err(ConvertError::InvalidStridesForPixelFormat(dst.format()));
         };
 
-        let [rgba] = dst.planes_mut() else {
-            return Err(ConvertError::InvalidPlanesForPixelFormat(dst.format()));
-        };
+        let [rgba] = read_planes_mut(dst.planes_mut(), dst_format)?;
 
         visit(
             dst_width,
@@ -48,7 +48,7 @@ where
             Self {
                 rgba: rgba.as_mut_ptr(),
                 rgba_stride,
-                max_value: crate::formats::max_value_for_bits(dst.format().bits_per_component()),
+                max_value: crate::formats::max_value_for_bits(dst_format.bits_per_component()),
                 rgba_src,
                 _m: PhantomData,
             },
@@ -65,8 +65,8 @@ where
     unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize) {
         let block = self.rgba_src.read::<V>(x, y);
 
-        let offset00 = (y * self.rgba_stride + x) * 4;
-        let offset10 = ((y + 1) * self.rgba_stride + x) * 4;
+        let offset00 = y * self.rgba_stride + x * 4;
+        let offset10 = (y + 1) * self.rgba_stride + x * 4;
 
         B::write_interleaved_4x_2x(
             self.rgba.add(offset00),

@@ -1,4 +1,5 @@
 use crate::formats::rgba::{RgbaBlock, RgbaPixel, RgbaSrc};
+use crate::image::read_planes;
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
 use crate::{ConvertError, ImageRef};
@@ -15,18 +16,16 @@ pub(crate) struct RgbReader<'a, const REVERSE: bool, P: PrimitiveInternal> {
 }
 
 impl<'a, const REVERSE: bool, P: PrimitiveInternal> RgbReader<'a, REVERSE, P> {
-    pub(crate) fn new(src: impl ImageRef<'a>) -> Result<Self, ConvertError> {
+    pub(crate) fn new(src: &impl ImageRef<'a>) -> Result<Self, ConvertError> {
         if !src.bounds_check() {
             return Err(ConvertError::InvalidPlaneSizeForDimensions);
         }
 
-        let [rgb] = src.planes() else {
-            return Err(ConvertError::InvalidPlanesForPixelFormat(src.format()));
-        };
-
         let [rgb_stride] = *src.strides() else {
             return Err(ConvertError::InvalidStridesForPixelFormat(src.format()));
         };
+
+        let [rgb] = read_planes(src.planes(), src.format())?;
 
         Ok(Self {
             rgb: rgb.as_ptr(),

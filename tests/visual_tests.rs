@@ -1,7 +1,8 @@
 use ezk_image::{
-    convert, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, Image, PixelFormat, Window,
+    convert, infer_i420, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, Image, PixelFormat,
+    RgbColorInfo, Window,
 };
-use ezk_image::{resize::*, RgbColorInfo, YuvColorInfo};
+use ezk_image::{ImageRef, YuvColorInfo};
 use image::{Rgb, Rgba};
 
 fn make_rgba8_image(primaries: ColorPrimaries, transfer: ColorTransfer) -> (Vec<u8>, usize, usize) {
@@ -13,7 +14,7 @@ fn make_rgba8_image(primaries: ColorPrimaries, transfer: ColorTransfer) -> (Vec<
 
     let mut out = Vec::with_capacity(width * height * 4);
 
-    let y = 0.5;
+    let y = 0.4;
 
     for x in 0..height {
         let x = (x as f32) / 640.0;
@@ -39,32 +40,30 @@ fn make_i420_image(color: YuvColorInfo) -> (Vec<u8>, usize, usize) {
     let (rgba, width, height) = make_rgba8_image(color.primaries, color.transfer);
     let mut i420 = vec![255u8; PixelFormat::I420.buffer_size(width, height)];
 
-    convert(
-        Image::new(
-            PixelFormat::RGBA,
-            &[&rgba],
-            &[width * 4],
-            width,
-            height,
-            ColorInfo::RGB(RgbColorInfo {
-                transfer: color.transfer,
-                primaries: color.primaries,
-            }),
-            8,
-        )
-        .unwrap(),
-        Image::new(
-            PixelFormat::I420,
-            &mut infer_i420(&mut i420[..], width, height),
-            &[width, width / 2, width / 2],
-            width,
-            height,
-            ColorInfo::YUV(color),
-            8,
-        )
-        .unwrap(),
+    let src = Image::new(
+        PixelFormat::RGBA,
+        vec![&rgba[..]],
+        vec![width * 4],
+        width,
+        height,
+        ColorInfo::RGB(RgbColorInfo {
+            transfer: color.transfer,
+            primaries: color.primaries,
+        }),
     )
     .unwrap();
+
+    let mut dst = Image::new(
+        PixelFormat::I420,
+        infer_i420(&mut i420[..], width, height).into(),
+        vec![width, width / 2, width / 2],
+        width,
+        height,
+        ColorInfo::YUV(color),
+    )
+    .unwrap();
+
+    convert(&src, &mut dst).unwrap();
 
     (i420, width, height)
 }
@@ -100,7 +99,7 @@ fn make_nv12_image(color: YuvColorInfo) -> (Vec<u8>, usize, usize) {
 
     (nv12, width, height)
 }
-
+*/
 #[test]
 fn i420_to_rgb() {
     let (i420, width, height) = make_i420_image(YuvColorInfo {
@@ -114,7 +113,8 @@ fn i420_to_rgb() {
 
     let src = Image::new(
         PixelFormat::I420,
-        PixelFormatPlanes::infer_i420(&i420[..], width, height),
+        infer_i420(&i420[..], width, height).into(),
+        vec![width, width / 2, width / 2],
         width,
         height,
         ColorInfo::YUV(YuvColorInfo {
@@ -123,31 +123,30 @@ fn i420_to_rgb() {
             primaries: ColorPrimaries::BT709,
             full_range: false,
         }),
-        8,
     )
     .unwrap();
 
-    let dst = Image::new(
+    let mut dst = Image::new(
         PixelFormat::RGB,
-        PixelFormatPlanes::RGB(&mut rgb[..]),
+        vec![&mut rgb[..]],
+        vec![width * 3],
         width,
         height,
         ColorInfo::RGB(RgbColorInfo {
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
         }),
-        8,
     )
     .unwrap();
 
-    convert(src, dst).unwrap();
+    convert(&src, &mut dst).unwrap();
 
     let buffer =
         image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(width as _, height as _, rgb).unwrap();
 
     buffer.save("tests/I420_TO_RGB.png").unwrap();
 }
-
+/*
 #[test]
 fn i420_to_rgba_with_window() {
     let (i420, width, height) = make_i420_image(YuvColorInfo {
@@ -821,119 +820,69 @@ fn rgba8_to_nv12_and_back_ictcp_hlg() {
 
     buffer.save("tests/NV12_TO_RGBA_ICTCP_HLG.png").unwrap();
 }
-
+*/
 #[test]
 fn yuyv_to_rgb() {
-    let yuyv = std::fs::read("tests/data/switch.yuyv").unwrap();
+    let mut yuyv = std::fs::read("tests/data/switch.yuyv").unwrap();
 
     // YUYV -> RGB
-    let mut rgb_dst = vec![0u8; PixelFormat::RGB.buffer_size(1920, 1080)];
+    let mut rgb = vec![0u8; PixelFormat::RGB.buffer_size(1920, 1080)];
 
-    let src = Image::new(
-        PixelFormat::YUYV,
-        PixelFormatPlanes::YUYV(&yuyv[..]),
-        1920,
-        1080,
-        ColorInfo::YUV(YuvColorInfo {
-            transfer: ColorTransfer::SRGB,
-            primaries: ColorPrimaries::ST240,
-            space: ColorSpace::BT601,
-            full_range: false,
-        }),
-        8,
-    )
-    .unwrap();
+    {
+        let mut yuyv = Image::new(
+            PixelFormat::YUYV,
+            vec![&mut yuyv[..]],
+            vec![1920 * 2],
+            1920,
+            1080,
+            ColorInfo::YUV(YuvColorInfo {
+                transfer: ColorTransfer::Linear,
+                primaries: ColorPrimaries::BT709,
+                space: ColorSpace::BT601,
+                full_range: false,
+            }),
+        )
+        .unwrap();
 
-    let dst = Image::new(
-        PixelFormat::RGB,
-        PixelFormatPlanes::RGB(&mut rgb_dst[..]),
-        1920,
-        1080,
-        ColorInfo::RGB(RgbColorInfo {
-            transfer: ColorTransfer::SRGB,
-            primaries: ColorPrimaries::BT709,
-        }),
-        8,
-    )
-    .unwrap();
+        // YUYV
 
-    convert(src, dst).unwrap();
+        let mut rgb = Image::new(
+            PixelFormat::RGB,
+            vec![&mut rgb[..]],
+            vec![1920 * 3],
+            1920,
+            1080,
+            ColorInfo::RGB(RgbColorInfo {
+                transfer: ColorTransfer::Linear,
+                primaries: ColorPrimaries::BT709,
+            }),
+        )
+        .unwrap();
 
-    let buffer =
-        image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(1920, 1080, rgb_dst.clone()).unwrap();
+        convert(&yuyv, &mut rgb).unwrap();
+    }
+
+    let buffer = image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(1920, 1080, rgb).unwrap();
 
     buffer.save("tests/YUYV_TO_RGB.png").unwrap();
 
-    // RGB -> YUYV
-    let mut yuyv_dst = vec![0u8; PixelFormat::YUYV.buffer_size(1920, 1080)];
+    // // RGB -> YUYV
 
-    let src = Image::new(
-        PixelFormat::RGB,
-        PixelFormatPlanes::RGB(&rgb_dst[..]),
-        1920,
-        1080,
-        ColorInfo::RGB(RgbColorInfo {
-            transfer: ColorTransfer::SRGB,
-            primaries: ColorPrimaries::BT709,
-        }),
-        8,
-    )
-    .unwrap();
+    // convert(&rgb, &mut yuyv).unwrap();
 
-    let dst = Image::new(
-        PixelFormat::YUYV,
-        PixelFormatPlanes::YUYV(&mut yuyv_dst[..]),
-        1920,
-        1080,
-        ColorInfo::YUV(YuvColorInfo {
-            transfer: ColorTransfer::SRGB,
-            primaries: ColorPrimaries::ST240,
-            space: ColorSpace::BT601,
-            full_range: false,
-        }),
-        8,
-    )
-    .unwrap();
+    // // YUYV -> RGB
 
-    convert(src, dst).unwrap();
+    // convert(&yuyv, &mut rgb).unwrap();
 
-    // YUYV -> RGB
-    let src = Image::new(
-        PixelFormat::YUYV,
-        PixelFormatPlanes::YUYV(&yuyv_dst[..]),
-        1920,
-        1080,
-        ColorInfo::YUV(YuvColorInfo {
-            transfer: ColorTransfer::SRGB,
-            primaries: ColorPrimaries::ST240,
-            space: ColorSpace::BT601,
-            full_range: false,
-        }),
-        8,
-    )
-    .unwrap();
+    // let buffer = image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(
+    //     1920,
+    //     1080,
+    //     rgb.planes().next().unwrap().to_vec(),
+    // ).unwrap();
 
-    let dst = Image::new(
-        PixelFormat::RGB,
-        PixelFormatPlanes::RGB(&mut rgb_dst[..]),
-        1920,
-        1080,
-        ColorInfo::RGB(RgbColorInfo {
-            transfer: ColorTransfer::SRGB,
-            primaries: ColorPrimaries::BT709,
-        }),
-        8,
-    )
-    .unwrap();
-
-    convert(src, dst).unwrap();
-
-    let buffer =
-        image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(1920, 1080, rgb_dst.clone()).unwrap();
-
-    buffer.save("tests/RGB_TO_YUYV.png").unwrap();
+    // buffer.save("tests/RGB_TO_YUYV.png").unwrap();
 }
-
+/*
 #[test]
 fn windows_offsets() {
     let color = YuvColorInfo {

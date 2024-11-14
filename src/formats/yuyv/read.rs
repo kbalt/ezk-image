@@ -1,3 +1,4 @@
+use crate::image::read_planes;
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
 use crate::{ConvertError, I422Block, I422Src, ImageRef};
@@ -14,18 +15,16 @@ pub(crate) struct YUYVReader<'a, P: PrimitiveInternal> {
 }
 
 impl<'a, P: PrimitiveInternal> YUYVReader<'a, P> {
-    pub(crate) fn new(src: impl ImageRef<'a>) -> Result<Self, ConvertError> {
+    pub(crate) fn new(src: &impl ImageRef<'a>) -> Result<Self, ConvertError> {
         if !src.bounds_check() {
             return Err(ConvertError::InvalidPlaneSizeForDimensions);
         }
 
-        let [yuyv] = src.planes() else {
-            return Err(ConvertError::InvalidPlanesForPixelFormat(src.format()));
-        };
-
         let [yuyv_stride] = *src.strides() else {
             return Err(ConvertError::InvalidStridesForPixelFormat(src.format()));
         };
+
+        let [yuyv] = read_planes(src.planes(), src.format())?;
 
         Ok(Self {
             yuyv: yuyv.as_ptr(),
@@ -46,13 +45,13 @@ impl<'a, P: PrimitiveInternal> YUYVReader<'a, P> {
 impl<P: PrimitiveInternal> I422Src for YUYVReader<'_, P> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> I422Block<V> {
-        let offset0 = (y * self.yuyv_stride) + x;
-        let offset1 = ((y + 1) * self.yuyv_stride) + x;
+        let offset0 = y * self.yuyv_stride + x * 2;
+        let offset1 = (y + 1) * self.yuyv_stride + x * 2;
 
-        let (y00, uv00) = self.read_yuyv::<V>(offset0 * 2);
-        let (y01, uv01) = self.read_yuyv::<V>((offset0 + V::LEN) * 2);
-        let (y10, uv10) = self.read_yuyv::<V>(offset1 * 2);
-        let (y11, uv11) = self.read_yuyv::<V>((offset1 + V::LEN) * 2);
+        let (y00, uv00) = self.read_yuyv::<V>(offset0);
+        let (y01, uv01) = self.read_yuyv::<V>(offset0 + V::LEN * 2);
+        let (y10, uv10) = self.read_yuyv::<V>(offset1);
+        let (y11, uv11) = self.read_yuyv::<V>(offset1 + V::LEN * 2);
 
         let (u0, v0) = uv00.unzip(uv01);
         let (u1, v1) = uv10.unzip(uv11);

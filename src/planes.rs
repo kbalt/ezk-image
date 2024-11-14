@@ -1,5 +1,4 @@
 use crate::{PixelFormat, StrictApi, Window};
-use std::mem::take;
 
 /// Infer the planes for an image in the given format using the given dimensions
 ///
@@ -68,7 +67,7 @@ pub fn infer_i444<S: AnySlice>(buf: S, width: usize, height: usize) -> [S; 3] {
 /// If `buf` is too small for the given dimensions this function will panic
 #[deny(clippy::arithmetic_side_effects)]
 pub fn infer_i01x<S: AnySlice>(buf: S, width: usize, height: usize) -> [S; 3] {
-    let (y, tmp) = buf.slice_split_at(width.strict_mul_(height) * 2);
+    let (y, tmp) = buf.slice_split_at(width.strict_mul_(height).strict_mul_(2));
     let (u, v) = tmp.slice_split_at(width.strict_mul_(height) / 2);
 
     [y, u, v]
@@ -81,7 +80,7 @@ pub fn infer_i01x<S: AnySlice>(buf: S, width: usize, height: usize) -> [S; 3] {
 /// If `buf` is too small for the given dimensions this function will panic
 #[deny(clippy::arithmetic_side_effects)]
 pub fn infer_i21x<S: AnySlice>(buf: S, width: usize, height: usize) -> [S; 3] {
-    let (y, tmp) = buf.slice_split_at(width.strict_mul_(height) * 2);
+    let (y, tmp) = buf.slice_split_at(width.strict_mul_(height).strict_mul_(2));
     let (u, v) = tmp.slice_split_at(width.strict_mul_(height));
 
     [y, u, v]
@@ -94,8 +93,8 @@ pub fn infer_i21x<S: AnySlice>(buf: S, width: usize, height: usize) -> [S; 3] {
 /// If `buf` is too small for the given dimensions this function will panic
 #[deny(clippy::arithmetic_side_effects)]
 pub fn infer_i41x<S: AnySlice>(buf: S, width: usize, height: usize) -> [S; 3] {
-    let (y, tmp) = buf.slice_split_at(width.strict_mul_(height) * 2);
-    let (u, v) = tmp.slice_split_at(width.strict_mul_(height) * 2);
+    let (y, tmp) = buf.slice_split_at(width.strict_mul_(height).strict_mul_(2));
+    let (u, v) = tmp.slice_split_at(width.strict_mul_(height).strict_mul_(2));
 
     [y, u, v]
 }

@@ -1,13 +1,45 @@
-use crate::{AnySlice, ColorInfo, PixelFormat};
+use crate::{AnySlice, ColorInfo, ConvertError, PixelFormat};
 use std::error::Error;
 use std::fmt;
+use std::mem::MaybeUninit;
+
+pub(crate) fn read_planes<'a, const N: usize>(
+    mut iter: impl Iterator<Item = &'a [u8]>,
+    format: PixelFormat,
+) -> Result<[&'a [u8]; N], ConvertError> {
+    let mut out: [&'a [u8]; N] = [&[]; N];
+
+    for out in &mut out {
+        *out = iter
+            .next()
+            .ok_or(ConvertError::InvalidPlanesForPixelFormat(format))?;
+    }
+
+    Ok(out)
+}
+
+pub(crate) fn read_planes_mut<'a, const N: usize>(
+    mut iter: impl Iterator<Item = &'a mut [u8]>,
+    format: PixelFormat,
+) -> Result<[&'a mut [u8]; N], ConvertError> {
+    let mut out: [MaybeUninit<&'a mut [u8]>; N] = [const { MaybeUninit::uninit() }; N];
+
+    for out in &mut out {
+        out.write(
+            iter.next()
+                .ok_or(ConvertError::InvalidPlanesForPixelFormat(format))?,
+        );
+    }
+
+    Ok(out.map(|plane| unsafe { plane.assume_init() }))
+}
 
 pub trait ImageRef<'a> {
     fn format(&self) -> PixelFormat;
     fn width(&self) -> usize;
     fn height(&self) -> usize;
     fn strides(&self) -> &[usize];
-    fn planes(&self) -> &[&[u8]];
+    fn planes(&self) -> impl Iterator<Item = &[u8]>;
 
     fn color(&self) -> ColorInfo;
 
@@ -18,7 +50,7 @@ pub trait ImageRef<'a> {
 }
 
 pub trait ImageMut<'a>: ImageRef<'a> {
-    fn planes_mut(&mut self) -> &'a mut [&'a mut [u8]];
+    fn planes_mut(&mut self) -> impl Iterator<Item = &mut [u8]>;
 }
 
 /// Raw image data with information about dimensions, cropping, colorimetry, bit depth and pixel format
@@ -33,9 +65,6 @@ pub struct Image<S: AnySlice> {
     pub(crate) height: usize,
 
     pub(crate) color: ColorInfo,
-    pub(crate) bits_per_component: usize,
-
-    pub(crate) window: Option<Window>,
 }
 
 impl<S: AnySlice> Image<S> {
@@ -48,7 +77,6 @@ impl<S: AnySlice> Image<S> {
         width: usize,
         height: usize,
         color: ColorInfo,
-        bits_per_component: usize,
     ) -> Result<Self, ImageError> {
         if width == 0 || height == 0 {
             return Err(ImageError::InvalidDimensions);
@@ -61,35 +89,33 @@ impl<S: AnySlice> Image<S> {
             width,
             height,
             color,
-            bits_per_component,
-            window: None,
         };
 
         Ok(this)
     }
 
-    /// Set a cropping window but in a builder pattern
-    pub fn with_window(mut self, window: Window) -> Result<Self, ImageWindowError> {
-        self.set_window(window)?;
+    // Set a cropping window but in a builder pattern
+    // pub fn with_window(mut self, window: Window) -> Result<Self, ImageWindowError> {
+    //     self.set_window(window)?;
 
-        Ok(self)
-    }
+    //     Ok(self)
+    // }
 
-    /// Set a cropping window
-    #[deny(clippy::arithmetic_side_effects)]
-    pub fn set_window(&mut self, window: Window) -> Result<(), ImageWindowError> {
-        type Error = ImageWindowError;
+    // /// Set a cropping window
+    // #[deny(clippy::arithmetic_side_effects)]
+    // pub fn set_window(&mut self, window: Window) -> Result<(), ImageWindowError> {
+    //     type Error = ImageWindowError;
 
-        if (window.x.checked_add(window.width).ok_or(Error {})? > self.width)
-            || (window.y.checked_add(window.height).ok_or(Error {})? > self.height)
-        {
-            return Err(ImageWindowError);
-        }
+    //     if (window.x.checked_add(window.width).ok_or(Error {})? > self.width)
+    //         || (window.y.checked_add(window.height).ok_or(Error {})? > self.height)
+    //     {
+    //         return Err(ImageWindowError);
+    //     }
 
-        self.window = Some(window);
+    //     self.window = Some(window);
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 }
 
 impl<'a> ImageRef<'a> for Image<&'a [u8]> {
@@ -109,8 +135,8 @@ impl<'a> ImageRef<'a> for Image<&'a [u8]> {
         &self.strides
     }
 
-    fn planes(&self) -> &[&[u8]] {
-        &self.planes
+    fn planes(&self) -> impl Iterator<Item = &[u8]> {
+        self.planes.iter().copied()
     }
 
     fn color(&self) -> ColorInfo {
@@ -135,13 +161,8 @@ impl<'a> ImageRef<'a> for Image<&'a mut [u8]> {
         &self.strides
     }
 
-    fn planes(&self) -> &[&[u8]] {
-        todo!()
-        // // TODO: fix this, there should be no need for unsafe
-        // let x: *const &mut [u8] = self.planes.as_ptr();
-        // let x = x.cast::<&[u8]>();
-
-        // unsafe { std::slice::from_raw_parts(x, self.planes.len()) }
+    fn planes(&self) -> impl Iterator<Item = &[u8]> {
+        self.planes.iter().map(|plane| &**plane)
     }
 
     fn color(&self) -> ColorInfo {
@@ -150,8 +171,8 @@ impl<'a> ImageRef<'a> for Image<&'a mut [u8]> {
 }
 
 impl<'a> ImageMut<'a> for Image<&'a mut [u8]> {
-    fn planes_mut(&mut self) -> &'a mut [&'a mut [u8]] {
-        &mut self.planes
+    fn planes_mut(&mut self) -> impl Iterator<Item = &mut [u8]> {
+        self.planes.iter_mut().map(|plane| &mut **plane)
     }
 }
 

@@ -6,6 +6,7 @@
 )]
 
 use formats::*;
+use image::read_planes;
 use std::{error::Error, fmt};
 
 mod color;
@@ -111,9 +112,9 @@ impl PixelFormat {
         }
     }
 
-    pub fn bounds_check(
+    pub fn bounds_check<'a>(
         self,
-        planes: &[&[u8]],
+        planes: impl Iterator<Item = &'a [u8]>,
         strides: &[usize],
         width: usize,
         height: usize,
@@ -121,9 +122,16 @@ impl PixelFormat {
         use PixelFormat::*;
         match self {
             I420 => {
+                let planes: [_; 3] = read_planes(planes, self).unwrap();
+
+                // Y WIDTH * HEIGHT
+                //
+                // U (WIDTH / 2) * (HEIGHT / 2)
+                // V (WIDTH / 2) * (HEIGHT / 2)
+
                 assert!(width <= strides[0]);
-                assert!(width <= strides[1] / 2);
-                assert!(width <= strides[2] / 2);
+                assert!(width / 2 <= strides[1]);
+                assert!(width / 2 <= strides[2]);
 
                 let y = planes[0].len() >= strides[0] * height;
                 let u = planes[1].len() >= strides[1] * (height / 2);
@@ -132,6 +140,8 @@ impl PixelFormat {
                 y && u && v
             }
             I422 => {
+                let planes: [_; 3] = read_planes(planes, self).unwrap();
+
                 assert!(width <= strides[0]);
                 assert!(width <= strides[1] / 2);
                 assert!(width <= strides[2] / 2);
@@ -143,6 +153,8 @@ impl PixelFormat {
                 y && u && v
             }
             I444 => {
+                let planes: [_; 3] = read_planes(planes, self).unwrap();
+
                 assert!(width <= strides[0]);
                 assert!(width <= strides[1]);
                 assert!(width <= strides[2]);
@@ -154,6 +166,8 @@ impl PixelFormat {
                 y && u && v
             }
             I010 | I012 => {
+                let planes: [_; 3] = read_planes(planes, self).unwrap();
+
                 assert!(width * 2 <= strides[0]);
                 assert!(width * 2 <= strides[1] / 2);
                 assert!(width * 2 <= strides[2] / 2);
@@ -165,6 +179,8 @@ impl PixelFormat {
                 y && u && v
             }
             I210 | I212 => {
+                let planes: [_; 3] = read_planes(planes, self).unwrap();
+
                 assert!(width * 2 <= strides[0]);
                 assert!(width * 2 <= strides[1] / 2);
                 assert!(width * 2 <= strides[2] / 2);
@@ -176,6 +192,8 @@ impl PixelFormat {
                 y && u && v
             }
             I410 | I412 => {
+                let planes: [_; 3] = read_planes(planes, self).unwrap();
+
                 assert!(width * 2 <= strides[0]);
                 assert!(width * 2 <= strides[1]);
                 assert!(width * 2 <= strides[2]);
@@ -187,6 +205,8 @@ impl PixelFormat {
                 y && u && v
             }
             NV12 => {
+                let planes: [_; 2] = read_planes(planes, self).unwrap();
+
                 assert!(width <= strides[0]);
                 assert!(width <= strides[1]);
 
@@ -196,6 +216,8 @@ impl PixelFormat {
                 y && uv
             }
             YUYV | RGBA | BGRA | RGB | BGR => {
+                let planes: [_; 1] = read_planes(planes, self).unwrap();
+
                 assert!(width <= strides[0]);
 
                 planes[0].len() >= strides[0] * height
@@ -268,8 +290,11 @@ impl Error for ConvertError {}
 ///
 /// The given images (or at least their included window) must have dimensions (width, height) divisible by 2.
 #[inline(never)]
-pub fn convert<'a, 'b>(src: impl ImageRef<'a>, dst: impl ImageMut<'b>) -> Result<(), ConvertError> {
-    verify_input_windows(&src, &dst)?;
+pub fn convert<'a, 'b>(
+    src: &'a impl ImageRef<'a>,
+    dst: &'b mut impl ImageMut<'b>,
+) -> Result<(), ConvertError> {
+    verify_input_windows(src, dst)?;
 
     if src.format() == dst.format() && src.color() == dst.color() {
         // No color or pixel conversion needed just copy it over
@@ -292,8 +317,8 @@ pub fn convert<'a, 'b>(src: impl ImageRef<'a>, dst: impl ImageMut<'b>) -> Result
 
 #[inline(never)]
 fn convert_same_color_and_pixel_format<'a, 'b>(
-    src: impl ImageRef<'a>,
-    dst: impl ImageMut<'b>,
+    src: &'a impl ImageRef<'a>,
+    dst: &'b mut impl ImageMut<'b>,
 ) -> Result<(), ConvertError> {
     use PixelFormat::*;
     assert_eq!(src.format(), dst.format());
@@ -319,7 +344,7 @@ fn convert_same_color_and_pixel_format<'a, 'b>(
 
 #[inline(never)]
 fn read_any_to_rgba<'a>(
-    src: impl ImageRef<'a>,
+    src: &impl ImageRef<'a>,
 ) -> Result<Box<dyn DynRgbaReader + 'a>, ConvertError> {
     use PixelFormat::*;
 
@@ -367,7 +392,10 @@ fn read_any_to_rgba<'a>(
 }
 
 #[inline(never)]
-fn rgba_to_any<'a, 'b>(dst: impl ImageMut<'b>, reader: impl RgbaSrc + 'a) -> Result<(), ConvertError> {
+fn rgba_to_any<'a, 'b>(
+    dst: &'b mut impl ImageMut<'b>,
+    reader: impl RgbaSrc + 'a,
+) -> Result<(), ConvertError> {
     use PixelFormat::*;
 
     let dst_color = dst.color();
@@ -393,7 +421,10 @@ fn rgba_to_any<'a, 'b>(dst: impl ImageMut<'b>, reader: impl RgbaSrc + 'a) -> Res
 
 /// Verify that the input values are all valid and safe to move on to
 #[deny(clippy::arithmetic_side_effects)]
-fn verify_input_windows<'a, 'b>(src: &impl ImageRef<'a>, dst: &impl ImageMut<'b>) -> Result<(), ConvertError> {
+fn verify_input_windows<'a, 'b>(
+    src: &impl ImageRef<'a>,
+    dst: &impl ImageMut<'b>,
+) -> Result<(), ConvertError> {
     // Src and Dst window must be the same size
     if src.width() != dst.width() || src.height() != dst.height() {
         return Err(ConvertError::MismatchedImageSize);

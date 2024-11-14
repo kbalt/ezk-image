@@ -1,4 +1,5 @@
 use crate::formats::visit_2x2::{visit, Image2x2Visitor};
+use crate::image::read_planes_mut;
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
 use crate::{ConvertError, I422Block, I422Src, ImageMut};
@@ -25,21 +26,20 @@ where
     P: PrimitiveInternal,
     S: I422Src,
 {
-    pub(crate) fn write(mut dst: impl ImageMut<'a>, i422_src: S) -> Result<(), ConvertError> {
+    pub(crate) fn write(dst: &'a mut impl ImageMut<'a>, i422_src: S) -> Result<(), ConvertError> {
         if !dst.bounds_check() {
             return Err(ConvertError::InvalidPlaneSizeForDimensions);
         }
 
         let dst_width = dst.width();
         let dst_height = dst.height();
+        let dst_format = dst.format();
 
         let [yuyv_stride] = *dst.strides() else {
             return Err(ConvertError::InvalidStridesForPixelFormat(dst.format()));
         };
 
-        let [yuyv] = dst.planes_mut() else {
-            return Err(ConvertError::InvalidPlanesForPixelFormat(dst.format()));
-        };
+        let [yuyv] = read_planes_mut(dst.planes_mut(), dst_format)?;
 
         visit(
             dst_width,
@@ -47,7 +47,7 @@ where
             Self {
                 yuyv: yuyv.as_mut_ptr(),
                 yuyv_stride,
-                max_value: crate::formats::max_value_for_bits(dst.format().bits_per_component()),
+                max_value: crate::formats::max_value_for_bits(dst_format.bits_per_component()),
                 i422_src,
                 _m: PhantomData,
             },
@@ -91,8 +91,8 @@ where
         let v0 = v0.vmulf(self.max_value);
         let v1 = v1.vmulf(self.max_value);
 
-        let offset0 = (y * self.yuyv_stride) + x;
-        let offset1 = ((y + 1) * self.yuyv_stride) + x;
+        let offset0 = (y * self.yuyv_stride) + (x * 4);
+        let offset1 = ((y + 1) * self.yuyv_stride) + (x * 4);
 
         let (uv00, uv01) = u0.zip(v0);
         let (uv10, uv11) = u1.zip(v1);
