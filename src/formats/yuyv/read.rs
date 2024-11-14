@@ -1,13 +1,12 @@
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
-use crate::{ConvertError, I422Block, I422Src, PixelFormat, PixelFormatPlanes, Window};
+use crate::{ConvertError, I422Block, I422Src, ImageRef};
 use std::marker::PhantomData;
 
 pub(crate) struct YUYVReader<'a, P: PrimitiveInternal> {
-    window: Window,
+    yuyv: *const u8,
 
-    src_width: usize,
-    yuyv: *const P,
+    yuyv_stride: usize,
 
     max_value: f32,
 
@@ -15,36 +14,23 @@ pub(crate) struct YUYVReader<'a, P: PrimitiveInternal> {
 }
 
 impl<'a, P: PrimitiveInternal> YUYVReader<'a, P> {
-    pub(crate) fn new(
-        src_width: usize,
-        src_height: usize,
-        src_planes: PixelFormatPlanes<&'a [P]>,
-        bits_per_component: usize,
-        window: Option<Window>,
-    ) -> Result<Self, ConvertError> {
-        if !src_planes.bounds_check(src_width, src_height) {
+    pub(crate) fn new(src: impl ImageRef<'a>) -> Result<Self, ConvertError> {
+        if !src.bounds_check() {
             return Err(ConvertError::InvalidPlaneSizeForDimensions);
         }
 
-        let PixelFormatPlanes::YUYV(yuyv) = src_planes else {
-            return Err(ConvertError::InvalidPlanesForPixelFormat(PixelFormat::YUYV));
+        let [yuyv] = src.planes() else {
+            return Err(ConvertError::InvalidPlanesForPixelFormat(src.format()));
         };
 
-        let window = window.unwrap_or(Window {
-            x: 0,
-            y: 0,
-            width: src_width,
-            height: src_height,
-        });
-
-        assert!((window.x + window.width) <= src_width);
-        assert!((window.y + window.height) <= src_height);
+        let [yuyv_stride] = *src.strides() else {
+            return Err(ConvertError::InvalidStridesForPixelFormat(src.format()));
+        };
 
         Ok(Self {
-            window,
-            src_width,
             yuyv: yuyv.as_ptr(),
-            max_value: crate::formats::max_value_for_bits(bits_per_component),
+            yuyv_stride,
+            max_value: crate::formats::max_value_for_bits(src.format().bits_per_component()),
             _m: PhantomData,
         })
     }
@@ -60,11 +46,8 @@ impl<'a, P: PrimitiveInternal> YUYVReader<'a, P> {
 impl<P: PrimitiveInternal> I422Src for YUYVReader<'_, P> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> I422Block<V> {
-        let x = self.window.x + x;
-        let y = self.window.y + y;
-
-        let offset0 = (y * self.src_width) + x;
-        let offset1 = ((y + 1) * self.src_width) + x;
+        let offset0 = (y * self.yuyv_stride) + x;
+        let offset1 = ((y + 1) * self.yuyv_stride) + x;
 
         let (y00, uv00) = self.read_yuyv::<V>(offset0 * 2);
         let (y01, uv01) = self.read_yuyv::<V>((offset0 + V::LEN) * 2);

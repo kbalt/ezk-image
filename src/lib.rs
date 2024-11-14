@@ -6,19 +6,18 @@
 )]
 
 use formats::*;
-use primitive::PrimitiveInternal;
 use std::{error::Error, fmt};
 
 mod color;
-mod copy;
+// mod copy;
 mod formats;
 mod image;
-#[cfg(feature = "multi-thread")]
-mod multi_thread;
+// #[cfg(feature = "multi-thread")]
+// mod multi_thread;
 mod planes;
 mod primitive;
-#[cfg(feature = "resize")]
-pub mod resize;
+// #[cfg(feature = "resize")]
+// pub mod resize;
 mod vector;
 
 mod arch {
@@ -34,60 +33,61 @@ mod arch {
 }
 
 pub use color::{ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, RgbColorInfo, YuvColorInfo};
-#[doc(hidden)]
-pub use copy::copy;
-pub use image::{Image, ImageError, ImageWindowError, Window};
-#[cfg(feature = "multi-thread")]
-pub use multi_thread::convert_multi_thread;
-pub use planes::PixelFormatPlanes;
-pub use primitive::Primitive;
+pub use planes::*;
+// #[doc(hidden)]
+// pub use copy::copy;
+pub use image::{Image, ImageError, ImageMut, ImageRef, ImageWindowError, Window};
+// #[cfg(feature = "multi-thread")]
+// pub use multi_thread::convert_multi_thread;
+
+// compile_error!("pointer arithmetic for u16 !!!");
 
 /// Supported pixel formats
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum PixelFormat {
-    /// YUV with U and V sub-sampled in the vertical and horizontal dimension
-    ///
-    /// 3 Planes Y, U and V
+    /// Y, U and V planes, 4:2:0 sub sampling, 8 bits per sample
     I420,
 
-    /// YUV with U and V sub-sampled in the horizontal dimension
-    ///
-    /// 3 Planes Y, U and V
+    /// Y, U and V planes, 4:2:2 sub sampling, 8 bits per sample
     I422,
 
-    /// YUV
-    ///
-    /// 3 Planes Y, U and V
+    /// Y, U and V planes, 4:4:4 sub sampling, 8 bits per sample
     I444,
 
-    /// YUV with U and V sub-sampled in the vertical and horizontal dimension
-    ///
-    /// 2 Planes Y and UV interleaved
+    /// Y, U, and V planes, 4:2:0 sub sampling, 10 bits per sample
+    I010,
+
+    /// Y, U, and V planes, 4:2:0 sub sampling, 12 bits per sample
+    I012,
+
+    /// Y, U, and V planes, 4:2:2 sub sampling, 10 bits per sample
+    I210,
+
+    /// Y, U, and V planes, 4:2:2 sub sampling, 10 bits per sample
+    I212,
+
+    /// Y, U, and V planes, 4:4:4 sub sampling, 10 bits per sample
+    I410,
+
+    /// Y, U, and V planes, 4:4:4 sub sampling, 12 bits per sample
+    I412,
+
+    /// Y and interleaved UV planes, 4:2:0 sub sampling
     NV12,
 
-    /// YUV with U and V sub-sampled in the horizontal dimension
-    ///
-    /// 1 Plane, YUYV
+    /// Single YUYV, 4:2:2 sub sampling
     YUYV,
 
-    /// RGBA
-    ///
-    /// 1 Plane RGBA interleaved
+    /// Single RGBA interleaved plane
     RGBA,
 
-    /// BGRA
-    ///
-    /// 1 Plane BGRA interleaved
+    /// Single BGRA interleaved plane
     BGRA,
 
-    /// RGB
-    ///
-    /// 1 Plane RGB interleaved
+    /// Single RGB interleaved plane
     RGB,
 
-    /// BGR
-    ///
-    /// 1 Plane BGR interleaved
+    /// Single BGR interleaved plane
     BGR,
 }
 
@@ -103,8 +103,123 @@ impl PixelFormat {
             I420 | NV12 => (width.strict_mul_(height).strict_mul_(12)).div_ceil(8),
             I422 | YUYV => width.strict_mul_(height).strict_mul_(2),
             I444 => width.strict_mul_(height).strict_mul_(3),
+            I010 | I012 => I420.buffer_size(width, height).strict_mul_(2),
+            I210 | I212 => I422.buffer_size(width, height).strict_mul_(2),
+            I410 | I412 => I444.buffer_size(width, height).strict_mul_(2),
             RGBA | BGRA => width.strict_mul_(height).strict_mul_(4),
             RGB | BGR => width.strict_mul_(height).strict_mul_(3),
+        }
+    }
+
+    pub fn bounds_check(
+        self,
+        planes: &[&[u8]],
+        strides: &[usize],
+        width: usize,
+        height: usize,
+    ) -> bool {
+        use PixelFormat::*;
+        match self {
+            I420 => {
+                assert!(width <= strides[0]);
+                assert!(width <= strides[1] / 2);
+                assert!(width <= strides[2] / 2);
+
+                let y = planes[0].len() >= strides[0] * height;
+                let u = planes[1].len() >= strides[1] * (height / 2);
+                let v = planes[2].len() >= strides[2] * (height / 2);
+
+                y && u && v
+            }
+            I422 => {
+                assert!(width <= strides[0]);
+                assert!(width <= strides[1] / 2);
+                assert!(width <= strides[2] / 2);
+
+                let y = planes[0].len() >= strides[0] * height;
+                let u = planes[1].len() >= strides[1] * height;
+                let v = planes[2].len() >= strides[2] * height;
+
+                y && u && v
+            }
+            I444 => {
+                assert!(width <= strides[0]);
+                assert!(width <= strides[1]);
+                assert!(width <= strides[2]);
+
+                let y = planes[0].len() >= strides[0] * height;
+                let u = planes[1].len() >= strides[1] * height;
+                let v = planes[2].len() >= strides[2] * height;
+
+                y && u && v
+            }
+            I010 | I012 => {
+                assert!(width * 2 <= strides[0]);
+                assert!(width * 2 <= strides[1] / 2);
+                assert!(width * 2 <= strides[2] / 2);
+
+                let y = planes[0].len() >= strides[0] * height;
+                let u = planes[1].len() >= strides[1] * (height / 2);
+                let v = planes[2].len() >= strides[2] * (height / 2);
+
+                y && u && v
+            }
+            I210 | I212 => {
+                assert!(width * 2 <= strides[0]);
+                assert!(width * 2 <= strides[1] / 2);
+                assert!(width * 2 <= strides[2] / 2);
+
+                let y = planes[0].len() >= strides[0] * height;
+                let u = planes[1].len() >= strides[1] * height;
+                let v = planes[2].len() >= strides[2] * height;
+
+                y && u && v
+            }
+            I410 | I412 => {
+                assert!(width * 2 <= strides[0]);
+                assert!(width * 2 <= strides[1]);
+                assert!(width * 2 <= strides[2]);
+
+                let y = planes[0].len() >= strides[0] * height;
+                let u = planes[1].len() >= strides[1] * height;
+                let v = planes[2].len() >= strides[2] * height;
+
+                y && u && v
+            }
+            NV12 => {
+                assert!(width <= strides[0]);
+                assert!(width <= strides[1]);
+
+                let y = planes[0].len() >= strides[0] * height;
+                let uv = planes[1].len() >= strides[1] * (height / 2);
+
+                y && uv
+            }
+            YUYV | RGBA | BGRA | RGB | BGR => {
+                assert!(width <= strides[0]);
+
+                planes[0].len() >= strides[0] * height
+            }
+        }
+    }
+
+    pub fn bits_per_component(&self) -> usize {
+        match self {
+            PixelFormat::I420 => 8,
+            PixelFormat::I422 => 8,
+            PixelFormat::I444 => 8,
+            PixelFormat::I010 => 10,
+            PixelFormat::I012 => 12,
+            PixelFormat::I210 => 10,
+            PixelFormat::I212 => 12,
+            PixelFormat::I410 => 10,
+            PixelFormat::I412 => 12,
+            PixelFormat::NV12 => 8,
+            PixelFormat::YUYV => 8,
+            PixelFormat::RGBA => 8,
+            PixelFormat::BGRA => 8,
+            PixelFormat::RGB => 8,
+            PixelFormat::BGR => 8,
         }
     }
 }
@@ -117,6 +232,7 @@ pub enum ConvertError {
     InvalidColorInfo,
     InvalidPlanesForPixelFormat(PixelFormat),
     InvalidPlaneSizeForDimensions,
+    InvalidStridesForPixelFormat(PixelFormat),
 }
 
 impl fmt::Display for ConvertError {
@@ -138,6 +254,10 @@ impl fmt::Display for ConvertError {
                 f,
                 "provided planes are too small for the given image dimensions"
             ),
+            ConvertError::InvalidStridesForPixelFormat(pixel_format) => write!(
+                f,
+                "provided to few, or too many planes for the given pixel format {pixel_format:?}"
+            ),
         }
     }
 }
@@ -148,22 +268,21 @@ impl Error for ConvertError {}
 ///
 /// The given images (or at least their included window) must have dimensions (width, height) divisible by 2.
 #[inline(never)]
-pub fn convert<SP, DP>(src: Image<&[SP]>, dst: Image<&mut [DP]>) -> Result<(), ConvertError>
-where
-    SP: Primitive,
-    DP: Primitive,
-{
-    get_and_verify_input_windows(&src, &dst)?;
+pub fn convert<'a, 'b>(src: impl ImageRef<'a>, dst: impl ImageMut<'b>) -> Result<(), ConvertError> {
+    verify_input_windows(&src, &dst)?;
 
-    if src.format == dst.format && src.color == dst.color {
+    if src.format() == dst.format() && src.color() == dst.color() {
         // No color or pixel conversion needed just copy it over
         return convert_same_color_and_pixel_format(src, dst);
     }
 
-    let reader: Box<dyn DynRgbaReader> = read_any_to_rgba(&src)?;
+    let src_color = src.color();
+    let dst_color = dst.color();
 
-    if need_transfer_and_primaries_convert(&src.color, &dst.color) {
-        let reader = TransferAndPrimariesConvert::new(&src.color, &dst.color, reader);
+    let reader: Box<dyn DynRgbaReader> = read_any_to_rgba(src)?;
+
+    if need_transfer_and_primaries_convert(&src_color, &dst_color) {
+        let reader = TransferAndPrimariesConvert::new(&src_color, &dst_color, reader);
 
         rgba_to_any(dst, reader)
     } else {
@@ -172,350 +291,120 @@ where
 }
 
 #[inline(never)]
-fn convert_same_color_and_pixel_format<SP, DP>(
-    src: Image<&[SP]>,
-    dst: Image<&mut [DP]>,
-) -> Result<(), ConvertError>
-where
-    SP: Primitive,
-    DP: Primitive,
-{
-    assert_eq!(src.format, dst.format);
+fn convert_same_color_and_pixel_format<'a, 'b>(
+    src: impl ImageRef<'a>,
+    dst: impl ImageMut<'b>,
+) -> Result<(), ConvertError> {
+    use PixelFormat::*;
+    assert_eq!(src.format(), dst.format());
 
-    match src.format {
-        PixelFormat::I420 => I420Writer::write(
-            dst.width,
-            dst.height,
-            dst.planes,
-            dst.bits_per_component,
-            dst.window,
-            I420Reader::new(
-                src.width,
-                src.height,
-                src.planes,
-                src.bits_per_component,
-                src.window,
-            )?,
-        ),
-        PixelFormat::I422 => I422Writer::write(
-            dst.width,
-            dst.height,
-            dst.planes,
-            dst.bits_per_component,
-            dst.window,
-            I422Reader::new(
-                src.width,
-                src.height,
-                src.planes,
-                src.bits_per_component,
-                src.window,
-            )?,
-        ),
-        PixelFormat::I444 => I444Writer::write(
-            dst.width,
-            dst.height,
-            dst.planes,
-            dst.bits_per_component,
-            dst.window,
-            I444Reader::new(
-                src.width,
-                src.height,
-                src.planes,
-                src.bits_per_component,
-                src.window,
-            )?,
-        ),
-        PixelFormat::NV12 => NV12Writer::write(
-            dst.width,
-            dst.height,
-            dst.planes,
-            dst.bits_per_component,
-            dst.window,
-            NV12Reader::new(
-                src.width,
-                src.height,
-                src.planes,
-                src.bits_per_component,
-                src.window,
-            )?,
-        ),
-        PixelFormat::YUYV => YUYVWriter::write(
-            dst.width,
-            dst.height,
-            dst.planes,
-            dst.bits_per_component,
-            dst.window,
-            YUYVReader::new(
-                src.width,
-                src.height,
-                src.planes,
-                src.bits_per_component,
-                src.window,
-            )?,
-        ),
-        PixelFormat::RGBA => RgbaWriter::<false, _, _>::write(
-            dst.width,
-            dst.height,
-            dst.planes,
-            dst.bits_per_component,
-            dst.window,
-            RgbaReader::<false, _>::new(
-                src.width,
-                src.height,
-                src.planes,
-                src.bits_per_component,
-                src.window,
-            )?,
-        ),
-        PixelFormat::BGRA => RgbaWriter::<true, _, _>::write(
-            dst.width,
-            dst.height,
-            dst.planes,
-            dst.bits_per_component,
-            dst.window,
-            RgbaReader::<true, _>::new(
-                src.width,
-                src.height,
-                src.planes,
-                src.bits_per_component,
-                src.window,
-            )?,
-        ),
-        PixelFormat::RGB => RgbWriter::<false, _, _>::write(
-            dst.width,
-            dst.height,
-            dst.planes,
-            dst.bits_per_component,
-            dst.window,
-            RgbReader::<false, _>::new(
-                src.width,
-                src.height,
-                src.planes,
-                src.bits_per_component,
-                src.window,
-            )?,
-        ),
-        PixelFormat::BGR => RgbWriter::<true, _, _>::write(
-            dst.width,
-            dst.height,
-            dst.planes,
-            dst.bits_per_component,
-            dst.window,
-            RgbReader::<true, _>::new(
-                src.width,
-                src.height,
-                src.planes,
-                src.bits_per_component,
-                src.window,
-            )?,
-        ),
+    match src.format() {
+        I420 => I420Writer::<u8, _>::write(dst, I420Reader::<u8>::new(src)?),
+        I422 => I422Writer::<u8, _>::write(dst, I422Reader::<u8>::new(src)?),
+        I444 => I444Writer::<u8, _>::write(dst, I444Reader::<u8>::new(src)?),
+
+        I010 | I012 => I420Writer::<u16, _>::write(dst, I420Reader::<u16>::new(src)?),
+        I210 | I212 => I422Writer::<u16, _>::write(dst, I422Reader::<u16>::new(src)?),
+        I410 | I412 => I444Writer::<u16, _>::write(dst, I444Reader::<u16>::new(src)?),
+
+        NV12 => NV12Writer::<u8, _>::write(dst, NV12Reader::<u8>::new(src)?),
+        YUYV => YUYVWriter::<u8, _>::write(dst, YUYVReader::<u8>::new(src)?),
+
+        RGBA => RgbaWriter::<false, u8, _>::write(dst, RgbaReader::<false, u8>::new(src)?),
+        BGRA => RgbaWriter::<true, u8, _>::write(dst, RgbaReader::<true, u8>::new(src)?),
+        RGB => RgbWriter::<false, u8, _>::write(dst, RgbReader::<false, u8>::new(src)?),
+        BGR => RgbWriter::<true, u8, _>::write(dst, RgbReader::<true, u8>::new(src)?),
     }
 }
 
 #[inline(never)]
-fn read_any_to_rgba<'src, P>(
-    src: &Image<&'src [P]>,
-) -> Result<Box<dyn DynRgbaReader + 'src>, ConvertError>
-where
-    P: PrimitiveInternal,
-{
-    match src.format {
-        PixelFormat::I420 => Ok(Box::new(I420ToRgb::new(
-            &src.color,
-            I420Reader::<P>::new(
-                src.width,
-                src.height,
-                src.planes,
-                src.bits_per_component,
-                src.window,
-            )?,
+fn read_any_to_rgba<'a>(
+    src: impl ImageRef<'a>,
+) -> Result<Box<dyn DynRgbaReader + 'a>, ConvertError> {
+    use PixelFormat::*;
+
+    match src.format() {
+        I420 => Ok(Box::new(I420ToRgb::new(
+            &src.color(),
+            I420Reader::<u8>::new(src)?,
         )?)),
-        PixelFormat::I422 => Ok(Box::new(I422ToRgb::new(
-            &src.color,
-            I422Reader::<P>::new(
-                src.width,
-                src.height,
-                src.planes,
-                src.bits_per_component,
-                src.window,
-            )?,
+        I422 => Ok(Box::new(I422ToRgb::new(
+            &src.color(),
+            I422Reader::<u8>::new(src)?,
         )?)),
-        PixelFormat::I444 => Ok(Box::new(I444ToRgb::new(
-            &src.color,
-            I444Reader::<P>::new(
-                src.width,
-                src.height,
-                src.planes,
-                src.bits_per_component,
-                src.window,
-            )?,
+        I444 => Ok(Box::new(I444ToRgb::new(
+            &src.color(),
+            I444Reader::<u8>::new(src)?,
         )?)),
-        PixelFormat::NV12 => Ok(Box::new(I420ToRgb::new(
-            &src.color,
-            NV12Reader::<P>::new(
-                src.width,
-                src.height,
-                src.planes,
-                src.bits_per_component,
-                src.window,
-            )?,
+
+        I010 | I012 => Ok(Box::new(I420ToRgb::new(
+            &src.color(),
+            I420Reader::<u16>::new(src)?,
         )?)),
-        PixelFormat::YUYV => Ok(Box::new(I422ToRgb::new(
-            &src.color,
-            YUYVReader::<P>::new(
-                src.width,
-                src.height,
-                src.planes,
-                src.bits_per_component,
-                src.window,
-            )?,
+        I210 | I212 => Ok(Box::new(I422ToRgb::new(
+            &src.color(),
+            I422Reader::<u16>::new(src)?,
         )?)),
-        PixelFormat::RGBA => Ok(Box::new(RgbaReader::<false, P>::new(
-            src.width,
-            src.height,
-            src.planes,
-            src.bits_per_component,
-            src.window,
+        I410 | I412 => Ok(Box::new(I444ToRgb::new(
+            &src.color(),
+            I444Reader::<u16>::new(src)?,
         )?)),
-        PixelFormat::BGRA => Ok(Box::new(RgbaReader::<true, P>::new(
-            src.width,
-            src.height,
-            src.planes,
-            src.bits_per_component,
-            src.window,
+
+        NV12 => Ok(Box::new(I420ToRgb::new(
+            &src.color(),
+            NV12Reader::<u8>::new(src)?,
         )?)),
-        PixelFormat::RGB => Ok(Box::new(RgbReader::<false, P>::new(
-            src.width,
-            src.height,
-            src.planes,
-            src.bits_per_component,
-            src.window,
+        YUYV => Ok(Box::new(I422ToRgb::new(
+            &src.color(),
+            YUYVReader::<u8>::new(src)?,
         )?)),
-        PixelFormat::BGR => Ok(Box::new(RgbReader::<true, P>::new(
-            src.width,
-            src.height,
-            src.planes,
-            src.bits_per_component,
-            src.window,
-        )?)),
+
+        RGBA => Ok(Box::new(RgbaReader::<false, u8>::new(src)?)),
+        BGRA => Ok(Box::new(RgbaReader::<true, u8>::new(src)?)),
+        RGB => Ok(Box::new(RgbReader::<false, u8>::new(src)?)),
+        BGR => Ok(Box::new(RgbReader::<true, u8>::new(src)?)),
     }
 }
 
 #[inline(never)]
-fn rgba_to_any<'src, DP>(
-    dst: Image<&mut [DP]>,
-    reader: impl RgbaSrc + 'src,
-) -> Result<(), ConvertError>
-where
-    DP: PrimitiveInternal,
-{
-    match dst.format {
-        PixelFormat::I420 => I420Writer::<DP, _>::write(
-            dst.width,
-            dst.height,
-            dst.planes,
-            dst.bits_per_component,
-            dst.window,
-            RgbToI420::new(&dst.color, reader)?,
-        ),
-        PixelFormat::I422 => I422Writer::<DP, _>::write(
-            dst.width,
-            dst.height,
-            dst.planes,
-            dst.bits_per_component,
-            dst.window,
-            RgbToI422::new(&dst.color, reader)?,
-        ),
-        PixelFormat::I444 => I444Writer::<DP, _>::write(
-            dst.width,
-            dst.height,
-            dst.planes,
-            dst.bits_per_component,
-            dst.window,
-            RgbToI444::new(&dst.color, reader)?,
-        ),
-        PixelFormat::NV12 => NV12Writer::<DP, _>::write(
-            dst.width,
-            dst.height,
-            dst.planes,
-            dst.bits_per_component,
-            dst.window,
-            RgbToI420::new(&dst.color, reader)?,
-        ),
-        PixelFormat::YUYV => YUYVWriter::<DP, _>::write(
-            dst.width,
-            dst.height,
-            dst.planes,
-            dst.bits_per_component,
-            dst.window,
-            RgbToI422::new(&dst.color, reader)?,
-        ),
-        PixelFormat::RGBA => RgbaWriter::<false, DP, _>::write(
-            dst.width,
-            dst.height,
-            dst.planes,
-            dst.bits_per_component,
-            dst.window,
-            reader,
-        ),
-        PixelFormat::BGRA => RgbaWriter::<true, DP, _>::write(
-            dst.width,
-            dst.height,
-            dst.planes,
-            dst.bits_per_component,
-            dst.window,
-            reader,
-        ),
-        PixelFormat::RGB => RgbWriter::<false, DP, _>::write(
-            dst.width,
-            dst.height,
-            dst.planes,
-            dst.bits_per_component,
-            dst.window,
-            reader,
-        ),
-        PixelFormat::BGR => RgbWriter::<true, DP, _>::write(
-            dst.width,
-            dst.height,
-            dst.planes,
-            dst.bits_per_component,
-            dst.window,
-            reader,
-        ),
+fn rgba_to_any<'a, 'b>(dst: impl ImageMut<'b>, reader: impl RgbaSrc + 'a) -> Result<(), ConvertError> {
+    use PixelFormat::*;
+
+    let dst_color = dst.color();
+
+    match dst.format() {
+        I420 => I420Writer::<u8, _>::write(dst, RgbToI420::new(&dst_color, reader)?),
+        I422 => I422Writer::<u8, _>::write(dst, RgbToI422::new(&dst_color, reader)?),
+        I444 => I444Writer::<u8, _>::write(dst, RgbToI444::new(&dst_color, reader)?),
+
+        I010 | I012 => I420Writer::<u16, _>::write(dst, RgbToI420::new(&dst_color, reader)?),
+        I210 | I212 => I422Writer::<u16, _>::write(dst, RgbToI422::new(&dst_color, reader)?),
+        I410 | I412 => I444Writer::<u16, _>::write(dst, RgbToI444::new(&dst_color, reader)?),
+
+        NV12 => NV12Writer::<u8, _>::write(dst, RgbToI420::new(&dst_color, reader)?),
+        YUYV => YUYVWriter::<u8, _>::write(dst, RgbToI422::new(&dst_color, reader)?),
+
+        RGBA => RgbaWriter::<false, u8, _>::write(dst, reader),
+        BGRA => RgbaWriter::<true, u8, _>::write(dst, reader),
+        RGB => RgbWriter::<false, u8, _>::write(dst, reader),
+        BGR => RgbWriter::<true, u8, _>::write(dst, reader),
     }
 }
 
 /// Verify that the input values are all valid and safe to move on to
 #[deny(clippy::arithmetic_side_effects)]
-fn get_and_verify_input_windows<SP: Primitive, DP: Primitive>(
-    src: &Image<&[SP]>,
-    dst: &Image<&mut [DP]>,
-) -> Result<(Window, Window), ConvertError> {
-    let src_window = src.window.unwrap_or(Window {
-        x: 0,
-        y: 0,
-        width: src.width,
-        height: src.height,
-    });
-
-    let dst_window = dst.window.unwrap_or(Window {
-        x: 0,
-        y: 0,
-        width: dst.width,
-        height: dst.height,
-    });
-
+fn verify_input_windows<'a, 'b>(src: &impl ImageRef<'a>, dst: &impl ImageMut<'b>) -> Result<(), ConvertError> {
     // Src and Dst window must be the same size
-    if src_window.width != dst_window.width || src_window.height != dst_window.height {
+    if src.width() != dst.width() || src.height() != dst.height() {
         return Err(ConvertError::MismatchedImageSize);
     }
 
     // Src and Dst window must have even dimensions
-    if src_window.width % 2 == 1 || src_window.height % 2 == 1 {
+    if src.width() % 2 == 1 || src.height() % 2 == 1 {
         return Err(ConvertError::OddImageDimensions);
     }
 
-    Ok((src_window, dst_window))
+    Ok(())
 }
 
 trait StrictApi {

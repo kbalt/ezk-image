@@ -1,9 +1,7 @@
-#![allow(clippy::too_many_arguments)]
-
 use crate::formats::visit_2x2::{visit, Image2x2Visitor};
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
-use crate::{ConvertError, I422Block, I422Src, PixelFormat, PixelFormatPlanes, Window};
+use crate::{ConvertError, I422Block, I422Src, ImageMut};
 use std::marker::PhantomData;
 
 pub(crate) struct YUYVWriter<'a, P, S>
@@ -11,9 +9,10 @@ where
     P: PrimitiveInternal,
     S: I422Src,
 {
-    window: Window,
-    dst_width: usize,
-    dst_yuyv: *mut P,
+    yuyv: *mut u8,
+
+    yuyv_stride: usize,
+
     max_value: f32,
 
     i422_src: S,
@@ -26,36 +25,29 @@ where
     P: PrimitiveInternal,
     S: I422Src,
 {
-    pub(crate) fn write(
-        dst_width: usize,
-        dst_height: usize,
-        dst_planes: PixelFormatPlanes<&'a mut [P]>,
-        bits_per_component: usize,
-        window: Option<Window>,
-        i422_src: S,
-    ) -> Result<(), ConvertError> {
-        if !dst_planes.bounds_check(dst_width, dst_height) {
+    pub(crate) fn write(mut dst: impl ImageMut<'a>, i422_src: S) -> Result<(), ConvertError> {
+        if !dst.bounds_check() {
             return Err(ConvertError::InvalidPlaneSizeForDimensions);
         }
 
-        let PixelFormatPlanes::YUYV(yuyv) = dst_planes else {
-            return Err(ConvertError::InvalidPlanesForPixelFormat(PixelFormat::YUYV));
+        let dst_width = dst.width();
+        let dst_height = dst.height();
+
+        let [yuyv_stride] = *dst.strides() else {
+            return Err(ConvertError::InvalidStridesForPixelFormat(dst.format()));
+        };
+
+        let [yuyv] = dst.planes_mut() else {
+            return Err(ConvertError::InvalidPlanesForPixelFormat(dst.format()));
         };
 
         visit(
             dst_width,
             dst_height,
-            window,
             Self {
-                window: window.unwrap_or(Window {
-                    x: 0,
-                    y: 0,
-                    width: dst_width,
-                    height: dst_height,
-                }),
-                dst_width,
-                dst_yuyv: yuyv.as_mut_ptr(),
-                max_value: crate::formats::max_value_for_bits(bits_per_component),
+                yuyv: yuyv.as_mut_ptr(),
+                yuyv_stride,
+                max_value: crate::formats::max_value_for_bits(dst.format().bits_per_component()),
                 i422_src,
                 _m: PhantomData,
             },
@@ -68,7 +60,7 @@ where
     {
         let (yuyv00, yuyv01) = y.zip(uv);
 
-        P::write_2x(self.dst_yuyv.add(offset0), yuyv00, yuyv01);
+        P::write_2x(self.yuyv.add(offset0), yuyv00, yuyv01);
     }
 }
 
@@ -88,9 +80,7 @@ where
             u1,
             v0,
             v1,
-        } = self
-            .i422_src
-            .read::<V>(x - self.window.x, y - self.window.y);
+        } = self.i422_src.read::<V>(x, y);
 
         let y00 = y00.vmulf(self.max_value);
         let y01 = y01.vmulf(self.max_value);
@@ -101,8 +91,8 @@ where
         let v0 = v0.vmulf(self.max_value);
         let v1 = v1.vmulf(self.max_value);
 
-        let offset0 = (y * self.dst_width) + x;
-        let offset1 = ((y + 1) * self.dst_width) + x;
+        let offset0 = (y * self.yuyv_stride) + x;
+        let offset1 = ((y + 1) * self.yuyv_stride) + x;
 
         let (uv00, uv01) = u0.zip(v0);
         let (uv10, uv11) = u1.zip(v1);

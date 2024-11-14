@@ -1,16 +1,17 @@
 use super::{I444Block, I444Src};
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
-use crate::{ConvertError, I444Pixel, PixelFormat, PixelFormatPlanes, Window};
+use crate::{ConvertError, I444Pixel, ImageRef};
 use std::marker::PhantomData;
 
 pub(crate) struct I444Reader<'a, P: PrimitiveInternal> {
-    window: Window,
+    y: *const u8,
+    u: *const u8,
+    v: *const u8,
 
-    src_width: usize,
-    y: *const P,
-    u: *const P,
-    v: *const P,
+    y_stride: usize,
+    u_stride: usize,
+    v_stride: usize,
 
     max_value: f32,
 
@@ -18,38 +19,27 @@ pub(crate) struct I444Reader<'a, P: PrimitiveInternal> {
 }
 
 impl<'a, P: PrimitiveInternal> I444Reader<'a, P> {
-    pub(crate) fn new(
-        src_width: usize,
-        src_height: usize,
-        src_planes: PixelFormatPlanes<&'a [P]>,
-        bits_per_component: usize,
-        window: Option<Window>,
-    ) -> Result<Self, ConvertError> {
-        if !src_planes.bounds_check(src_width, src_height) {
+    pub(crate) fn new(src: impl ImageRef<'a>) -> Result<Self, ConvertError> {
+        if !src.bounds_check() {
             return Err(ConvertError::InvalidPlaneSizeForDimensions);
         }
 
-        let PixelFormatPlanes::I444 { y, u, v } = src_planes else {
-            return Err(ConvertError::InvalidPlanesForPixelFormat(PixelFormat::I444));
+        let [y, u, v] = src.planes() else {
+            return Err(ConvertError::InvalidPlanesForPixelFormat(src.format()));
         };
 
-        let window = window.unwrap_or(Window {
-            x: 0,
-            y: 0,
-            width: src_width,
-            height: src_height,
-        });
-
-        assert!((window.x + window.width) <= src_width);
-        assert!((window.y + window.height) <= src_height);
+        let [y_stride, u_stride, v_stride] = *src.strides() else {
+            return Err(ConvertError::InvalidStridesForPixelFormat(src.format()));
+        };
 
         Ok(Self {
-            window,
-            src_width,
             y: y.as_ptr(),
             u: u.as_ptr(),
             v: v.as_ptr(),
-            max_value: crate::formats::max_value_for_bits(bits_per_component),
+            y_stride,
+            u_stride,
+            v_stride,
+            max_value: crate::formats::max_value_for_bits(src.format().bits_per_component()),
             _m: PhantomData,
         })
     }
@@ -58,29 +48,32 @@ impl<'a, P: PrimitiveInternal> I444Reader<'a, P> {
 impl<P: PrimitiveInternal> I444Src for I444Reader<'_, P> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> I444Block<V> {
-        let x = self.window.x + x;
-        let y = self.window.y + y;
+        let y00_offset = (y * self.y_stride) + x;
+        let y10_offset = ((y + 1) * self.y_stride) + x;
 
-        let px00_offset = (y * self.src_width) + x;
-        let px10_offset = ((y + 1) * self.src_width) + x;
+        let u00_offset = (y * self.u_stride) + x;
+        let u10_offset = ((y + 1) * self.y_stride) + x;
+
+        let v00_offset = (y * self.v_stride) + x;
+        let v10_offset = ((y + 1) * self.y_stride) + x;
 
         // Load Y pixels
-        let y00 = P::load::<V>(self.y.add(px00_offset));
-        let y01 = P::load::<V>(self.y.add(px00_offset + V::LEN));
-        let y10 = P::load::<V>(self.y.add(px10_offset));
-        let y11 = P::load::<V>(self.y.add(px10_offset + V::LEN));
+        let y00 = P::load::<V>(self.y.add(y00_offset));
+        let y01 = P::load::<V>(self.y.add(y00_offset + V::LEN));
+        let y10 = P::load::<V>(self.y.add(y10_offset));
+        let y11 = P::load::<V>(self.y.add(y10_offset + V::LEN));
 
         // Load U pixels
-        let u00 = P::load::<V>(self.u.add(px00_offset));
-        let u01 = P::load::<V>(self.u.add(px00_offset + V::LEN));
-        let u10 = P::load::<V>(self.u.add(px10_offset));
-        let u11 = P::load::<V>(self.u.add(px10_offset + V::LEN));
+        let u00 = P::load::<V>(self.u.add(u00_offset));
+        let u01 = P::load::<V>(self.u.add(u00_offset + V::LEN));
+        let u10 = P::load::<V>(self.u.add(u10_offset));
+        let u11 = P::load::<V>(self.u.add(u10_offset + V::LEN));
 
         // Load V pixels
-        let v00 = P::load::<V>(self.v.add(px00_offset));
-        let v01 = P::load::<V>(self.v.add(px00_offset + V::LEN));
-        let v10 = P::load::<V>(self.v.add(px10_offset));
-        let v11 = P::load::<V>(self.v.add(px10_offset + V::LEN));
+        let v00 = P::load::<V>(self.v.add(v00_offset));
+        let v01 = P::load::<V>(self.v.add(v00_offset + V::LEN));
+        let v10 = P::load::<V>(self.v.add(v10_offset));
+        let v11 = P::load::<V>(self.v.add(v10_offset + V::LEN));
 
         // Convert to analog 0..=1.0
         let y00 = y00.vdivf(self.max_value);

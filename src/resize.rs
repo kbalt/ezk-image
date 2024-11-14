@@ -1,7 +1,8 @@
-use crate::{Image, PixelFormatPlanes, Primitive, Window};
+use crate::{Image, PixelFormatPlanes, Window};
 use std::error::Error;
 use std::fmt;
 
+use fir::pixels::{U8x2, U8x3, U8x4, U8};
 #[cfg(feature = "multi-thread")]
 use rayon::scope;
 #[cfg(not(feature = "multi-thread"))]
@@ -51,10 +52,7 @@ impl Resizer {
     /// Resize an image. `src` and `dst` must have the same pixel format.
     ///
     /// Color characteristics of the images are ignored.
-    pub fn resize<P>(&mut self, src: Image<&[P]>, dst: Image<&mut [P]>) -> Result<(), ResizeError>
-    where
-        P: Primitive,
-    {
+    pub fn resize(&mut self, src: Image<&[u8]>, dst: Image<&mut [u8]>) -> Result<(), ResizeError> {
         if src.format != dst.format {
             return Err(ResizeError::DifferentFormats);
         }
@@ -78,7 +76,7 @@ impl Resizer {
 
                 scope(|s| {
                     s.spawn(move |_| {
-                        Self::resize_plane::<P, P::FirPixel1>(
+                        Self::resize_plane::<u8, U8>(
                             fir_resizer0,
                             alg,
                             src_y,
@@ -93,7 +91,7 @@ impl Resizer {
                     });
 
                     s.spawn(move |_| {
-                        Self::resize_plane::<P, P::FirPixel1>(
+                        Self::resize_plane::<u8, U8>(
                             fir_resizer1,
                             alg,
                             src_u,
@@ -108,7 +106,7 @@ impl Resizer {
                     });
 
                     s.spawn(move |_| {
-                        Self::resize_plane::<P, P::FirPixel1>(
+                        Self::resize_plane::<u8, U8>(
                             fir_resizer2,
                             alg,
                             src_v,
@@ -139,7 +137,7 @@ impl Resizer {
 
                 scope(|s| {
                     s.spawn(move |_| {
-                        Self::resize_plane::<P, P::FirPixel1>(
+                        Self::resize_plane::<u8, U8>(
                             fir_resizer0,
                             alg,
                             src_y,
@@ -153,7 +151,7 @@ impl Resizer {
                         );
                     });
                     s.spawn(move |_| {
-                        Self::resize_plane::<P, P::FirPixel1>(
+                        Self::resize_plane::<u8, U8>(
                             fir_resizer1,
                             alg,
                             src_u,
@@ -167,7 +165,7 @@ impl Resizer {
                         );
                     });
                     s.spawn(move |_| {
-                        Self::resize_plane::<P, P::FirPixel1>(
+                        Self::resize_plane::<u8, U8>(
                             fir_resizer2,
                             alg,
                             src_v,
@@ -198,7 +196,7 @@ impl Resizer {
 
                 scope(|s| {
                     s.spawn(move |_| {
-                        Self::resize_plane::<P, P::FirPixel1>(
+                        Self::resize_plane::<u8, U8>(
                             fir_resizer0,
                             alg,
                             src_y,
@@ -213,7 +211,7 @@ impl Resizer {
                     });
 
                     s.spawn(move |_| {
-                        Self::resize_plane::<P, P::FirPixel1>(
+                        Self::resize_plane::<u8, U8>(
                             fir_resizer1,
                             alg,
                             src_u,
@@ -228,7 +226,7 @@ impl Resizer {
                     });
 
                     s.spawn(move |_| {
-                        Self::resize_plane::<P, P::FirPixel1>(
+                        Self::resize_plane::<u8, U8>(
                             fir_resizer2,
                             alg,
                             src_v,
@@ -257,7 +255,7 @@ impl Resizer {
 
                 scope(|s| {
                     s.spawn(move |_| {
-                        Self::resize_plane::<P, P::FirPixel1>(
+                        Self::resize_plane::<u8, U8>(
                             fir_resizer0,
                             alg,
                             src_y,
@@ -272,7 +270,7 @@ impl Resizer {
                     });
 
                     s.spawn(move |_| {
-                        Self::resize_plane::<P, P::FirPixel2>(
+                        Self::resize_plane::<u8, U8x2>(
                             fir_resizer1,
                             alg,
                             src_uv,
@@ -291,7 +289,7 @@ impl Resizer {
                 let [fir_resizer] = self.ensure_resizer_len::<1>();
 
                 // Pretend this is a 4 byte per pixel image (even though its 2) by dividing the width in half
-                Self::resize_plane::<P, P::FirPixel4>(
+                Self::resize_plane::<u8, U8x4>(
                     fir_resizer,
                     alg,
                     src_yuyv,
@@ -307,7 +305,7 @@ impl Resizer {
             (PixelFormatPlanes::RGB(src_rgb), PixelFormatPlanes::RGB(dst_rgb)) => {
                 let [fir_resizer] = self.ensure_resizer_len::<1>();
 
-                Self::resize_plane::<P, P::FirPixel3>(
+                Self::resize_plane::<u8, U8x3>(
                     fir_resizer,
                     alg,
                     src_rgb,
@@ -323,7 +321,7 @@ impl Resizer {
             (PixelFormatPlanes::RGBA(src_rgba), PixelFormatPlanes::RGBA(dst_rgba)) => {
                 let [fir_resizer] = self.ensure_resizer_len::<1>();
 
-                Self::resize_plane::<P, P::FirPixel4>(
+                Self::resize_plane::<u8, U8x4>(
                     fir_resizer,
                     alg,
                     src_rgba,
@@ -347,17 +345,16 @@ impl Resizer {
         fir_resizer: &mut fir::Resizer,
         alg: ResizeAlg,
 
-        src: &[P],
+        src: &[u8],
         src_width: u32,
         src_height: u32,
         src_window: Option<Window>,
 
-        dst: &mut [P],
+        dst: &mut [u8],
         dst_width: u32,
         dst_height: u32,
         dst_window: Option<Window>,
     ) where
-        P: Primitive,
         Px: fir::PixelTrait,
     {
         // Safety:

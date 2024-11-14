@@ -1,11 +1,11 @@
 use crate::{
-    get_and_verify_input_windows, ConvertError, Image, PixelFormat, PixelFormatPlanes, Window,
+    verify_input_windows, ConvertError, Image, PixelFormat, PixelFormatPlanes, Window,
 };
 
 #[inline(always)]
 #[doc(hidden)]
 pub(crate) fn copy_impl(src: Image<&[u8]>, dst: Image<&mut [u8]>) -> Result<(), ConvertError> {
-    get_and_verify_input_windows(&src, &dst)?;
+    verify_input_windows(&src, &dst)?;
 
     assert_eq!(src.format, dst.format);
 
