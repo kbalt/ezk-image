@@ -828,59 +828,63 @@ fn yuyv_to_rgb() {
     // YUYV -> RGB
     let mut rgb = vec![0u8; PixelFormat::RGB.buffer_size(1920, 1080)];
 
-    {
-        let mut yuyv = Image::new(
-            PixelFormat::YUYV,
-            vec![&mut yuyv[..]],
-            vec![1920 * 2],
-            1920,
-            1080,
-            ColorInfo::YUV(YuvColorInfo {
-                transfer: ColorTransfer::Linear,
-                primaries: ColorPrimaries::BT709,
-                space: ColorSpace::BT601,
-                full_range: false,
-            }),
-        )
-        .unwrap();
+    let mut yuyv = Image::new(
+        PixelFormat::YUYV,
+        vec![&mut yuyv[..]],
+        vec![1920 * 2],
+        1920,
+        1080,
+        ColorInfo::YUV(YuvColorInfo {
+            transfer: ColorTransfer::Linear,
+            primaries: ColorPrimaries::BT709,
+            space: ColorSpace::BT601,
+            full_range: false,
+        }),
+    )
+    .unwrap();
 
-        // YUYV
+    // YUYV
 
-        let mut rgb = Image::new(
-            PixelFormat::RGB,
-            vec![&mut rgb[..]],
-            vec![1920 * 3],
-            1920,
-            1080,
-            ColorInfo::RGB(RgbColorInfo {
-                transfer: ColorTransfer::Linear,
-                primaries: ColorPrimaries::BT709,
-            }),
-        )
-        .unwrap();
+    let mut rgb = Image::new(
+        PixelFormat::RGB,
+        vec![&mut rgb[..]],
+        vec![1920 * 3],
+        1920,
+        1080,
+        ColorInfo::RGB(RgbColorInfo {
+            transfer: ColorTransfer::Linear,
+            primaries: ColorPrimaries::BT709,
+        }),
+    )
+    .unwrap();
 
-        convert(&yuyv, &mut rgb).unwrap();
-    }
+    convert(&yuyv, &mut rgb).unwrap();
 
-    let buffer = image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(1920, 1080, rgb).unwrap();
+    let buffer = image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(
+        1920,
+        1080,
+        rgb.planes().next().unwrap().to_vec(),
+    )
+    .unwrap();
 
     buffer.save("tests/YUYV_TO_RGB.png").unwrap();
 
     // // RGB -> YUYV
 
-    // convert(&rgb, &mut yuyv).unwrap();
+    convert(&rgb, &mut yuyv).unwrap();
 
     // // YUYV -> RGB
 
-    // convert(&yuyv, &mut rgb).unwrap();
+    convert(&yuyv, &mut rgb).unwrap();
 
-    // let buffer = image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(
-    //     1920,
-    //     1080,
-    //     rgb.planes().next().unwrap().to_vec(),
-    // ).unwrap();
+    let buffer = image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(
+        1920,
+        1080,
+        rgb.planes().next().unwrap().to_vec(),
+    )
+    .unwrap();
 
-    // buffer.save("tests/RGB_TO_YUYV.png").unwrap();
+    buffer.save("tests/RGB_TO_YUYV.png").unwrap();
 }
 /*
 #[test]

@@ -2,7 +2,7 @@ use super::{RgbaBlock, RgbaPixel, RgbaSrc};
 use crate::image::read_planes;
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
-use crate::{ConvertError, ImageRef};
+use crate::{ConvertError, ImageRef, ImageRefExt};
 use std::marker::PhantomData;
 
 pub(crate) struct RgbaReader<'a, const REVERSE: bool, P: PrimitiveInternal> {
@@ -16,7 +16,7 @@ pub(crate) struct RgbaReader<'a, const REVERSE: bool, P: PrimitiveInternal> {
 }
 
 impl<'a, const REVERSE: bool, P: PrimitiveInternal> RgbaReader<'a, REVERSE, P> {
-    pub(crate) fn new(src: &impl ImageRef<'a>) -> Result<Self, ConvertError> {
+    pub(crate) fn new(src: &'a impl ImageRef) -> Result<Self, ConvertError> {
         if !src.bounds_check() {
             return Err(ConvertError::InvalidPlaneSizeForDimensions);
         }
@@ -39,8 +39,8 @@ impl<'a, const REVERSE: bool, P: PrimitiveInternal> RgbaReader<'a, REVERSE, P> {
 impl<'a, const REVERSE: bool, B: PrimitiveInternal> RgbaSrc for RgbaReader<'a, REVERSE, B> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbaBlock<V> {
-        let rgba00offset = (y * self.rgba_stride) + (x * 4);
-        let rgba10offset = ((y + 1) * self.rgba_stride) + (x * 4);
+        let rgba00offset = y * self.rgba_stride + x * 4;
+        let rgba10offset = (y + 1) * self.rgba_stride + x * 4;
 
         let [[r00, g00, b00, a00], [r01, g01, b01, a01]] =
             B::load_4x_interleaved_2x::<V>(self.rgba.add(rgba00offset));

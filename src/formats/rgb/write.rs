@@ -2,7 +2,7 @@ use crate::formats::visit_2x2::{visit, Image2x2Visitor};
 use crate::image::read_planes_mut;
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
-use crate::{ConvertError, ImageMut, RgbaPixel, RgbaSrc};
+use crate::{ConvertError, ImageMut, ImageRefExt, RgbaPixel, RgbaSrc};
 use std::marker::PhantomData;
 
 pub(crate) struct RgbWriter<'a, const REVERSE: bool, P, S>
@@ -26,7 +26,7 @@ where
     P: PrimitiveInternal,
     S: RgbaSrc,
 {
-    pub(crate) fn write(dst: &'a mut impl ImageMut<'a>, rgba_src: S) -> Result<(), ConvertError> {
+    pub(crate) fn write(dst: &'a mut impl ImageMut, rgba_src: S) -> Result<(), ConvertError> {
         if !dst.bounds_check() {
             return Err(ConvertError::InvalidPlaneSizeForDimensions);
         }
@@ -64,8 +64,8 @@ where
     unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize) {
         let block = self.rgba_src.read::<V>(x, y);
 
-        let offset00 = y * self.rgb_stride + (x * 3);
-        let offset10 = (y + 1) * self.rgb_stride + (x * 3);
+        let offset00 = y * self.rgb_stride + x * 3;
+        let offset10 = (y + 1) * self.rgb_stride + x * 3;
 
         B::write_interleaved_3x_2x(
             self.rgb.add(offset00),

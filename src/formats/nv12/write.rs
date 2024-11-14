@@ -3,7 +3,7 @@ use crate::formats::{I420Block, I420Src};
 use crate::image::read_planes_mut;
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
-use crate::{ConvertError, ImageMut};
+use crate::{ConvertError, ImageMut, ImageRefExt};
 use std::marker::PhantomData;
 
 pub(crate) struct NV12Writer<'a, P, S>
@@ -29,7 +29,7 @@ where
     P: PrimitiveInternal,
     S: I420Src,
 {
-    pub(crate) fn write(dst: &'a mut impl ImageMut<'a>, i420_src: S) -> Result<(), ConvertError> {
+    pub(crate) fn write(dst: &'a mut impl ImageMut, i420_src: S) -> Result<(), ConvertError> {
         if !dst.bounds_check() {
             return Err(ConvertError::InvalidPlaneSizeForDimensions);
         }

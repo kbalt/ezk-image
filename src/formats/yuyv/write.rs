@@ -2,7 +2,7 @@ use crate::formats::visit_2x2::{visit, Image2x2Visitor};
 use crate::image::read_planes_mut;
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
-use crate::{ConvertError, I422Block, I422Src, ImageMut};
+use crate::{ConvertError, I422Block, I422Src, ImageMut, ImageRefExt};
 use std::marker::PhantomData;
 
 pub(crate) struct YUYVWriter<'a, P, S>
@@ -26,7 +26,7 @@ where
     P: PrimitiveInternal,
     S: I422Src,
 {
-    pub(crate) fn write(dst: &'a mut impl ImageMut<'a>, i422_src: S) -> Result<(), ConvertError> {
+    pub(crate) fn write(dst: &'a mut impl ImageMut, i422_src: S) -> Result<(), ConvertError> {
         if !dst.bounds_check() {
             return Err(ConvertError::InvalidPlaneSizeForDimensions);
         }
@@ -91,15 +91,15 @@ where
         let v0 = v0.vmulf(self.max_value);
         let v1 = v1.vmulf(self.max_value);
 
-        let offset0 = (y * self.yuyv_stride) + (x * 4);
-        let offset1 = ((y + 1) * self.yuyv_stride) + (x * 4);
+        let offset0 = y * self.yuyv_stride + x * 2;
+        let offset1 = (y + 1) * self.yuyv_stride + x * 2;
 
         let (uv00, uv01) = u0.zip(v0);
         let (uv10, uv11) = u1.zip(v1);
 
-        self.write_yuyv(y00, uv00, offset0 * 2);
-        self.write_yuyv(y01, uv01, (offset0 + V::LEN) * 2);
-        self.write_yuyv(y10, uv10, offset1 * 2);
-        self.write_yuyv(y11, uv11, (offset1 + V::LEN) * 2);
+        self.write_yuyv(y00, uv00, offset0);
+        self.write_yuyv(y01, uv01, offset0 + V::LEN * 2);
+        self.write_yuyv(y10, uv10, offset1);
+        self.write_yuyv(y11, uv11, offset1 + V::LEN * 2);
     }
 }

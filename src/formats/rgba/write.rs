@@ -3,7 +3,7 @@ use crate::formats::visit_2x2::{visit, Image2x2Visitor};
 use crate::image::read_planes_mut;
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
-use crate::{ConvertError, ImageMut};
+use crate::{ConvertError, ImageMut, ImageRefExt};
 use std::marker::PhantomData;
 
 pub(crate) struct RgbaWriter<'a, const REVERSE: bool, P, S>
@@ -27,7 +27,7 @@ where
     P: PrimitiveInternal,
     S: RgbaSrc,
 {
-    pub(crate) fn write(dst: &'a mut impl ImageMut<'a>, rgba_src: S) -> Result<(), ConvertError> {
+    pub(crate) fn write(dst: &'a mut impl ImageMut, rgba_src: S) -> Result<(), ConvertError> {
         if !dst.bounds_check() {
             return Err(ConvertError::InvalidPlaneSizeForDimensions);
         }

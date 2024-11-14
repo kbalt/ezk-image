@@ -2,7 +2,7 @@ use crate::formats::{I420Block, I420Src};
 use crate::image::read_planes;
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
-use crate::{ConvertError, ImageRef};
+use crate::{ConvertError, ImageRef, ImageRefExt};
 use std::marker::PhantomData;
 
 pub(crate) struct NV12Reader<'a, P: PrimitiveInternal> {
@@ -18,7 +18,7 @@ pub(crate) struct NV12Reader<'a, P: PrimitiveInternal> {
 }
 
 impl<'a, P: PrimitiveInternal> NV12Reader<'a, P> {
-    pub(crate) fn new(src: &impl ImageRef<'a>) -> Result<Self, ConvertError> {
+    pub(crate) fn new(src: &'a impl ImageRef) -> Result<Self, ConvertError> {
         if !src.bounds_check() {
             return Err(ConvertError::InvalidPlaneSizeForDimensions);
         }

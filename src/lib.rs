@@ -37,7 +37,7 @@ pub use color::{ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, RgbColorIn
 pub use planes::*;
 // #[doc(hidden)]
 // pub use copy::copy;
-pub use image::{Image, ImageError, ImageMut, ImageRef, ImageWindowError, Window};
+pub use image::{Image, ImageError, ImageMut, ImageRef, ImageRefExt, ImageWindowError, Window};
 // #[cfg(feature = "multi-thread")]
 // pub use multi_thread::convert_multi_thread;
 
@@ -290,10 +290,7 @@ impl Error for ConvertError {}
 ///
 /// The given images (or at least their included window) must have dimensions (width, height) divisible by 2.
 #[inline(never)]
-pub fn convert<'a, 'b>(
-    src: &'a impl ImageRef<'a>,
-    dst: &'b mut impl ImageMut<'b>,
-) -> Result<(), ConvertError> {
+pub fn convert(src: &impl ImageRef, dst: &mut impl ImageMut) -> Result<(), ConvertError> {
     verify_input_windows(src, dst)?;
 
     if src.format() == dst.format() && src.color() == dst.color() {
@@ -317,8 +314,8 @@ pub fn convert<'a, 'b>(
 
 #[inline(never)]
 fn convert_same_color_and_pixel_format<'a, 'b>(
-    src: &'a impl ImageRef<'a>,
-    dst: &'b mut impl ImageMut<'b>,
+    src: &'a impl ImageRef,
+    dst: &'b mut impl ImageMut,
 ) -> Result<(), ConvertError> {
     use PixelFormat::*;
     assert_eq!(src.format(), dst.format());
@@ -344,7 +341,7 @@ fn convert_same_color_and_pixel_format<'a, 'b>(
 
 #[inline(never)]
 fn read_any_to_rgba<'a>(
-    src: &impl ImageRef<'a>,
+    src: &'a impl ImageRef,
 ) -> Result<Box<dyn DynRgbaReader + 'a>, ConvertError> {
     use PixelFormat::*;
 
@@ -392,10 +389,7 @@ fn read_any_to_rgba<'a>(
 }
 
 #[inline(never)]
-fn rgba_to_any<'a, 'b>(
-    dst: &'b mut impl ImageMut<'b>,
-    reader: impl RgbaSrc + 'a,
-) -> Result<(), ConvertError> {
+fn rgba_to_any(dst: &mut impl ImageMut, reader: impl RgbaSrc) -> Result<(), ConvertError> {
     use PixelFormat::*;
 
     let dst_color = dst.color();
@@ -421,10 +415,7 @@ fn rgba_to_any<'a, 'b>(
 
 /// Verify that the input values are all valid and safe to move on to
 #[deny(clippy::arithmetic_side_effects)]
-fn verify_input_windows<'a, 'b>(
-    src: &impl ImageRef<'a>,
-    dst: &impl ImageMut<'b>,
-) -> Result<(), ConvertError> {
+fn verify_input_windows(src: &impl ImageRef, dst: &impl ImageMut) -> Result<(), ConvertError> {
     // Src and Dst window must be the same size
     if src.width() != dst.width() || src.height() != dst.height() {
         return Err(ConvertError::MismatchedImageSize);

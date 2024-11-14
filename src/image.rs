@@ -3,38 +3,7 @@ use std::error::Error;
 use std::fmt;
 use std::mem::MaybeUninit;
 
-pub(crate) fn read_planes<'a, const N: usize>(
-    mut iter: impl Iterator<Item = &'a [u8]>,
-    format: PixelFormat,
-) -> Result<[&'a [u8]; N], ConvertError> {
-    let mut out: [&'a [u8]; N] = [&[]; N];
-
-    for out in &mut out {
-        *out = iter
-            .next()
-            .ok_or(ConvertError::InvalidPlanesForPixelFormat(format))?;
-    }
-
-    Ok(out)
-}
-
-pub(crate) fn read_planes_mut<'a, const N: usize>(
-    mut iter: impl Iterator<Item = &'a mut [u8]>,
-    format: PixelFormat,
-) -> Result<[&'a mut [u8]; N], ConvertError> {
-    let mut out: [MaybeUninit<&'a mut [u8]>; N] = [const { MaybeUninit::uninit() }; N];
-
-    for out in &mut out {
-        out.write(
-            iter.next()
-                .ok_or(ConvertError::InvalidPlanesForPixelFormat(format))?,
-        );
-    }
-
-    Ok(out.map(|plane| unsafe { plane.assume_init() }))
-}
-
-pub trait ImageRef<'a> {
+pub trait ImageRef {
     fn format(&self) -> PixelFormat;
     fn width(&self) -> usize;
     fn height(&self) -> usize;
@@ -42,16 +11,20 @@ pub trait ImageRef<'a> {
     fn planes(&self) -> impl Iterator<Item = &[u8]>;
 
     fn color(&self) -> ColorInfo;
+}
 
+pub trait ImageMut: ImageRef {
+    fn planes_mut(&mut self) -> impl Iterator<Item = &mut [u8]>;
+}
+
+pub trait ImageRefExt: ImageRef {
     fn bounds_check(&self) -> bool {
         self.format()
             .bounds_check(self.planes(), self.strides(), self.width(), self.height())
     }
 }
 
-pub trait ImageMut<'a>: ImageRef<'a> {
-    fn planes_mut(&mut self) -> impl Iterator<Item = &mut [u8]>;
-}
+impl<T: ImageRef> ImageRefExt for T {}
 
 /// Raw image data with information about dimensions, cropping, colorimetry, bit depth and pixel format
 ///
@@ -118,7 +91,7 @@ impl<S: AnySlice> Image<S> {
     // }
 }
 
-impl<'a> ImageRef<'a> for Image<&'a [u8]> {
+impl<'a> ImageRef for Image<&'a [u8]> {
     fn format(&self) -> PixelFormat {
         self.format
     }
@@ -144,7 +117,7 @@ impl<'a> ImageRef<'a> for Image<&'a [u8]> {
     }
 }
 
-impl<'a> ImageRef<'a> for Image<&'a mut [u8]> {
+impl<'a> ImageRef for Image<&'a mut [u8]> {
     fn format(&self) -> PixelFormat {
         self.format
     }
@@ -170,7 +143,7 @@ impl<'a> ImageRef<'a> for Image<&'a mut [u8]> {
     }
 }
 
-impl<'a> ImageMut<'a> for Image<&'a mut [u8]> {
+impl<'a> ImageMut for Image<&'a mut [u8]> {
     fn planes_mut(&mut self) -> impl Iterator<Item = &mut [u8]> {
         self.planes.iter_mut().map(|plane| &mut **plane)
     }
@@ -216,4 +189,35 @@ pub struct Window {
     pub y: usize,
     pub width: usize,
     pub height: usize,
+}
+
+pub(crate) fn read_planes<'a, const N: usize>(
+    mut iter: impl Iterator<Item = &'a [u8]>,
+    format: PixelFormat,
+) -> Result<[&'a [u8]; N], ConvertError> {
+    let mut out: [&'a [u8]; N] = [&[]; N];
+
+    for out in &mut out {
+        *out = iter
+            .next()
+            .ok_or(ConvertError::InvalidPlanesForPixelFormat(format))?;
+    }
+
+    Ok(out)
+}
+
+pub(crate) fn read_planes_mut<'a, const N: usize>(
+    mut iter: impl Iterator<Item = &'a mut [u8]>,
+    format: PixelFormat,
+) -> Result<[&'a mut [u8]; N], ConvertError> {
+    let mut out: [MaybeUninit<&'a mut [u8]>; N] = [const { MaybeUninit::uninit() }; N];
+
+    for out in &mut out {
+        out.write(
+            iter.next()
+                .ok_or(ConvertError::InvalidPlanesForPixelFormat(format))?,
+        );
+    }
+
+    Ok(out.map(|plane| unsafe { plane.assume_init() }))
 }
