@@ -38,7 +38,7 @@ mod arch {
 
 pub use color::{ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, RgbColorInfo, YuvColorInfo};
 pub use crop::{CropError, Cropped, Window};
-pub use pixel_format::PixelFormat;
+pub use pixel_format::{BoundsCheckError, PixelFormat};
 pub use planes::*;
 // #[doc(hidden)]
 // pub use copy::copy;
@@ -48,30 +48,6 @@ pub use image_traits::{ImageMut, ImageRef, ImageRefExt};
 // pub use multi_thread::convert_multi_thread;
 
 // compile_error!("pointer arithmetic for u16 !!!");
-
-#[derive(Debug, thiserror::Error)]
-pub enum BoundsCheckError {
-    #[error(transparent)]
-    InvalidNumberOfPlanes(#[from] InvalidNumberOfPlanesError),
-
-    #[error(
-        "invalid stride at plane {plane}, expected it to be at least {minimum}, but got {got}"
-    )]
-    InvalidStride {
-        plane: usize,
-        minimum: usize,
-        got: usize,
-    },
-
-    #[error(
-        "invalid plane size at plane {plane}, expected it to be at least {minimum}, but got {got}"
-    )]
-    InvalidPlaneSize {
-        plane: usize,
-        minimum: usize,
-        got: usize,
-    },
-}
 
 /// Errors that may occur when trying to convert an image
 #[derive(Debug, thiserror::Error)]

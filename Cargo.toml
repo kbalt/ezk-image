@@ -41,6 +41,6 @@ criterion = "0.5"
 name = "pixel_format"
 harness = false
 
-[[bench]]
-name = "resize"
-harness = false
+# [[bench]]
+# name = "resize"
+# harness = false

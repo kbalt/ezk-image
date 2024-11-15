@@ -30,16 +30,16 @@ impl<'a, const REVERSE: bool, P: PrimitiveInternal> RgbaReader<'a, REVERSE, P> {
     }
 }
 
-impl<'a, const REVERSE: bool, B: PrimitiveInternal> RgbaSrc for RgbaReader<'a, REVERSE, B> {
+impl<'a, const REVERSE: bool, P: PrimitiveInternal> RgbaSrc for RgbaReader<'a, REVERSE, P> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbaBlock<V> {
-        let rgba00offset = y * self.rgba_stride + x * 4;
-        let rgba10offset = (y + 1) * self.rgba_stride + x * 4;
+        let rgba00offset = y * self.rgba_stride + x * 4 * P::SIZE;
+        let rgba10offset = (y + 1) * self.rgba_stride + x * 4 * P::SIZE;
 
         let [[r00, g00, b00, a00], [r01, g01, b01, a01]] =
-            B::load_4x_interleaved_2x::<V>(self.rgba.add(rgba00offset));
+            P::load_4x_interleaved_2x::<V>(self.rgba.add(rgba00offset));
         let [[r10, g10, b10, a10], [r11, g11, b11, a11]] =
-            B::load_4x_interleaved_2x::<V>(self.rgba.add(rgba10offset));
+            P::load_4x_interleaved_2x::<V>(self.rgba.add(rgba10offset));
 
         let r00 = r00.vdivf(self.max_value);
         let g00 = g00.vdivf(self.max_value);

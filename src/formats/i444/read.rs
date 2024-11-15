@@ -41,14 +41,14 @@ impl<'a, P: PrimitiveInternal> I444Reader<'a, P> {
 impl<P: PrimitiveInternal> I444Src for I444Reader<'_, P> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> I444Block<V> {
-        let y00_offset = (y * self.y_stride) + x;
-        let y10_offset = ((y + 1) * self.y_stride) + x;
+        let y00_offset = (y * self.y_stride) + x * P::SIZE;
+        let y10_offset = ((y + 1) * self.y_stride) + x * P::SIZE;
 
-        let u00_offset = (y * self.u_stride) + x;
-        let u10_offset = ((y + 1) * self.y_stride) + x;
+        let u00_offset = (y * self.u_stride) + x * P::SIZE;
+        let u10_offset = ((y + 1) * self.y_stride) + x * P::SIZE;
 
-        let v00_offset = (y * self.v_stride) + x;
-        let v10_offset = ((y + 1) * self.y_stride) + x;
+        let v00_offset = (y * self.v_stride) + x * P::SIZE;
+        let v10_offset = ((y + 1) * self.y_stride) + x * P::SIZE;
 
         // Load Y pixels
         let y00 = P::load::<V>(self.y.add(y00_offset));

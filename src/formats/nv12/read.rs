@@ -37,20 +37,20 @@ impl<'a, P: PrimitiveInternal> NV12Reader<'a, P> {
 impl<P: PrimitiveInternal> I420Src for NV12Reader<'_, P> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> I420Block<V> {
-        let y00_offset = (y * self.y_stride) + x;
-        let y10_offset = ((y + 1) * self.y_stride) + x;
+        let y00_offset = y * self.y_stride + x * P::SIZE;
+        let y10_offset = (y + 1) * self.y_stride + x * P::SIZE;
 
-        let uv_offset = y / 2 * (self.uv_stride) + x / 2;
+        let uv_offset = y / 2 * (self.uv_stride) + (x / 2) * P::SIZE;
 
         // Load Y pixels
         let y00 = P::load::<V>(self.y.add(y00_offset));
-        let y01 = P::load::<V>(self.y.add(y00_offset + V::LEN));
+        let y01 = P::load::<V>(self.y.add(y00_offset + V::LEN * P::SIZE));
         let y10 = P::load::<V>(self.y.add(y10_offset));
-        let y11 = P::load::<V>(self.y.add(y10_offset + V::LEN));
+        let y11 = P::load::<V>(self.y.add(y10_offset + V::LEN * P::SIZE));
 
         // Load U and V
         let uv0 = P::load::<V>(self.uv.add(uv_offset));
-        let uv1 = P::load::<V>(self.uv.add(uv_offset + V::LEN));
+        let uv1 = P::load::<V>(self.uv.add(uv_offset + V::LEN * P::SIZE));
 
         let (u, v) = uv0.unzip(uv1);
 

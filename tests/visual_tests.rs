@@ -1,7 +1,6 @@
 use ezk_image::{
-    convert, infer_i420, infer_i422, infer_nv12, ColorInfo, ColorPrimaries, ColorSpace,
-    ColorTransfer, Image, ImageMut, ImageRef, ImageRefExt, PixelFormat, RgbColorInfo, Window,
-    YuvColorInfo,
+    convert, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, Image, ImageMut, ImageRef,
+    ImageRefExt, PixelFormat, RgbColorInfo, Window, YuvColorInfo,
 };
 use image::{Rgb, Rgba};
 
@@ -36,7 +35,7 @@ fn make_rgba8_image(primaries: ColorPrimaries, transfer: ColorTransfer) -> Image
     Image::from_buffer(
         PixelFormat::RGBA,
         out,
-        PixelFormat::RGBA.packed_strides(width),
+        None,
         width,
         height,
         ColorInfo::RGB(RgbColorInfo {
@@ -152,68 +151,56 @@ fn i420_to_rgb_window() {
 
     buffer.save("tests/I420_TO_RGB_WINDOW.png").unwrap();
 }
-/*
+
 #[test]
 fn i420_to_rgba_with_window() {
-    let (i420, width, height) = make_i420_image(YuvColorInfo {
+    let i420 = make_i420_image(YuvColorInfo {
         space: ColorSpace::BT709,
         transfer: ColorTransfer::Linear,
         primaries: ColorPrimaries::BT709,
         full_range: true,
     });
 
-    let mut rgb = vec![0u8; PixelFormat::RGB.buffer_size(width, height)];
-
-    let src = Image::new(
-        PixelFormat::I420,
-        PixelFormatPlanes::infer_i420(&i420[..], width, height),
-        width,
-        height,
-        ColorInfo::YUV(YuvColorInfo {
-            space: ColorSpace::BT709,
-            transfer: ColorTransfer::Linear,
-            primaries: ColorPrimaries::BT709,
-            full_range: false,
-        }),
-        8,
-    )
-    .unwrap()
-    .with_window(Window {
-        x: 100,
-        y: 100,
-        width: 200,
-        height: 200,
-    })
-    .unwrap();
-
-    let dst = Image::new(
+    let mut rgb = Image::blank(
         PixelFormat::RGB,
-        PixelFormatPlanes::RGB(&mut rgb[..]),
-        width,
-        height,
+        i420.width(),
+        i420.height(),
         ColorInfo::RGB(RgbColorInfo {
             transfer: ColorTransfer::Linear,
             primaries: ColorPrimaries::BT709,
         }),
-        8,
+    );
+
+    convert(
+        &(&i420)
+            .crop(Window {
+                x: 100,
+                y: 100,
+                width: 200,
+                height: 200,
+            })
+            .unwrap(),
+        &mut (&mut rgb)
+            .crop(Window {
+                x: 100,
+                y: 100,
+                width: 200,
+                height: 200,
+            })
+            .unwrap(),
     )
-    .unwrap()
-    .with_window(Window {
-        x: 100,
-        y: 100,
-        width: 200,
-        height: 200,
-    })
     .unwrap();
 
-    convert(src, dst).unwrap();
-
-    let buffer =
-        image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(width as _, height as _, rgb).unwrap();
+    let buffer = image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(
+        rgb.width() as _,
+        rgb.height() as _,
+        rgb.planes().next().unwrap().0.to_vec(),
+    )
+    .unwrap();
 
     buffer.save("tests/I420_TO_RGBA_WINDOW.png").unwrap();
 }
-*/
+
 #[test]
 fn rgba_to_rgba() {
     let rgba1 = make_rgba8_image(ColorPrimaries::BT709, ColorTransfer::Linear);
@@ -245,10 +232,10 @@ fn rgba_to_rgb() {
 
     let mut rgb_dst = vec![0u8; PixelFormat::RGB.buffer_size(rgba.width(), rgba.height())];
 
-    let mut rgb = Image::new(
+    let mut rgb = Image::from_buffer(
         PixelFormat::RGB,
-        vec![&mut rgb_dst[..]],
-        vec![rgba.width() * 3],
+        &mut rgb_dst[..],
+        None,
         rgba.width(),
         rgba.height(),
         ColorInfo::RGB(RgbColorInfo {
@@ -648,63 +635,49 @@ fn rgba8_to_nv12_and_back_ictcp_pq() {
 
     buffer.save("tests/NV12_TO_RGBA_ICTCP_PQ.png").unwrap();
 }
-
+*/
 #[test]
-fn rgba8_to_nv12_and_back_ictcp_hlg() {
-    let (mut rgba8, width, height) = make_rgba8_image(ColorPrimaries::BT709, ColorTransfer::Linear);
+fn rgba8_to_i012_and_back_ictcp_hlg() {
+    let mut rgba = make_rgba8_image(ColorPrimaries::BT709, ColorTransfer::Linear);
 
-    let mut nv12 = vec![0u8; PixelFormat::NV12.buffer_size(width, height)];
-
-    let mut rgb = Image::new(
-        PixelFormat::RGBA,
-        vec![&mut rgba8[..]],
-        vec![width * 4],
-        width,
-        height,
-        ColorInfo::RGB(RgbColorInfo {
-            transfer: ColorTransfer::Linear,
-            primaries: ColorPrimaries::BT709,
-        }),
-    )
-    .unwrap();
-
-    let mut nv12 = Image::new(
-        PixelFormat::NV12,
-        infer_nv12(&mut nv12[..], width, height).into(),
-        vec![width, width],
-        width,
-        height,
+    let mut nv12 = Image::blank(
+        PixelFormat::I012,
+        rgba.width(),
+        rgba.height(),
         ColorInfo::YUV(YuvColorInfo {
             space: ColorSpace::ICtCpHLG,
             transfer: ColorTransfer::BT2100HLG,
             primaries: ColorPrimaries::BT709,
             full_range: false,
         }),
+    );
+
+    println!("1");
+    convert(&rgba, &mut nv12).unwrap();
+
+    println!("2");
+    convert(&nv12, &mut rgba).unwrap();
+
+    println!("3");
+    let buffer = image::ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(
+        rgba.width() as _,
+        rgba.height() as _,
+        rgba.planes().next().unwrap().0.to_vec(),
     )
     .unwrap();
 
-    println!("1");
-    convert(&rgb, &mut nv12).unwrap();
-
-    println!("2");
-    convert(&nv12, &mut rgb).unwrap();
-
-    println!("3");
-    let buffer =
-        image::ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(width as _, height as _, rgba8).unwrap();
-
     buffer.save("tests/NV12_TO_RGBA_ICTCP_HLG.png").unwrap();
 }
-*/
+
 #[test]
 fn yuyv_to_rgb() {
     let mut yuyv = std::fs::read("tests/data/switch.yuyv").unwrap();
 
     // YUYV -> RGB
-    let mut yuyv = Image::new(
+    let mut yuyv = Image::from_buffer(
         PixelFormat::YUYV,
-        vec![&mut yuyv[..]],
-        vec![1920 * 2],
+        &mut yuyv[..],
+        None,
         1920,
         1080,
         ColorInfo::YUV(YuvColorInfo {

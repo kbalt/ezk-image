@@ -1,17 +1,15 @@
-use crate::{
-    infer, AnySlice, BoundsCheckError, ColorInfo, ImageMut, ImageRef, ImageRefExt, PixelFormat,
-};
+use crate::{infer, BoundsCheckError, ColorInfo, ImageMut, ImageRef, ImageRefExt, PixelFormat};
 
 /// Basic wrapper around any image, implementing the [`ImageRef`] and [`ImageMut`] trait
 #[derive(Debug, Clone)]
 pub struct Image<S> {
-    pub(crate) format: PixelFormat,
-    pub(crate) buffer: Buffer<S>,
-    pub(crate) strides: Vec<usize>,
-    pub(crate) width: usize,
-    pub(crate) height: usize,
+    format: PixelFormat,
+    buffer: Buffer<S>,
+    strides: Vec<usize>,
+    width: usize,
+    height: usize,
 
-    pub(crate) color: ColorInfo,
+    color: ColorInfo,
 }
 
 #[derive(Debug, Clone)]
@@ -73,7 +71,7 @@ where
     pub fn from_buffer(
         format: PixelFormat,
         buffer: S,
-        strides: Vec<usize>,
+        strides: Option<Vec<usize>>,
         width: usize,
         height: usize,
         color: ColorInfo,
@@ -84,7 +82,7 @@ where
     pub fn from_planes(
         format: PixelFormat,
         planes: Vec<S>,
-        strides: Vec<usize>,
+        strides: Option<Vec<usize>>,
         width: usize,
         height: usize,
         color: ColorInfo,
@@ -92,12 +90,10 @@ where
         Self::new(format, Buffer::Split(planes), strides, width, height, color)
     }
 
-    /// Create a new image from all non-optional fields
-    #[deny(clippy::arithmetic_side_effects)]
     fn new(
         format: PixelFormat,
         buffer: Buffer<S>,
-        strides: Vec<usize>,
+        strides: Option<Vec<usize>>,
         width: usize,
         height: usize,
         color: ColorInfo,
@@ -105,6 +101,8 @@ where
         if width == 0 || height == 0 {
             return Err(ImageError::InvalidDimensions);
         }
+
+        let strides = strides.unwrap_or_else(|| format.packed_strides(width));
 
         let this = Self {
             format,

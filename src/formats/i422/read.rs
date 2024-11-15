@@ -44,11 +44,11 @@ impl<P: PrimitiveInternal> I422Src for I422Reader<'_, P> {
         let y00_offset = (y * self.y_stride) + x;
         let y10_offset = ((y + 1) * self.y_stride) + x;
 
-        let u0_offset = y * self.u_stride + (x / 2);
-        let u1_offset = (y + 1) * self.u_stride + (x / 2);
+        let u0_offset = y * self.u_stride + (x / 2) * P::SIZE;
+        let u1_offset = (y + 1) * self.u_stride + (x / 2) * P::SIZE;
 
-        let v0_offset = y * self.v_stride + (x / 2);
-        let v1_offset = (y + 1) * self.v_stride + (x / 2);
+        let v0_offset = y * self.v_stride + (x / 2) * P::SIZE;
+        let v1_offset = (y + 1) * self.v_stride + (x / 2) * P::SIZE;
 
         // Load Y pixels
         let y00 = P::load::<V>(self.y.add(y00_offset));

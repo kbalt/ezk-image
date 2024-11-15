@@ -33,8 +33,8 @@ impl<'a, const REVERSE: bool, P: PrimitiveInternal> RgbReader<'a, REVERSE, P> {
 impl<'a, const REVERSE: bool, P: PrimitiveInternal> RgbaSrc for RgbReader<'a, REVERSE, P> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbaBlock<V> {
-        let rgb00offset = y * self.rgb_stride + x * 3;
-        let rgb10offset = (y + 1) * self.rgb_stride + x * 3;
+        let rgb00offset = y * self.rgb_stride + x * 3 * P::SIZE;
+        let rgb10offset = (y + 1) * self.rgb_stride + x * 3 * P::SIZE;
 
         let [[r00, g00, b00], [r01, g01, b01]] =
             P::load_3x_interleaved_2x::<V>(self.rgb.add(rgb00offset));

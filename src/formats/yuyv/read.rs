@@ -39,13 +39,13 @@ impl<'a, P: PrimitiveInternal> YUYVReader<'a, P> {
 impl<P: PrimitiveInternal> I422Src for YUYVReader<'_, P> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> I422Block<V> {
-        let offset0 = y * self.yuyv_stride + x * 2;
-        let offset1 = (y + 1) * self.yuyv_stride + x * 2;
+        let offset0 = y * self.yuyv_stride + x * 2 * P::SIZE;
+        let offset1 = (y + 1) * self.yuyv_stride + x * 2 * P::SIZE;
 
         let (y00, uv00) = self.read_yuyv::<V>(offset0);
-        let (y01, uv01) = self.read_yuyv::<V>(offset0 + V::LEN * 2);
+        let (y01, uv01) = self.read_yuyv::<V>(offset0 + V::LEN * 2 * P::SIZE);
         let (y10, uv10) = self.read_yuyv::<V>(offset1);
-        let (y11, uv11) = self.read_yuyv::<V>(offset1 + V::LEN * 2);
+        let (y11, uv11) = self.read_yuyv::<V>(offset1 + V::LEN * 2 * P::SIZE);
 
         let (u0, v0) = uv00.unzip(uv01);
         let (u1, v1) = uv10.unzip(uv11);

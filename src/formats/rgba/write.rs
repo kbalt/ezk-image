@@ -50,19 +50,19 @@ where
     }
 }
 
-impl<'a, const REVERSE: bool, B, S> Image2x2Visitor for RgbaWriter<'a, REVERSE, B, S>
+impl<'a, const REVERSE: bool, P, S> Image2x2Visitor for RgbaWriter<'a, REVERSE, P, S>
 where
-    B: PrimitiveInternal,
+    P: PrimitiveInternal,
     S: RgbaSrc,
 {
     #[inline(always)]
     unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize) {
         let block = self.rgba_src.read::<V>(x, y);
 
-        let offset00 = y * self.rgba_stride + x * 4;
-        let offset10 = (y + 1) * self.rgba_stride + x * 4;
+        let offset00 = y * self.rgba_stride + x * 4 * P::SIZE;
+        let offset10 = (y + 1) * self.rgba_stride + x * 4 * P::SIZE;
 
-        B::write_interleaved_4x_2x(
+        P::write_interleaved_4x_2x(
             self.rgba.add(offset00),
             [
                 multiply_and_reverse::<REVERSE, V>(block.px00, self.max_value),
@@ -70,7 +70,7 @@ where
             ],
         );
 
-        B::write_interleaved_4x_2x(
+        P::write_interleaved_4x_2x(
             self.rgba.add(offset10),
             [
                 multiply_and_reverse::<REVERSE, V>(block.px10, self.max_value),

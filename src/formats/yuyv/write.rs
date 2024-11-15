@@ -85,15 +85,15 @@ where
         let v0 = v0.vmulf(self.max_value);
         let v1 = v1.vmulf(self.max_value);
 
-        let offset0 = y * self.yuyv_stride + x * 2;
-        let offset1 = (y + 1) * self.yuyv_stride + x * 2;
+        let offset0 = y * self.yuyv_stride + x * 2 * P::SIZE;
+        let offset1 = (y + 1) * self.yuyv_stride + x * 2 * P::SIZE;
 
         let (uv00, uv01) = u0.zip(v0);
         let (uv10, uv11) = u1.zip(v1);
 
         self.write_yuyv(y00, uv00, offset0);
-        self.write_yuyv(y01, uv01, offset0 + V::LEN * 2);
+        self.write_yuyv(y01, uv01, offset0 + V::LEN * 2 * P::SIZE);
         self.write_yuyv(y10, uv10, offset1);
-        self.write_yuyv(y11, uv11, offset1 + V::LEN * 2);
+        self.write_yuyv(y11, uv11, offset1 + V::LEN * 2 * P::SIZE);
     }
 }

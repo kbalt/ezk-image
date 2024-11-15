@@ -95,11 +95,7 @@ fn infer_impl<const N: usize, S: AnySlice>(
     let mut out: [MaybeUninit<S>; N] = [const { MaybeUninit::uninit() }; N];
 
     for ((desc, stride), out) in plane_decs.into_iter().zip(strides).zip(out.iter_mut()) {
-        let split_at = desc
-            .height_op
-            .op(height)
-            .strict_mul_(stride)
-            .strict_mul_(desc.bytes_per_primitive);
+        let split_at = desc.height_op.op(height).strict_mul_(stride);
 
         let (prev, rem) = buf.slice_split_at(split_at);
 

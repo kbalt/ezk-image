@@ -1,4 +1,4 @@
-use crate::{plane_decs::*, planes::read_planes, BoundsCheckError, StrictApi as _};
+use crate::{plane_decs::*, planes::read_planes, InvalidNumberOfPlanesError, StrictApi as _};
 
 /// Supported pixel formats
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -139,9 +139,7 @@ impl PixelFormat {
                 }
 
                 // Ensure slice is large enough
-                let min_len = stride
-                    .strict_mul_(plane.height_op.op(height))
-                    .strict_mul_(plane.bytes_per_primitive);
+                let min_len = stride.strict_mul_(plane.height_op.op(height));
 
                 if min_len > slice.len() {
                     return Err(BoundsCheckError::InvalidPlaneSize {
@@ -188,4 +186,28 @@ impl PixelFormat {
             PixelFormat::BGR => 8,
         }
     }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum BoundsCheckError {
+    #[error(transparent)]
+    InvalidNumberOfPlanes(#[from] InvalidNumberOfPlanesError),
+
+    #[error(
+        "invalid stride at plane {plane}, expected it to be at least {minimum}, but got {got}"
+    )]
+    InvalidStride {
+        plane: usize,
+        minimum: usize,
+        got: usize,
+    },
+
+    #[error(
+        "invalid plane size at plane {plane}, expected it to be at least {minimum}, but got {got}"
+    )]
+    InvalidPlaneSize {
+        plane: usize,
+        minimum: usize,
+        got: usize,
+    },
 }

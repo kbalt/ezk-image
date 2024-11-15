@@ -85,17 +85,17 @@ where
         let v0 = v0.vmulf(self.max_value);
         let v1 = v1.vmulf(self.max_value);
 
-        let y00_offset = y * self.y_stride + x;
-        let y10_offset = (y + 1) * self.y_stride + x;
+        let y00_offset = y * self.y_stride + x * P::SIZE;
+        let y10_offset = (y + 1) * self.y_stride + x * P::SIZE;
 
         P::write_2x(self.dst_y.add(y00_offset), y00, y01);
         P::write_2x(self.dst_y.add(y10_offset), y10, y11);
 
-        let u0_offset = (y) * (self.u_stride) + (x / 2);
-        let u1_offset = (y + 1) * (self.u_stride) + (x / 2);
+        let u0_offset = (y) * (self.u_stride) + (x / 2) * P::SIZE;
+        let u1_offset = (y + 1) * (self.u_stride) + (x / 2) * P::SIZE;
 
-        let v0_offset = (y) * (self.v_stride) + (x / 2);
-        let v1_offset = (y + 1) * (self.v_stride) + (x / 2);
+        let v0_offset = (y) * (self.v_stride) + (x / 2) * P::SIZE;
+        let v1_offset = (y + 1) * (self.v_stride) + (x / 2) * P::SIZE;
 
         P::write(self.dst_u.add(u0_offset), u0);
         P::write(self.dst_u.add(u1_offset), u1);

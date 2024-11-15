@@ -89,14 +89,14 @@ where
         let v10 = px10.v.vmulf(self.max_value);
         let v11 = px11.v.vmulf(self.max_value);
 
-        let y00_offset = y * self.y_stride + x;
-        let y10_offset = (y + 1) * self.y_stride + x;
+        let y00_offset = y * self.y_stride + x * P::SIZE;
+        let y10_offset = (y + 1) * self.y_stride + x * P::SIZE;
 
-        let u00_offset = y * self.u_stride + x;
-        let u10_offset = (y + 1) * self.u_stride + x;
+        let u00_offset = y * self.u_stride + x * P::SIZE;
+        let u10_offset = (y + 1) * self.u_stride + x * P::SIZE;
 
-        let v00_offset = y * self.v_stride + x;
-        let v10_offset = (y + 1) * self.v_stride + x;
+        let v00_offset = y * self.v_stride + x * P::SIZE;
+        let v10_offset = (y + 1) * self.v_stride + x * P::SIZE;
 
         P::write_2x(self.dst_y.add(y00_offset), y00, y01);
         P::write_2x(self.dst_y.add(y10_offset), y10, y11);

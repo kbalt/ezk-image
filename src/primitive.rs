@@ -13,6 +13,8 @@ pub(crate) trait PrimitiveInternal {
     #[cfg(feature = "resize")]
     type FirPixel4: fir::PixelTrait;
 
+    const SIZE: usize;
+
     unsafe fn load<V: Vector>(ptr: *const u8) -> V;
     unsafe fn load_3x_interleaved_2x<V: Vector>(ptr: *const u8) -> [[V; 3]; 2];
     unsafe fn load_4x_interleaved_2x<V: Vector>(ptr: *const u8) -> [[V; 4]; 2];
@@ -35,6 +37,8 @@ impl PrimitiveInternal for u8 {
     type FirPixel3 = fir::pixels::U8x3;
     #[cfg(feature = "resize")]
     type FirPixel4 = fir::pixels::U8x4;
+
+    const SIZE: usize = 1;
 
     #[inline(always)]
     unsafe fn load<V: Vector>(ptr: *const u8) -> V {
@@ -80,6 +84,8 @@ impl PrimitiveInternal for u16 {
     type FirPixel3 = fir::pixels::U16x3;
     #[cfg(feature = "resize")]
     type FirPixel4 = fir::pixels::U16x4;
+
+    const SIZE: usize = 2;
 
     #[inline(always)]
     unsafe fn load<V: Vector>(ptr: *const u8) -> V {
