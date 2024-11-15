@@ -134,7 +134,7 @@ fn i420_to_rgb_window() {
         }),
     )
     .crop(Window {
-        x: 100,
+        x: 125,
         y: 10,
         width: i420.width(),
         height: i420.height(),

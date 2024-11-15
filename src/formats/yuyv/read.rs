@@ -1,4 +1,4 @@
-use crate::image::read_planes;
+use crate::planes::read_planes;
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
 use crate::{ConvertError, I422Block, I422Src, ImageRef, ImageRefExt};
@@ -16,11 +16,9 @@ pub(crate) struct YUYVReader<'a, P: PrimitiveInternal> {
 
 impl<'a, P: PrimitiveInternal> YUYVReader<'a, P> {
     pub(crate) fn new(src: &'a impl ImageRef) -> Result<Self, ConvertError> {
-        if !src.bounds_check() {
-            return Err(ConvertError::InvalidPlaneSizeForDimensions);
-        }
+        src.bounds_check()?;
 
-        let [(yuyv, yuyv_stride)] = read_planes(src.planes(), src.format())?;
+        let [(yuyv, yuyv_stride)] = read_planes(src.planes())?;
 
         Ok(Self {
             yuyv: yuyv.as_ptr(),

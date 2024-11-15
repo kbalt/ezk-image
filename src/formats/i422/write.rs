@@ -1,6 +1,6 @@
 use super::{I422Block, I422Src};
 use crate::formats::visit_2x2::{visit, Image2x2Visitor};
-use crate::image::read_planes_mut;
+use crate::planes::read_planes_mut;
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
 use crate::{ConvertError, ImageMut, ImageRefExt};
@@ -32,16 +32,13 @@ where
     S: I422Src,
 {
     pub(crate) fn write(dst: &'a mut impl ImageMut, i422_src: S) -> Result<(), ConvertError> {
-        if !dst.bounds_check() {
-            return Err(ConvertError::InvalidPlaneSizeForDimensions);
-        }
+        dst.bounds_check()?;
 
         let dst_width = dst.width();
         let dst_height = dst.height();
         let dst_format = dst.format();
 
-        let [(y, y_stride), (u, u_stride), (v, v_stride)] =
-            read_planes_mut(dst.planes_mut(), dst_format)?;
+        let [(y, y_stride), (u, u_stride), (v, v_stride)] = read_planes_mut(dst.planes_mut())?;
 
         visit(
             dst_width,

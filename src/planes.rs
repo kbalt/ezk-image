@@ -1,4 +1,43 @@
+use std::mem::MaybeUninit;
+
 use crate::{PixelFormat, StrictApi, Window};
+
+#[derive(Debug, thiserror::Error)]
+#[error("got invalid number of planes, expected {expected} but only got {got}")]
+pub struct InvalidNumberOfPlanesError {
+    pub expected: usize,
+    pub got: usize,
+}
+
+pub(crate) fn read_planes<'a, const N: usize>(
+    mut iter: impl Iterator<Item = (&'a [u8], usize)>,
+) -> Result<[(&'a [u8], usize); N], InvalidNumberOfPlanesError> {
+    let mut out: [(&'a [u8], usize); N] = [(&[], 0); N];
+
+    for (i, out) in out.iter_mut().enumerate() {
+        *out = iter.next().ok_or(InvalidNumberOfPlanesError {
+            expected: N,
+            got: i,
+        })?;
+    }
+
+    Ok(out)
+}
+
+pub(crate) fn read_planes_mut<'a, const N: usize>(
+    mut iter: impl Iterator<Item = (&'a mut [u8], usize)>,
+) -> Result<[(&'a mut [u8], usize); N], InvalidNumberOfPlanesError> {
+    let mut out: [MaybeUninit<(&'a mut [u8], usize)>; N] = [const { MaybeUninit::uninit() }; N];
+
+    for (i, out) in out.iter_mut().enumerate() {
+        out.write(iter.next().ok_or(InvalidNumberOfPlanesError {
+            expected: N,
+            got: i,
+        })?);
+    }
+
+    Ok(out.map(|plane| unsafe { plane.assume_init() }))
+}
 
 /// Infer the planes for an image in the given format using the given dimensions
 ///

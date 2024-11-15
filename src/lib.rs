@@ -6,8 +6,6 @@
 )]
 
 use formats::*;
-use image::read_planes;
-use std::{error::Error, fmt};
 
 mod color;
 // mod copy;
@@ -19,8 +17,10 @@ mod planes;
 mod primitive;
 // #[cfg(feature = "resize")]
 // pub mod resize;
+mod crop;
+mod pixel_format;
+mod plane_decs;
 mod vector;
-mod window;
 
 mod arch {
     #[cfg(target_arch = "x86")]
@@ -35,8 +35,9 @@ mod arch {
 }
 
 pub use color::{ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, RgbColorInfo, YuvColorInfo};
+pub use crop::{CropError, Cropped, Window};
+pub use pixel_format::PixelFormat;
 pub use planes::*;
-pub use window::{CropError, Cropped, Window};
 // #[doc(hidden)]
 // pub use copy::copy;
 pub use image::{Image, ImageError, ImageMut, ImageRef, ImageRefExt};
@@ -45,268 +46,48 @@ pub use image::{Image, ImageError, ImageMut, ImageRef, ImageRefExt};
 
 // compile_error!("pointer arithmetic for u16 !!!");
 
-/// Supported pixel formats
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum PixelFormat {
-    /// Y, U and V planes, 4:2:0 sub sampling, 8 bits per sample
-    I420,
+#[derive(Debug, thiserror::Error)]
+pub enum BoundsCheckError {
+    #[error(transparent)]
+    InvalidNumberOfPlanes(#[from] InvalidNumberOfPlanesError),
 
-    /// Y, U and V planes, 4:2:2 sub sampling, 8 bits per sample
-    I422,
+    #[error(
+        "invalid stride at plane {plane}, expected it to be at least {minimum}, but got {got}"
+    )]
+    InvalidStride {
+        plane: usize,
+        minimum: usize,
+        got: usize,
+    },
 
-    /// Y, U and V planes, 4:4:4 sub sampling, 8 bits per sample
-    I444,
-
-    /// Y, U, and V planes, 4:2:0 sub sampling, 10 bits per sample
-    I010,
-
-    /// Y, U, and V planes, 4:2:0 sub sampling, 12 bits per sample
-    I012,
-
-    /// Y, U, and V planes, 4:2:2 sub sampling, 10 bits per sample
-    I210,
-
-    /// Y, U, and V planes, 4:2:2 sub sampling, 10 bits per sample
-    I212,
-
-    /// Y, U, and V planes, 4:4:4 sub sampling, 10 bits per sample
-    I410,
-
-    /// Y, U, and V planes, 4:4:4 sub sampling, 12 bits per sample
-    I412,
-
-    /// Y and interleaved UV planes, 4:2:0 sub sampling
-    NV12,
-
-    /// Single YUYV, 4:2:2 sub sampling
-    YUYV,
-
-    /// Single RGBA interleaved plane
-    RGBA,
-
-    /// Single BGRA interleaved plane
-    BGRA,
-
-    /// Single RGB interleaved plane
-    RGB,
-
-    /// Single BGR interleaved plane
-    BGR,
-}
-
-impl PixelFormat {
-    /// Calculate the required buffer size given the [`PixelFormat`] self and image dimensions (in pixel width, height).
-    ///
-    /// The size is the amount of primitives (u8, u16) so when allocating size this must be accounted for.
-    #[deny(clippy::arithmetic_side_effects)]
-    pub fn buffer_size(self, width: usize, height: usize) -> usize {
-        use PixelFormat::*;
-
-        match self {
-            I420 | NV12 => (width.strict_mul_(height).strict_mul_(12)).div_ceil(8),
-            I422 | YUYV => width.strict_mul_(height).strict_mul_(2),
-            I444 => width.strict_mul_(height).strict_mul_(3),
-            I010 | I012 => I420.buffer_size(width, height).strict_mul_(2),
-            I210 | I212 => I422.buffer_size(width, height).strict_mul_(2),
-            I410 | I412 => I444.buffer_size(width, height).strict_mul_(2),
-            RGBA | BGRA => width.strict_mul_(height).strict_mul_(4),
-            RGB | BGR => width.strict_mul_(height).strict_mul_(3),
-        }
-    }
-
-    /// Calculate the strides of an image in a packed buffer
-    #[deny(clippy::arithmetic_side_effects)]
-    pub fn packed_strides(self, width: usize) -> Vec<usize> {
-        use PixelFormat::*;
-
-        match self {
-            I420 => vec![width, width / 2, width / 2],
-            I422 => vec![width, width / 2, width / 2],
-            I444 => vec![width, width, width],
-            I010 | I012 => vec![width * 2, width, width],
-            I210 | I212 => vec![width * 2, width, width],
-            I410 | I412 => vec![width * 2, width * 2, width * 2],
-            NV12 => vec![width, width],
-            YUYV => vec![width * 2],
-            RGBA | BGRA => vec![width * 4],
-            RGB | BGR => vec![width * 3],
-        }
-    }
-
-    pub fn bounds_check<'a>(
-        self,
-        planes: impl Iterator<Item = (&'a [u8], usize)>,
-        width: usize,
-        height: usize,
-    ) -> bool {
-        use PixelFormat::*;
-        match self {
-            I420 => {
-                let [(y, y_stride), (u, u_stride), (v, v_stride)] =
-                    read_planes(planes, self).unwrap();
-
-                assert!(width <= y_stride);
-                assert!(width <= u_stride * 2);
-                assert!(width <= v_stride * 2);
-
-                let y = y.len() >= y_stride * height;
-                let u = u.len() >= u_stride * (height / 2);
-                let v = v.len() >= v_stride * (height / 2);
-
-                y && u && v
-            }
-            I422 => {
-                let [(y, y_stride), (u, u_stride), (v, v_stride)] =
-                    read_planes(planes, self).unwrap();
-
-                assert!(width <= y_stride);
-                assert!(width <= u_stride * 2);
-                assert!(width <= v_stride * 2);
-
-                let y = y.len() >= y_stride * height;
-                let u = u.len() >= u_stride * height;
-                let v = v.len() >= v_stride * height;
-
-                y && u && v
-            }
-            I444 => {
-                let [(y, y_stride), (u, u_stride), (v, v_stride)] =
-                    read_planes(planes, self).unwrap();
-
-                assert!(width <= y_stride);
-                assert!(width <= u_stride);
-                assert!(width <= v_stride);
-
-                let y = y.len() >= y_stride * height;
-                let u = u.len() >= u_stride * height;
-                let v = v.len() >= v_stride * height;
-
-                y && u && v
-            }
-            I010 | I012 => {
-                let [(y, y_stride), (u, u_stride), (v, v_stride)] =
-                    read_planes(planes, self).unwrap();
-
-                assert!(width * 2 <= y_stride);
-                assert!(width * 2 <= u_stride * 2);
-                assert!(width * 2 <= v_stride * 2);
-
-                let y = y.len() >= y_stride * height;
-                let u = u.len() >= u_stride * (height / 2);
-                let v = v.len() >= v_stride * (height / 2);
-
-                y && u && v
-            }
-            I210 | I212 => {
-                let [(y, y_stride), (u, u_stride), (v, v_stride)] =
-                    read_planes(planes, self).unwrap();
-
-                assert!(width * 2 <= y_stride);
-                assert!(width * 2 <= u_stride * 2);
-                assert!(width * 2 <= v_stride * 2);
-
-                let y = y.len() >= y_stride * height;
-                let u = u.len() >= u_stride * height;
-                let v = v.len() >= v_stride * height;
-
-                y && u && v
-            }
-            I410 | I412 => {
-                let [(y, y_stride), (u, u_stride), (v, v_stride)] =
-                    read_planes(planes, self).unwrap();
-
-                assert!(width * 2 <= y_stride);
-                assert!(width * 2 <= u_stride);
-                assert!(width * 2 <= v_stride);
-
-                let y = y.len() >= y_stride * height;
-                let u = u.len() >= u_stride * height;
-                let v = v.len() >= v_stride * height;
-
-                y && u && v
-            }
-            NV12 => {
-                let [(y, y_stride), (uv, uv_stride)] = read_planes(planes, self).unwrap();
-
-                assert!(width <= y_stride);
-                assert!(width <= uv_stride);
-
-                let y = y.len() >= y_stride * height;
-                let uv = uv.len() >= uv_stride * (height / 2);
-
-                y && uv
-            }
-            YUYV | RGBA | BGRA | RGB | BGR => {
-                // TODO: This is  WRONG?
-                let [(plane, stride)] = read_planes(planes, self).unwrap();
-
-                assert!(width <= stride);
-
-                plane.len() >= stride * height
-            }
-        }
-    }
-
-    pub fn bits_per_component(&self) -> usize {
-        match self {
-            PixelFormat::I420 => 8,
-            PixelFormat::I422 => 8,
-            PixelFormat::I444 => 8,
-            PixelFormat::I010 => 10,
-            PixelFormat::I012 => 12,
-            PixelFormat::I210 => 10,
-            PixelFormat::I212 => 12,
-            PixelFormat::I410 => 10,
-            PixelFormat::I412 => 12,
-            PixelFormat::NV12 => 8,
-            PixelFormat::YUYV => 8,
-            PixelFormat::RGBA => 8,
-            PixelFormat::BGRA => 8,
-            PixelFormat::RGB => 8,
-            PixelFormat::BGR => 8,
-        }
-    }
+    #[error(
+        "invalid plane size at plane {plane}, expected it to be at least {minimum}, but got {got}"
+    )]
+    InvalidPlaneSize {
+        plane: usize,
+        minimum: usize,
+        got: usize,
+    },
 }
 
 /// Errors that may occur when trying to convert an image
-#[derive(Debug, PartialEq)]
+#[derive(Debug, thiserror::Error)]
 pub enum ConvertError {
+    #[error("image dimensions are not divisible by 2")]
     OddImageDimensions,
+
+    #[error("source image has different size than destination image")]
     MismatchedImageSize,
+
+    #[error("invalid color info for pixel format")]
     InvalidColorInfo,
-    InvalidPlanesForPixelFormat(PixelFormat),
-    InvalidPlaneSizeForDimensions,
-    InvalidStridesForPixelFormat(PixelFormat),
-}
 
-impl fmt::Display for ConvertError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ConvertError::OddImageDimensions => {
-                write!(f, "image dimensions are not divisible by 2")
-            }
-            ConvertError::MismatchedImageSize => {
-                write!(f, "source image has different size than destination image")
-            }
-            ConvertError::InvalidColorInfo => {
-                write!(f, "invalid color info for pixel format")
-            }
-            ConvertError::InvalidPlanesForPixelFormat(format) => {
-                write!(f, "provided planes mismatch with {format:?}")
-            }
-            ConvertError::InvalidPlaneSizeForDimensions => write!(
-                f,
-                "provided planes are too small for the given image dimensions"
-            ),
-            ConvertError::InvalidStridesForPixelFormat(pixel_format) => write!(
-                f,
-                "provided to few, or too many planes for the given pixel format {pixel_format:?}"
-            ),
-        }
-    }
-}
+    #[error(transparent)]
+    BoundsCheck(#[from] BoundsCheckError),
 
-impl Error for ConvertError {}
+    #[error(transparent)]
+    InvalidNumberOfPlanes(#[from] InvalidNumberOfPlanesError),
+}
 
 /// Convert pixel-format and color from the src-image to the specified dst-image.
 ///
@@ -335,9 +116,9 @@ pub fn convert(src: &impl ImageRef, dst: &mut impl ImageMut) -> Result<(), Conve
 }
 
 #[inline(never)]
-fn convert_same_color_and_pixel_format<'a, 'b>(
-    src: &'a impl ImageRef,
-    dst: &'b mut impl ImageMut,
+fn convert_same_color_and_pixel_format(
+    src: &impl ImageRef,
+    dst: &mut impl ImageMut,
 ) -> Result<(), ConvertError> {
     use PixelFormat::*;
     assert_eq!(src.format(), dst.format());

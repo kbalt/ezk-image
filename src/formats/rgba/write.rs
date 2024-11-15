@@ -1,6 +1,6 @@
 use super::{RgbaPixel, RgbaSrc};
 use crate::formats::visit_2x2::{visit, Image2x2Visitor};
-use crate::image::read_planes_mut;
+use crate::planes::read_planes_mut;
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
 use crate::{ConvertError, ImageMut, ImageRefExt};
@@ -28,15 +28,13 @@ where
     S: RgbaSrc,
 {
     pub(crate) fn write(dst: &'a mut impl ImageMut, rgba_src: S) -> Result<(), ConvertError> {
-        if !dst.bounds_check() {
-            return Err(ConvertError::InvalidPlaneSizeForDimensions);
-        }
+        dst.bounds_check()?;
 
         let dst_width = dst.width();
         let dst_height = dst.height();
         let dst_format = dst.format();
 
-        let [(rgba, rgba_stride)] = read_planes_mut(dst.planes_mut(), dst_format)?;
+        let [(rgba, rgba_stride)] = read_planes_mut(dst.planes_mut())?;
 
         visit(
             dst_width,

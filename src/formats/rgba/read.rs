@@ -1,5 +1,5 @@
 use super::{RgbaBlock, RgbaPixel, RgbaSrc};
-use crate::image::read_planes;
+use crate::planes::read_planes;
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
 use crate::{ConvertError, ImageRef, ImageRefExt};
@@ -17,11 +17,9 @@ pub(crate) struct RgbaReader<'a, const REVERSE: bool, P: PrimitiveInternal> {
 
 impl<'a, const REVERSE: bool, P: PrimitiveInternal> RgbaReader<'a, REVERSE, P> {
     pub(crate) fn new(src: &'a impl ImageRef) -> Result<Self, ConvertError> {
-        if !src.bounds_check() {
-            return Err(ConvertError::InvalidPlaneSizeForDimensions);
-        }
+        src.bounds_check()?;
 
-        let [(rgba, rgba_stride)] = read_planes(src.planes(), src.format())?;
+        let [(rgba, rgba_stride)] = read_planes(src.planes())?;
 
         Ok(Self {
             rgba: rgba.as_ptr(),
