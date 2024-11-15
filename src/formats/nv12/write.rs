@@ -38,11 +38,7 @@ where
         let dst_height = dst.height();
         let dst_format = dst.format();
 
-        let [y_stride, uv_stride] = *dst.strides() else {
-            return Err(ConvertError::InvalidStridesForPixelFormat(dst.format()));
-        };
-
-        let [y, uv] = read_planes_mut(dst.planes_mut(), dst_format)?;
+        let [(y, y_stride), (uv, uv_stride)] = read_planes_mut(dst.planes_mut(), dst_format)?;
 
         visit(
             dst_width,
@@ -86,7 +82,7 @@ where
         let y00_offset = y * self.y_stride + x;
         let y10_offset = (y + 1) * self.y_stride + x;
 
-        let uv_offset = ((y / 2) * self.uv_stride + x / 2) * 2;
+        let uv_offset = (y / 2) * self.uv_stride + x / 2;
 
         P::write_2x(self.y.add(y00_offset), y00, y01);
         P::write_2x(self.y.add(y10_offset), y10, y11);

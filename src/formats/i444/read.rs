@@ -25,11 +25,8 @@ impl<'a, P: PrimitiveInternal> I444Reader<'a, P> {
             return Err(ConvertError::InvalidPlaneSizeForDimensions);
         }
 
-        let [y_stride, u_stride, v_stride] = *src.strides() else {
-            return Err(ConvertError::InvalidStridesForPixelFormat(src.format()));
-        };
-
-        let [y, u, v] = read_planes(src.planes(), src.format())?;
+        let [(y, y_stride), (u, u_stride), (v, v_stride)] =
+            read_planes(src.planes(), src.format())?;
 
         Ok(Self {
             y: y.as_ptr(),

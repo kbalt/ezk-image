@@ -20,11 +20,7 @@ impl<'a, P: PrimitiveInternal> YUYVReader<'a, P> {
             return Err(ConvertError::InvalidPlaneSizeForDimensions);
         }
 
-        let [yuyv_stride] = *src.strides() else {
-            return Err(ConvertError::InvalidStridesForPixelFormat(src.format()));
-        };
-
-        let [yuyv] = read_planes(src.planes(), src.format())?;
+        let [(yuyv, yuyv_stride)] = read_planes(src.planes(), src.format())?;
 
         Ok(Self {
             yuyv: yuyv.as_ptr(),

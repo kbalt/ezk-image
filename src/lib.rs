@@ -20,6 +20,7 @@ mod primitive;
 // #[cfg(feature = "resize")]
 // pub mod resize;
 mod vector;
+mod window;
 
 mod arch {
     #[cfg(target_arch = "x86")]
@@ -35,9 +36,10 @@ mod arch {
 
 pub use color::{ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, RgbColorInfo, YuvColorInfo};
 pub use planes::*;
+pub use window::{CropError, Cropped, Window};
 // #[doc(hidden)]
 // pub use copy::copy;
-pub use image::{Image, ImageError, ImageMut, ImageRef, ImageRefExt, ImageWindowError, Window};
+pub use image::{Image, ImageError, ImageMut, ImageRef, ImageRefExt};
 // #[cfg(feature = "multi-thread")]
 // pub use multi_thread::convert_multi_thread;
 
@@ -112,115 +114,135 @@ impl PixelFormat {
         }
     }
 
+    /// Calculate the strides of an image in a packed buffer
+    #[deny(clippy::arithmetic_side_effects)]
+    pub fn packed_strides(self, width: usize) -> Vec<usize> {
+        use PixelFormat::*;
+
+        match self {
+            I420 => vec![width, width / 2, width / 2],
+            I422 => vec![width, width / 2, width / 2],
+            I444 => vec![width, width, width],
+            I010 | I012 => vec![width * 2, width, width],
+            I210 | I212 => vec![width * 2, width, width],
+            I410 | I412 => vec![width * 2, width * 2, width * 2],
+            NV12 => vec![width, width],
+            YUYV => vec![width * 2],
+            RGBA | BGRA => vec![width * 4],
+            RGB | BGR => vec![width * 3],
+        }
+    }
+
     pub fn bounds_check<'a>(
         self,
-        planes: impl Iterator<Item = &'a [u8]>,
-        strides: &[usize],
+        planes: impl Iterator<Item = (&'a [u8], usize)>,
         width: usize,
         height: usize,
     ) -> bool {
         use PixelFormat::*;
         match self {
             I420 => {
-                let planes: [_; 3] = read_planes(planes, self).unwrap();
+                let [(y, y_stride), (u, u_stride), (v, v_stride)] =
+                    read_planes(planes, self).unwrap();
 
-                // Y WIDTH * HEIGHT
-                //
-                // U (WIDTH / 2) * (HEIGHT / 2)
-                // V (WIDTH / 2) * (HEIGHT / 2)
+                assert!(width <= y_stride);
+                assert!(width <= u_stride * 2);
+                assert!(width <= v_stride * 2);
 
-                assert!(width <= strides[0]);
-                assert!(width / 2 <= strides[1]);
-                assert!(width / 2 <= strides[2]);
-
-                let y = planes[0].len() >= strides[0] * height;
-                let u = planes[1].len() >= strides[1] * (height / 2);
-                let v = planes[2].len() >= strides[2] * (height / 2);
+                let y = y.len() >= y_stride * height;
+                let u = u.len() >= u_stride * (height / 2);
+                let v = v.len() >= v_stride * (height / 2);
 
                 y && u && v
             }
             I422 => {
-                let planes: [_; 3] = read_planes(planes, self).unwrap();
+                let [(y, y_stride), (u, u_stride), (v, v_stride)] =
+                    read_planes(planes, self).unwrap();
 
-                assert!(width <= strides[0]);
-                assert!(width <= strides[1] / 2);
-                assert!(width <= strides[2] / 2);
+                assert!(width <= y_stride);
+                assert!(width <= u_stride * 2);
+                assert!(width <= v_stride * 2);
 
-                let y = planes[0].len() >= strides[0] * height;
-                let u = planes[1].len() >= strides[1] * height;
-                let v = planes[2].len() >= strides[2] * height;
+                let y = y.len() >= y_stride * height;
+                let u = u.len() >= u_stride * height;
+                let v = v.len() >= v_stride * height;
 
                 y && u && v
             }
             I444 => {
-                let planes: [_; 3] = read_planes(planes, self).unwrap();
+                let [(y, y_stride), (u, u_stride), (v, v_stride)] =
+                    read_planes(planes, self).unwrap();
 
-                assert!(width <= strides[0]);
-                assert!(width <= strides[1]);
-                assert!(width <= strides[2]);
+                assert!(width <= y_stride);
+                assert!(width <= u_stride);
+                assert!(width <= v_stride);
 
-                let y = planes[0].len() >= strides[0] * height;
-                let u = planes[1].len() >= strides[1] * height;
-                let v = planes[2].len() >= strides[2] * height;
+                let y = y.len() >= y_stride * height;
+                let u = u.len() >= u_stride * height;
+                let v = v.len() >= v_stride * height;
 
                 y && u && v
             }
             I010 | I012 => {
-                let planes: [_; 3] = read_planes(planes, self).unwrap();
+                let [(y, y_stride), (u, u_stride), (v, v_stride)] =
+                    read_planes(planes, self).unwrap();
 
-                assert!(width * 2 <= strides[0]);
-                assert!(width * 2 <= strides[1] / 2);
-                assert!(width * 2 <= strides[2] / 2);
+                assert!(width * 2 <= y_stride);
+                assert!(width * 2 <= u_stride * 2);
+                assert!(width * 2 <= v_stride * 2);
 
-                let y = planes[0].len() >= strides[0] * height;
-                let u = planes[1].len() >= strides[1] * (height / 2);
-                let v = planes[2].len() >= strides[2] * (height / 2);
+                let y = y.len() >= y_stride * height;
+                let u = u.len() >= u_stride * (height / 2);
+                let v = v.len() >= v_stride * (height / 2);
 
                 y && u && v
             }
             I210 | I212 => {
-                let planes: [_; 3] = read_planes(planes, self).unwrap();
+                let [(y, y_stride), (u, u_stride), (v, v_stride)] =
+                    read_planes(planes, self).unwrap();
 
-                assert!(width * 2 <= strides[0]);
-                assert!(width * 2 <= strides[1] / 2);
-                assert!(width * 2 <= strides[2] / 2);
+                assert!(width * 2 <= y_stride);
+                assert!(width * 2 <= u_stride * 2);
+                assert!(width * 2 <= v_stride * 2);
 
-                let y = planes[0].len() >= strides[0] * height;
-                let u = planes[1].len() >= strides[1] * height;
-                let v = planes[2].len() >= strides[2] * height;
+                let y = y.len() >= y_stride * height;
+                let u = u.len() >= u_stride * height;
+                let v = v.len() >= v_stride * height;
 
                 y && u && v
             }
             I410 | I412 => {
-                let planes: [_; 3] = read_planes(planes, self).unwrap();
+                let [(y, y_stride), (u, u_stride), (v, v_stride)] =
+                    read_planes(planes, self).unwrap();
 
-                assert!(width * 2 <= strides[0]);
-                assert!(width * 2 <= strides[1]);
-                assert!(width * 2 <= strides[2]);
+                assert!(width * 2 <= y_stride);
+                assert!(width * 2 <= u_stride);
+                assert!(width * 2 <= v_stride);
 
-                let y = planes[0].len() >= strides[0] * height;
-                let u = planes[1].len() >= strides[1] * height;
-                let v = planes[2].len() >= strides[2] * height;
+                let y = y.len() >= y_stride * height;
+                let u = u.len() >= u_stride * height;
+                let v = v.len() >= v_stride * height;
 
                 y && u && v
             }
             NV12 => {
-                let planes: [_; 2] = read_planes(planes, self).unwrap();
+                let [(y, y_stride), (uv, uv_stride)] = read_planes(planes, self).unwrap();
 
-                assert!(width <= strides[0]);
-                assert!(width <= strides[1]);
+                assert!(width <= y_stride);
+                assert!(width <= uv_stride);
 
-                let y = planes[0].len() >= strides[0] * height;
-                let uv = planes[1].len() >= strides[1] * (height / 2);
+                let y = y.len() >= y_stride * height;
+                let uv = uv.len() >= uv_stride * (height / 2);
 
                 y && uv
             }
             YUYV | RGBA | BGRA | RGB | BGR => {
-                let planes: [_; 1] = read_planes(planes, self).unwrap();
+                // TODO: This is  WRONG?
+                let [(plane, stride)] = read_planes(planes, self).unwrap();
 
-                assert!(width <= strides[0]);
+                assert!(width <= stride);
 
-                planes[0].len() >= strides[0] * height
+                plane.len() >= stride * height
             }
         }
     }

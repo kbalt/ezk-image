@@ -21,11 +21,7 @@ impl<'a, const REVERSE: bool, P: PrimitiveInternal> RgbReader<'a, REVERSE, P> {
             return Err(ConvertError::InvalidPlaneSizeForDimensions);
         }
 
-        let [rgb_stride] = *src.strides() else {
-            return Err(ConvertError::InvalidStridesForPixelFormat(src.format()));
-        };
-
-        let [rgb] = read_planes(src.planes(), src.format())?;
+        let [(rgb, rgb_stride)] = read_planes(src.planes(), src.format())?;
 
         Ok(Self {
             rgb: rgb.as_ptr(),

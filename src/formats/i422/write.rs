@@ -40,11 +40,8 @@ where
         let dst_height = dst.height();
         let dst_format = dst.format();
 
-        let [y_stride, u_stride, v_stride] = *dst.strides() else {
-            return Err(ConvertError::InvalidStridesForPixelFormat(dst.format()));
-        };
-
-        let [y, u, v] = read_planes_mut(dst.planes_mut(), dst_format)?;
+        let [(y, y_stride), (u, u_stride), (v, v_stride)] =
+            read_planes_mut(dst.planes_mut(), dst_format)?;
 
         visit(
             dst_width,

@@ -305,6 +305,7 @@ mod sealed {
     pub trait Sealed {}
     impl<T> Sealed for &[T] {}
     impl<T> Sealed for &mut [T] {}
+    impl<T> Sealed for Vec<T> {}
 }
 
 impl<T> AnySlice for &[T] {
@@ -324,6 +325,22 @@ impl<T> AnySlice for &mut [T] {
 
     fn slice_split_at(self, at: usize) -> (Self, Self) {
         self.split_at_mut(at)
+    }
+}
+
+// TODO: remove me
+impl<T> AnySlice for Vec<T>
+where
+    T: Clone,
+{
+    fn slice_len(&self) -> usize {
+        self.len()
+    }
+
+    fn slice_split_at(mut self, at: usize) -> (Self, Self) {
+        let off = self.split_off(at);
+
+        (self, off)
     }
 }
 

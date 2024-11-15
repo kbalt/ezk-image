@@ -21,14 +21,10 @@ impl<'a, const REVERSE: bool, P: PrimitiveInternal> RgbaReader<'a, REVERSE, P> {
             return Err(ConvertError::InvalidPlaneSizeForDimensions);
         }
 
-        let [rgba_stride] = *src.strides() else {
-            return Err(ConvertError::InvalidStridesForPixelFormat(src.format()));
-        };
-
-        let [rgb] = read_planes(src.planes(), src.format())?;
+        let [(rgba, rgba_stride)] = read_planes(src.planes(), src.format())?;
 
         Ok(Self {
-            rgba: rgb.as_ptr(),
+            rgba: rgba.as_ptr(),
             rgba_stride,
             max_value: crate::formats::max_value_for_bits(src.format().bits_per_component()),
             _m: PhantomData,

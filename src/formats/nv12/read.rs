@@ -23,11 +23,7 @@ impl<'a, P: PrimitiveInternal> NV12Reader<'a, P> {
             return Err(ConvertError::InvalidPlaneSizeForDimensions);
         }
 
-        let [y_stride, uv_stride] = *src.strides() else {
-            return Err(ConvertError::InvalidStridesForPixelFormat(src.format()));
-        };
-
-        let [y, uv] = read_planes(src.planes(), src.format())?;
+        let [(y, y_stride), (uv, uv_stride)] = read_planes(src.planes(), src.format())?;
 
         Ok(Self {
             y: y.as_ptr(),
@@ -46,7 +42,7 @@ impl<P: PrimitiveInternal> I420Src for NV12Reader<'_, P> {
         let y00_offset = (y * self.y_stride) + x;
         let y10_offset = ((y + 1) * self.y_stride) + x;
 
-        let uv_offset = ((y / 2) * (self.uv_stride / 2) + (x / 2)) * 2;
+        let uv_offset = y / 2 * (self.uv_stride) + x / 2;
 
         // Load Y pixels
         let y00 = P::load::<V>(self.y.add(y00_offset));

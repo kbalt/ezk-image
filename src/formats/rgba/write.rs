@@ -36,11 +36,7 @@ where
         let dst_height = dst.height();
         let dst_format = dst.format();
 
-        let [rgba_stride] = *dst.strides() else {
-            return Err(ConvertError::InvalidStridesForPixelFormat(dst.format()));
-        };
-
-        let [rgba] = read_planes_mut(dst.planes_mut(), dst_format)?;
+        let [(rgba, rgba_stride)] = read_planes_mut(dst.planes_mut(), dst_format)?;
 
         visit(
             dst_width,
