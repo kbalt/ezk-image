@@ -171,7 +171,7 @@ where
         let x = plane_desc.width_op.op(window.x);
         let y = plane_desc.height_op.op(window.y);
 
-        let split_at = (y * stride + x) * plane_desc.bytes_per_component;
+        let split_at = (y * stride + x) * plane_desc.bytes_per_primitive;
 
         let (_, slice) = slice.slice_split_at(split_at);
 

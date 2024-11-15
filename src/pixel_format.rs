@@ -57,34 +57,30 @@ impl PixelFormat {
     pub fn buffer_size(self, width: usize, height: usize) -> usize {
         use PixelFormat::*;
 
-        fn buffer_size<const N: usize>(
-            planes: [PlaneDesc; N],
-            width: usize,
-            height: usize,
-        ) -> usize {
+        fn buffer_size(planes: &[PlaneDesc], width: usize, height: usize) -> usize {
             let mut size = 0;
 
             for plane in planes {
                 let w = plane.width_op.op(width);
                 let h = plane.height_op.op(height);
 
-                size = size.strict_add_(w.strict_mul_(h).strict_mul_(plane.bytes_per_component));
+                size = size.strict_add_(w.strict_mul_(h).strict_mul_(plane.bytes_per_primitive));
             }
 
             size
         }
 
         match self {
-            I420 => buffer_size(I420_PLANES, width, height),
-            I422 => buffer_size(I422_PLANES, width, height),
-            I444 => buffer_size(I444_PLANES, width, height),
-            I010 | I012 => buffer_size(I01X_PLANES, width, height),
-            I210 | I212 => buffer_size(I21X_PLANES, width, height),
-            I410 | I412 => buffer_size(I41X_PLANES, width, height),
-            NV12 => buffer_size(NV12_PLANES, width, height),
-            YUYV => buffer_size(YUYV_PLANES, width, height),
-            RGBA | BGRA => buffer_size(RGBA_PLANES, width, height),
-            RGB | BGR => buffer_size(RGB_PLANES, width, height),
+            I420 => buffer_size(&I420_PLANES, width, height),
+            I422 => buffer_size(&I422_PLANES, width, height),
+            I444 => buffer_size(&I444_PLANES, width, height),
+            I010 | I012 => buffer_size(&I01X_PLANES, width, height),
+            I210 | I212 => buffer_size(&I21X_PLANES, width, height),
+            I410 | I412 => buffer_size(&I41X_PLANES, width, height),
+            NV12 => buffer_size(&NV12_PLANES, width, height),
+            YUYV => buffer_size(&YUYV_PLANES, width, height),
+            RGBA | BGRA => buffer_size(&RGBA_PLANES, width, height),
+            RGB | BGR => buffer_size(&RGB_PLANES, width, height),
         }
     }
 
@@ -93,35 +89,29 @@ impl PixelFormat {
     pub fn packed_strides(self, width: usize) -> Vec<usize> {
         use PixelFormat::*;
 
-        fn packed_strides<const N: usize>(planes: [PlaneDesc; N], width: usize) -> Vec<usize> {
-            let mut strides = Vec::with_capacity(N);
-
-            for plane in planes {
-                strides.push(
-                    plane
-                        .width_op
-                        .op(width)
-                        .strict_mul_(plane.bytes_per_component),
-                );
-            }
-
-            strides
+        fn packed_strides(planes: &[PlaneDesc], width: usize) -> Vec<usize> {
+            planes
+                .into_iter()
+                .map(|desc| desc.packed_stride(width))
+                .collect()
         }
 
         match self {
-            I422 => packed_strides(I422_PLANES, width),
-            I420 => packed_strides(I420_PLANES, width),
-            I444 => packed_strides(I444_PLANES, width),
-            I010 | I012 => packed_strides(I01X_PLANES, width),
-            I210 | I212 => packed_strides(I21X_PLANES, width),
-            I410 | I412 => packed_strides(I41X_PLANES, width),
-            NV12 => packed_strides(NV12_PLANES, width),
-            YUYV => packed_strides(YUYV_PLANES, width),
-            RGBA | BGRA => packed_strides(RGBA_PLANES, width),
-            RGB | BGR => packed_strides(RGB_PLANES, width),
+            I422 => packed_strides(&I422_PLANES, width),
+            I420 => packed_strides(&I420_PLANES, width),
+            I444 => packed_strides(&I444_PLANES, width),
+            I010 | I012 => packed_strides(&I01X_PLANES, width),
+            I210 | I212 => packed_strides(&I21X_PLANES, width),
+            I410 | I412 => packed_strides(&I41X_PLANES, width),
+            NV12 => packed_strides(&NV12_PLANES, width),
+            YUYV => packed_strides(&YUYV_PLANES, width),
+            RGBA | BGRA => packed_strides(&RGBA_PLANES, width),
+            RGB | BGR => packed_strides(&RGB_PLANES, width),
         }
     }
 
+    /// Check if the given planes+strides are valid for dimensions
+    #[deny(clippy::arithmetic_side_effects)]
     pub fn bounds_check<'a>(
         self,
         planes: impl Iterator<Item = (&'a [u8], usize)>,
@@ -138,10 +128,7 @@ impl PixelFormat {
         ) -> Result<(), BoundsCheckError> {
             for (i, (plane, (slice, stride))) in planes.into_iter().zip(got).enumerate() {
                 // Ensure stride is not smaller than the width would allow
-                let min_stride = plane
-                    .width_op
-                    .op(width)
-                    .strict_mul_(plane.bytes_per_component);
+                let min_stride = plane.packed_stride(width);
 
                 if min_stride > stride {
                     return Err(BoundsCheckError::InvalidStride {
@@ -154,7 +141,7 @@ impl PixelFormat {
                 // Ensure slice is large enough
                 let min_len = stride
                     .strict_mul_(plane.height_op.op(height))
-                    .strict_mul_(plane.bytes_per_component);
+                    .strict_mul_(plane.bytes_per_primitive);
 
                 if min_len > slice.len() {
                     return Err(BoundsCheckError::InvalidPlaneSize {

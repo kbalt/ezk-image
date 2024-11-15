@@ -18,8 +18,10 @@ mod primitive;
 // #[cfg(feature = "resize")]
 // pub mod resize;
 mod crop;
+mod image_traits;
 mod pixel_format;
 mod plane_decs;
+pub(crate) mod util;
 mod vector;
 
 mod arch {
@@ -40,7 +42,8 @@ pub use pixel_format::PixelFormat;
 pub use planes::*;
 // #[doc(hidden)]
 // pub use copy::copy;
-pub use image::{Image, ImageError, ImageMut, ImageRef, ImageRefExt};
+pub use image::{Image, ImageError};
+pub use image_traits::{ImageMut, ImageRef, ImageRefExt};
 // #[cfg(feature = "multi-thread")]
 // pub use multi_thread::convert_multi_thread;
 

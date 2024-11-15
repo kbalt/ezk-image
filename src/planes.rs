@@ -1,6 +1,12 @@
+use crate::{
+    plane_decs::{
+        PlaneDesc, I01X_PLANES, I21X_PLANES, I41X_PLANES, I420_PLANES, I422_PLANES, I444_PLANES,
+        NV12_PLANES,
+    },
+    util::ArrayIter,
+    PixelFormat, StrictApi, Window,
+};
 use std::mem::MaybeUninit;
-
-use crate::{PixelFormat, StrictApi, Window};
 
 #[derive(Debug, thiserror::Error)]
 #[error("got invalid number of planes, expected {expected} but only got {got}")]
@@ -39,25 +45,69 @@ pub(crate) fn read_planes_mut<'a, const N: usize>(
     Ok(out.map(|plane| unsafe { plane.assume_init() }))
 }
 
-/// Infer the planes for an image in the given format using the given dimensions
+/// Infer the planes for an image in the given format using the given dimensions and strides
 ///
 /// # Panics
 ///
 /// If `buf` is too small for the given dimensions this function will panic
 #[deny(clippy::arithmetic_side_effects)]
-pub fn infer<S: AnySlice>(format: PixelFormat, buf: S, width: usize, height: usize) -> Vec<S> {
+pub fn infer<S: AnySlice>(
+    format: PixelFormat,
+    buf: S,
+    width: usize,
+    height: usize,
+    strides: Option<&[usize]>,
+) -> impl Iterator<Item = S> {
     match format {
-        PixelFormat::I420 => infer_i420(buf, width, height).into(),
-        PixelFormat::I422 => infer_i422(buf, width, height).into(),
-        PixelFormat::I444 => infer_i444(buf, width, height).into(),
-        PixelFormat::I010 | PixelFormat::I012 => infer_i01x(buf, width, height).into(),
-        PixelFormat::I210 | PixelFormat::I212 => infer_i21x(buf, width, height).into(),
-        PixelFormat::I410 | PixelFormat::I412 => infer_i41x(buf, width, height).into(),
-        PixelFormat::NV12 => infer_nv12(buf, width, height).into(),
-        PixelFormat::YUYV => vec![buf],
-        PixelFormat::RGBA | PixelFormat::BGRA => vec![buf],
-        PixelFormat::RGB | PixelFormat::BGR => vec![buf],
+        PixelFormat::I420 => ArrayIter::from(infer_i420(buf, width, height, strides)),
+        PixelFormat::I422 => ArrayIter::from(infer_i422(buf, width, height, strides)),
+        PixelFormat::I444 => ArrayIter::from(infer_i444(buf, width, height, strides)),
+        PixelFormat::I010 | PixelFormat::I012 => {
+            ArrayIter::from(infer_i01x(buf, width, height, strides))
+        }
+        PixelFormat::I210 | PixelFormat::I212 => {
+            ArrayIter::from(infer_i21x(buf, width, height, strides))
+        }
+        PixelFormat::I410 | PixelFormat::I412 => {
+            ArrayIter::from(infer_i41x(buf, width, height, strides))
+        }
+        PixelFormat::NV12 => ArrayIter::from(infer_nv12(buf, width, height, strides)),
+        PixelFormat::YUYV => ArrayIter::from([buf]),
+        PixelFormat::RGBA | PixelFormat::BGRA => ArrayIter::from([buf]),
+        PixelFormat::RGB | PixelFormat::BGR => ArrayIter::from([buf]),
     }
+}
+
+#[deny(clippy::arithmetic_side_effects)]
+fn infer_impl<const N: usize, S: AnySlice>(
+    plane_decs: [PlaneDesc; N],
+    mut buf: S,
+    width: usize,
+    height: usize,
+    strides: Option<&[usize]>,
+) -> [S; N] {
+    let strides = strides.map(|strides| <[usize; N]>::try_from(strides).unwrap());
+
+    // Infer default strides for a packed buffer
+    let strides: [usize; N] =
+        strides.unwrap_or_else(|| plane_decs.map(|desc| desc.packed_stride(width)));
+
+    let mut out: [MaybeUninit<S>; N] = [const { MaybeUninit::uninit() }; N];
+
+    for ((desc, stride), out) in plane_decs.into_iter().zip(strides).zip(out.iter_mut()) {
+        let split_at = desc
+            .height_op
+            .op(height)
+            .strict_mul_(stride)
+            .strict_mul_(desc.bytes_per_primitive);
+
+        let (prev, rem) = buf.slice_split_at(split_at);
+
+        out.write(prev);
+        buf = rem;
+    }
+
+    out.map(|p| unsafe { p.assume_init() })
 }
 
 /// Infer the planes for a full I420 image using the given dimensions
@@ -66,11 +116,13 @@ pub fn infer<S: AnySlice>(format: PixelFormat, buf: S, width: usize, height: usi
 ///
 /// If `buf` is too small for the given dimensions this function will panic
 #[deny(clippy::arithmetic_side_effects)]
-pub fn infer_i420<S: AnySlice>(buf: S, width: usize, height: usize) -> [S; 3] {
-    let (y, tmp) = buf.slice_split_at(width.strict_mul_(height));
-    let (u, v) = tmp.slice_split_at(width.strict_mul_(height) / 4);
-
-    [y, u, v]
+pub fn infer_i420<S: AnySlice>(
+    buf: S,
+    width: usize,
+    height: usize,
+    strides: Option<&[usize]>,
+) -> [S; 3] {
+    infer_impl(I420_PLANES, buf, width, height, strides)
 }
 
 /// Infer the planes for a full I422 image using the given dimensions
@@ -79,11 +131,13 @@ pub fn infer_i420<S: AnySlice>(buf: S, width: usize, height: usize) -> [S; 3] {
 ///
 /// If `buf` is too small for the given dimensions this function will panic
 #[deny(clippy::arithmetic_side_effects)]
-pub fn infer_i422<S: AnySlice>(buf: S, width: usize, height: usize) -> [S; 3] {
-    let (y, tmp) = buf.slice_split_at(width.strict_mul_(height));
-    let (u, v) = tmp.slice_split_at(width.strict_mul_(height) / 2);
-
-    [y, u, v]
+pub fn infer_i422<S: AnySlice>(
+    buf: S,
+    width: usize,
+    height: usize,
+    strides: Option<&[usize]>,
+) -> [S; 3] {
+    infer_impl(I422_PLANES, buf, width, height, strides)
 }
 
 /// Infer the planes for a full I444 image using the given dimensions
@@ -92,11 +146,13 @@ pub fn infer_i422<S: AnySlice>(buf: S, width: usize, height: usize) -> [S; 3] {
 ///
 /// If `buf` is too small for the given dimensions this function will panic
 #[deny(clippy::arithmetic_side_effects)]
-pub fn infer_i444<S: AnySlice>(buf: S, width: usize, height: usize) -> [S; 3] {
-    let (y, tmp) = buf.slice_split_at(width.strict_mul_(height));
-    let (u, v) = tmp.slice_split_at(width.strict_mul_(height));
-
-    [y, u, v]
+pub fn infer_i444<S: AnySlice>(
+    buf: S,
+    width: usize,
+    height: usize,
+    strides: Option<&[usize]>,
+) -> [S; 3] {
+    infer_impl(I444_PLANES, buf, width, height, strides)
 }
 
 /// Infer the planes for a full I010 or I012 image using the given dimensions
@@ -105,11 +161,13 @@ pub fn infer_i444<S: AnySlice>(buf: S, width: usize, height: usize) -> [S; 3] {
 ///
 /// If `buf` is too small for the given dimensions this function will panic
 #[deny(clippy::arithmetic_side_effects)]
-pub fn infer_i01x<S: AnySlice>(buf: S, width: usize, height: usize) -> [S; 3] {
-    let (y, tmp) = buf.slice_split_at(width.strict_mul_(height).strict_mul_(2));
-    let (u, v) = tmp.slice_split_at(width.strict_mul_(height) / 2);
-
-    [y, u, v]
+pub fn infer_i01x<S: AnySlice>(
+    buf: S,
+    width: usize,
+    height: usize,
+    strides: Option<&[usize]>,
+) -> [S; 3] {
+    infer_impl(I01X_PLANES, buf, width, height, strides)
 }
 
 /// Infer the planes for a full I210 or I212 image using the given dimensions
@@ -118,11 +176,13 @@ pub fn infer_i01x<S: AnySlice>(buf: S, width: usize, height: usize) -> [S; 3] {
 ///
 /// If `buf` is too small for the given dimensions this function will panic
 #[deny(clippy::arithmetic_side_effects)]
-pub fn infer_i21x<S: AnySlice>(buf: S, width: usize, height: usize) -> [S; 3] {
-    let (y, tmp) = buf.slice_split_at(width.strict_mul_(height).strict_mul_(2));
-    let (u, v) = tmp.slice_split_at(width.strict_mul_(height));
-
-    [y, u, v]
+pub fn infer_i21x<S: AnySlice>(
+    buf: S,
+    width: usize,
+    height: usize,
+    strides: Option<&[usize]>,
+) -> [S; 3] {
+    infer_impl(I21X_PLANES, buf, width, height, strides)
 }
 
 /// Infer the planes for a full I410 or I412 image using the given dimensions
@@ -131,11 +191,13 @@ pub fn infer_i21x<S: AnySlice>(buf: S, width: usize, height: usize) -> [S; 3] {
 ///
 /// If `buf` is too small for the given dimensions this function will panic
 #[deny(clippy::arithmetic_side_effects)]
-pub fn infer_i41x<S: AnySlice>(buf: S, width: usize, height: usize) -> [S; 3] {
-    let (y, tmp) = buf.slice_split_at(width.strict_mul_(height).strict_mul_(2));
-    let (u, v) = tmp.slice_split_at(width.strict_mul_(height).strict_mul_(2));
-
-    [y, u, v]
+pub fn infer_i41x<S: AnySlice>(
+    buf: S,
+    width: usize,
+    height: usize,
+    strides: Option<&[usize]>,
+) -> [S; 3] {
+    infer_impl(I41X_PLANES, buf, width, height, strides)
 }
 
 /// Infer the planes for a full NV12 image using the given dimensions
@@ -144,12 +206,13 @@ pub fn infer_i41x<S: AnySlice>(buf: S, width: usize, height: usize) -> [S; 3] {
 ///
 /// If `buf` is too small for the given dimensions this function will panic
 #[deny(clippy::arithmetic_side_effects)]
-pub fn infer_nv12<S: AnySlice>(buf: S, width: usize, height: usize) -> [S; 2] {
-    let (y, uv) = buf.slice_split_at(width.strict_mul_(height));
-
-    assert!(uv.slice_len() >= width.strict_mul_(height) / 2);
-
-    [y, uv]
+pub fn infer_nv12<S: AnySlice>(
+    buf: S,
+    width: usize,
+    height: usize,
+    strides: Option<&[usize]>,
+) -> [S; 2] {
+    infer_impl(NV12_PLANES, buf, width, height, strides)
 }
 
 // /// Split the planes into multiple planes, where

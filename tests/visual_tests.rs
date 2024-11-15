@@ -33,10 +33,10 @@ fn make_rgba8_image(primaries: ColorPrimaries, transfer: ColorTransfer) -> Image
         }
     }
 
-    Image::new(
+    Image::from_buffer(
         PixelFormat::RGBA,
-        vec![out],
-        vec![width * 4],
+        out,
+        PixelFormat::RGBA.packed_strides(width),
         width,
         height,
         ColorInfo::RGB(RgbColorInfo {
