@@ -100,25 +100,25 @@ pub(crate) unsafe trait Vector: Debug + Copy + 'static {
     /// # Safety
     ///
     /// Pointer must be valid to read Self::LEN * 2 bytes
-    unsafe fn load_u16(ptr: *const u16) -> Self;
+    unsafe fn load_u16(ptr: *const u8) -> Self;
 
     unsafe fn load_u8_3x_interleaved_2x(ptr: *const u8) -> [[Self; 3]; 2];
-    unsafe fn load_u16_3x_interleaved_2x(ptr: *const u16) -> [[Self; 3]; 2];
+    unsafe fn load_u16_3x_interleaved_2x(ptr: *const u8) -> [[Self; 3]; 2];
 
     unsafe fn load_u8_4x_interleaved_2x(ptr: *const u8) -> [[Self; 4]; 2];
-    unsafe fn load_u16_4x_interleaved_2x(ptr: *const u16) -> [[Self; 4]; 2];
+    unsafe fn load_u16_4x_interleaved_2x(ptr: *const u8) -> [[Self; 4]; 2];
 
     /// Write
     unsafe fn write_u8(self, ptr: *mut u8);
     unsafe fn write_u8_2x(v0: Self, v1: Self, ptr: *mut u8);
-    unsafe fn write_u16(self, ptr: *mut u16);
-    unsafe fn write_u16_2x(v0: Self, v1: Self, ptr: *mut u16);
+    unsafe fn write_u16(self, ptr: *mut u8);
+    unsafe fn write_u16_2x(v0: Self, v1: Self, ptr: *mut u8);
 
     unsafe fn write_interleaved_3x_2x_u8(this: [[Self; 3]; 2], ptr: *mut u8);
-    unsafe fn write_interleaved_3x_2x_u16(this: [[Self; 3]; 2], ptr: *mut u16);
+    unsafe fn write_interleaved_3x_2x_u16(this: [[Self; 3]; 2], ptr: *mut u8);
 
     unsafe fn write_interleaved_4x_2x_u8(this: [[Self; 4]; 2], ptr: *mut u8);
-    unsafe fn write_interleaved_4x_2x_u16(this: [[Self; 4]; 2], ptr: *mut u16);
+    unsafe fn write_interleaved_4x_2x_u16(this: [[Self; 4]; 2], ptr: *mut u8);
 
     unsafe fn dyn_rgba_read<'a>(
         v: &mut (dyn DynRgbaReader + 'a),
@@ -206,8 +206,8 @@ unsafe impl Vector for f32 {
         Self::from(ptr.read_unaligned())
     }
     #[inline(always)]
-    unsafe fn load_u16(ptr: *const u16) -> Self {
-        Self::from(ptr.read_unaligned())
+    unsafe fn load_u16(ptr: *const u8) -> Self {
+        Self::from(ptr.cast::<u16>().read_unaligned())
     }
 
     #[inline(always)]
@@ -217,7 +217,7 @@ unsafe impl Vector for f32 {
     }
 
     #[inline(always)]
-    unsafe fn load_u16_3x_interleaved_2x(ptr: *const u16) -> [[Self; 3]; 2] {
+    unsafe fn load_u16_3x_interleaved_2x(ptr: *const u8) -> [[Self; 3]; 2] {
         let v = ptr.cast::<[[u16; 3]; 2]>().read_unaligned();
         v.map(|v| v.map(|v| v as f32))
     }
@@ -229,7 +229,7 @@ unsafe impl Vector for f32 {
     }
 
     #[inline(always)]
-    unsafe fn load_u16_4x_interleaved_2x(ptr: *const u16) -> [[Self; 4]; 2] {
+    unsafe fn load_u16_4x_interleaved_2x(ptr: *const u8) -> [[Self; 4]; 2] {
         let v = ptr.cast::<[[u16; 4]; 2]>().read_unaligned();
         v.map(|v| v.map(|v| v as f32))
     }
@@ -243,11 +243,11 @@ unsafe impl Vector for f32 {
         ptr.cast::<[u8; 2]>().write_unaligned([v0 as u8, v1 as u8]);
     }
     #[inline(always)]
-    unsafe fn write_u16(self, ptr: *mut u16) {
-        ptr.write_unaligned(self as u16);
+    unsafe fn write_u16(self, ptr: *mut u8) {
+        ptr.cast::<u16>().write_unaligned(self as u16);
     }
     #[inline(always)]
-    unsafe fn write_u16_2x(v0: Self, v1: Self, ptr: *mut u16) {
+    unsafe fn write_u16_2x(v0: Self, v1: Self, ptr: *mut u8) {
         ptr.cast::<[u16; 2]>()
             .write_unaligned([v0 as u16, v1 as u16]);
     }
@@ -259,7 +259,7 @@ unsafe impl Vector for f32 {
     }
 
     #[inline(always)]
-    unsafe fn write_interleaved_3x_2x_u16(this: [[Self; 3]; 2], ptr: *mut u16) {
+    unsafe fn write_interleaved_3x_2x_u16(this: [[Self; 3]; 2], ptr: *mut u8) {
         ptr.cast::<[[u16; 3]; 2]>()
             .write_unaligned(this.map(|f| f.map(|f| f as u16)));
     }
@@ -271,7 +271,7 @@ unsafe impl Vector for f32 {
     }
 
     #[inline(always)]
-    unsafe fn write_interleaved_4x_2x_u16(this: [[Self; 4]; 2], ptr: *mut u16) {
+    unsafe fn write_interleaved_4x_2x_u16(this: [[Self; 4]; 2], ptr: *mut u8) {
         ptr.cast::<[[u16; 4]; 2]>()
             .write_unaligned(this.map(|f| f.map(|f| f as u16)));
     }

@@ -15,7 +15,7 @@ pub(crate) struct I422ToRgb<S> {
 impl<S: I422Src> I422ToRgb<S> {
     pub(crate) fn new(color: &ColorInfo, i422_src: S) -> Result<Self, ConvertError> {
         let ColorInfo::YUV(yuv) = color else {
-            return Err(ConvertError::MismatchedImageSize);
+            return Err(ConvertError::InvalidColorInfo);
         };
 
         Ok(Self {

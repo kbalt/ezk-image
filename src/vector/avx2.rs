@@ -93,7 +93,7 @@ unsafe impl Vector for __m256 {
     }
 
     #[inline(always)]
-    unsafe fn load_u16(ptr: *const u16) -> Self {
+    unsafe fn load_u16(ptr: *const u8) -> Self {
         let v = ptr.cast::<__m128i>().read_unaligned();
         let v = _mm256_cvtepu16_epi32(v);
         _mm256_cvtepi32_ps(v)
@@ -117,9 +117,9 @@ unsafe impl Vector for __m256 {
     }
 
     #[inline(always)]
-    unsafe fn load_u16_3x_interleaved_2x(ptr: *const u16) -> [[Self; 3]; 2] {
+    unsafe fn load_u16_3x_interleaved_2x(ptr: *const u8) -> [[Self; 3]; 2] {
         #[inline(always)]
-        unsafe fn inner(ptr: *const u16) -> (__m256, __m256, __m256) {
+        unsafe fn inner(ptr: *const u8) -> (__m256, __m256, __m256) {
             let m1 = __m256::load_u16(ptr);
             let m2 = __m256::load_u16(ptr.add(__m256::LEN));
             let m3 = __m256::load_u16(ptr.add(__m256::LEN * 2));
@@ -152,9 +152,9 @@ unsafe impl Vector for __m256 {
     }
 
     #[inline(always)]
-    unsafe fn load_u16_4x_interleaved_2x(ptr: *const u16) -> [[Self; 4]; 2] {
+    unsafe fn load_u16_4x_interleaved_2x(ptr: *const u8) -> [[Self; 4]; 2] {
         #[inline(always)]
-        unsafe fn inner(ptr: *const u16) -> (__m256, __m256, __m256, __m256) {
+        unsafe fn inner(ptr: *const u8) -> (__m256, __m256, __m256, __m256) {
             let m1 = __m256::load_u16(ptr);
             let m2 = __m256::load_u16(ptr.add(__m256::LEN));
             let m3 = __m256::load_u16(ptr.add(__m256::LEN * 2));
@@ -181,12 +181,12 @@ unsafe impl Vector for __m256 {
     }
 
     #[inline(always)]
-    unsafe fn write_u16(self, ptr: *mut u16) {
+    unsafe fn write_u16(self, ptr: *mut u8) {
         ptr.cast::<[u16; 8]>().write_unaligned(f32x8_to_u16x8(self))
     }
 
     #[inline(always)]
-    unsafe fn write_u16_2x(v0: Self, v1: Self, ptr: *mut u16) {
+    unsafe fn write_u16_2x(v0: Self, v1: Self, ptr: *mut u8) {
         ptr.cast::<[u16; 16]>()
             .write_unaligned(f32x8x2_to_u16x16(v0, v1))
     }
@@ -200,7 +200,7 @@ unsafe impl Vector for __m256 {
     }
 
     #[inline(always)]
-    unsafe fn write_interleaved_3x_2x_u16(this: [[Self; 3]; 2], ptr: *mut u16) {
+    unsafe fn write_interleaved_3x_2x_u16(this: [[Self; 3]; 2], ptr: *mut u8) {
         let a = interleave_f32x8x3_to_u16x24(this[0][0], this[0][1], this[0][2]);
         let b = interleave_f32x8x3_to_u16x24(this[1][0], this[1][1], this[1][2]);
 
@@ -216,7 +216,7 @@ unsafe impl Vector for __m256 {
     }
 
     #[inline(always)]
-    unsafe fn write_interleaved_4x_2x_u16(this: [[Self; 4]; 2], ptr: *mut u16) {
+    unsafe fn write_interleaved_4x_2x_u16(this: [[Self; 4]; 2], ptr: *mut u8) {
         let a = interleave_f32x8x4_to_u16x32(this[0][0], this[0][1], this[0][2], this[0][3]);
         let b = interleave_f32x8x4_to_u16x32(this[1][0], this[1][1], this[1][2], this[1][3]);
 
@@ -474,7 +474,7 @@ mod math {
 
     #[inline(always)]
     pub(super) unsafe fn log(x: __m256) -> __m256 {
-        const INV_MANT_MASK: __m256 = splat(unsafe { transmute::<i32, f32>(!0x7f800000) });
+        const INV_MANT_MASK: __m256 = splat(f32::from_bits(!0x7f800000));
         const CEPHES_SQRT_HF: __m256 = splat(0.707_106_77);
         const CEPHES_LOG_P0: __m256 = splat(7.037_683_6E-2);
         const CEPHES_LOG_P1: __m256 = splat(-1.151_461E-1);

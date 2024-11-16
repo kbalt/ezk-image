@@ -1,15 +1,16 @@
 use crate::formats::{I420Block, I420Src};
+use crate::planes::read_planes;
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
-use crate::{ConvertError, PixelFormat, PixelFormatPlanes, Window};
+use crate::{ConvertError, ImageRef, ImageRefExt};
 use std::marker::PhantomData;
 
 pub(crate) struct NV12Reader<'a, P: PrimitiveInternal> {
-    window: Window,
+    y: *const u8,
+    uv: *const u8,
 
-    src_width: usize,
-    src_y: *const P,
-    src_uv: *const P,
+    y_stride: usize,
+    uv_stride: usize,
 
     max_value: f32,
 
@@ -17,37 +18,17 @@ pub(crate) struct NV12Reader<'a, P: PrimitiveInternal> {
 }
 
 impl<'a, P: PrimitiveInternal> NV12Reader<'a, P> {
-    pub(crate) fn new(
-        src_width: usize,
-        src_height: usize,
-        src_planes: PixelFormatPlanes<&'a [P]>,
-        bits_per_component: usize,
-        window: Option<Window>,
-    ) -> Result<Self, ConvertError> {
-        if !src_planes.bounds_check(src_width, src_height) {
-            return Err(ConvertError::InvalidPlaneSizeForDimensions);
-        }
+    pub(crate) fn new(src: &'a impl ImageRef) -> Result<Self, ConvertError> {
+        src.bounds_check()?;
 
-        let PixelFormatPlanes::NV12 { y, uv } = src_planes else {
-            return Err(ConvertError::InvalidPlanesForPixelFormat(PixelFormat::NV12));
-        };
-
-        let window = window.unwrap_or(Window {
-            x: 0,
-            y: 0,
-            width: src_width,
-            height: src_height,
-        });
-
-        assert!((window.x + window.width) <= src_width);
-        assert!((window.y + window.height) <= src_height);
+        let [(y, y_stride), (uv, uv_stride)] = read_planes(src.planes())?;
 
         Ok(Self {
-            window,
-            src_width,
-            src_y: y.as_ptr(),
-            src_uv: uv.as_ptr(),
-            max_value: crate::formats::max_value_for_bits(bits_per_component),
+            y: y.as_ptr(),
+            uv: uv.as_ptr(),
+            y_stride,
+            uv_stride,
+            max_value: crate::formats::max_value_for_bits(src.format().bits_per_component()),
             _m: PhantomData,
         })
     }
@@ -56,23 +37,20 @@ impl<'a, P: PrimitiveInternal> NV12Reader<'a, P> {
 impl<P: PrimitiveInternal> I420Src for NV12Reader<'_, P> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> I420Block<V> {
-        let x = self.window.x + x;
-        let y = self.window.y + y;
+        let y00_offset = y * self.y_stride + x * P::SIZE;
+        let y10_offset = (y + 1) * self.y_stride + x * P::SIZE;
 
-        let uv_offset = ((y / 2) * (self.src_width / 2) + (x / 2)) * 2;
-
-        let y00_offset = (y * self.src_width) + x;
-        let y10_offset = ((y + 1) * self.src_width) + x;
+        let uv_offset = (y / 2) * (self.uv_stride) + x * P::SIZE;
 
         // Load Y pixels
-        let y00 = P::load::<V>(self.src_y.add(y00_offset));
-        let y01 = P::load::<V>(self.src_y.add(y00_offset + V::LEN));
-        let y10 = P::load::<V>(self.src_y.add(y10_offset));
-        let y11 = P::load::<V>(self.src_y.add(y10_offset + V::LEN));
+        let y00 = P::load::<V>(self.y.add(y00_offset));
+        let y01 = P::load::<V>(self.y.add(y00_offset + V::LEN * P::SIZE));
+        let y10 = P::load::<V>(self.y.add(y10_offset));
+        let y11 = P::load::<V>(self.y.add(y10_offset + V::LEN * P::SIZE));
 
         // Load U and V
-        let uv0 = P::load::<V>(self.src_uv.add(uv_offset));
-        let uv1 = P::load::<V>(self.src_uv.add(uv_offset + V::LEN));
+        let uv0 = P::load::<V>(self.uv.add(uv_offset));
+        let uv1 = P::load::<V>(self.uv.add(uv_offset + V::LEN * P::SIZE));
 
         let (u, v) = uv0.unzip(uv1);
 

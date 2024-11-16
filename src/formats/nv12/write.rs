@@ -1,10 +1,9 @@
-#![allow(clippy::too_many_arguments)]
-
 use crate::formats::visit_2x2::{visit, Image2x2Visitor};
 use crate::formats::{I420Block, I420Src};
+use crate::planes::read_planes_mut;
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
-use crate::{ConvertError, PixelFormat, PixelFormatPlanes, Window};
+use crate::{ConvertError, ImageMut, ImageRefExt};
 use std::marker::PhantomData;
 
 pub(crate) struct NV12Writer<'a, P, S>
@@ -12,10 +11,11 @@ where
     P: PrimitiveInternal,
     S: I420Src,
 {
-    window: Window,
-    dst_width: usize,
-    dst_y: *mut P,
-    dst_uv: *mut P,
+    y: *mut u8,
+    uv: *mut u8,
+
+    y_stride: usize,
+    uv_stride: usize,
 
     max_value: f32,
 
@@ -29,37 +29,24 @@ where
     P: PrimitiveInternal,
     S: I420Src,
 {
-    pub(crate) fn write(
-        dst_width: usize,
-        dst_height: usize,
-        dst_planes: PixelFormatPlanes<&'a mut [P]>,
-        bits_per_component: usize,
-        window: Option<Window>,
-        i420_src: S,
-    ) -> Result<(), ConvertError> {
-        if !dst_planes.bounds_check(dst_width, dst_height) {
-            return Err(ConvertError::InvalidPlaneSizeForDimensions);
-        }
+    pub(crate) fn write(dst: &'a mut impl ImageMut, i420_src: S) -> Result<(), ConvertError> {
+        dst.bounds_check()?;
 
-        let PixelFormatPlanes::NV12 { y, uv } = dst_planes else {
-            return Err(ConvertError::InvalidPlanesForPixelFormat(PixelFormat::NV12));
-        };
+        let dst_width = dst.width();
+        let dst_height = dst.height();
+        let dst_format = dst.format();
+
+        let [(y, y_stride), (uv, uv_stride)] = read_planes_mut(dst.planes_mut())?;
 
         visit(
             dst_width,
             dst_height,
-            window,
             Self {
-                window: window.unwrap_or(Window {
-                    x: 0,
-                    y: 0,
-                    width: dst_width,
-                    height: dst_height,
-                }),
-                dst_width,
-                dst_y: y.as_mut_ptr(),
-                dst_uv: uv.as_mut_ptr(),
-                max_value: crate::formats::max_value_for_bits(bits_per_component),
+                y: y.as_mut_ptr(),
+                uv: uv.as_mut_ptr(),
+                y_stride,
+                uv_stride,
+                max_value: crate::formats::max_value_for_bits(dst_format.bits_per_component()),
                 i420_src,
                 _m: PhantomData,
             },
@@ -81,9 +68,7 @@ where
             y11,
             u,
             v,
-        } = self
-            .i420_src
-            .read::<V>(x - self.window.x, y - self.window.y);
+        } = self.i420_src.read::<V>(x, y);
 
         let y00 = y00.vmulf(self.max_value);
         let y01 = y01.vmulf(self.max_value);
@@ -92,18 +77,16 @@ where
         let u = u.vmulf(self.max_value);
         let v = v.vmulf(self.max_value);
 
-        let offset0 = y * self.dst_width + x;
-        let offset1 = (y + 1) * self.dst_width + x;
-        P::write_2x(self.dst_y.add(offset0), y00, y01);
-        P::write_2x(self.dst_y.add(offset1), y10, y11);
+        let y00_offset = y * self.y_stride + x * P::SIZE;
+        let y10_offset = (y + 1) * self.y_stride + x * P::SIZE;
 
-        let hx = x / 2;
-        let hy = y / 2;
-        let hw = self.dst_width / 2;
+        let uv_offset = (y / 2) * self.uv_stride + x * P::SIZE;
+
+        P::write_2x(self.y.add(y00_offset), y00, y01);
+        P::write_2x(self.y.add(y10_offset), y10, y11);
 
         let (uv0, uv1) = u.zip(v);
 
-        let uv_offset = (hy * hw) + hx;
-        P::write_2x(self.dst_uv.add(uv_offset * 2), uv0, uv1);
+        P::write_2x(self.uv.add(uv_offset), uv0, uv1);
     }
 }

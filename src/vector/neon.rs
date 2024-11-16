@@ -86,7 +86,7 @@ unsafe impl Vector for float32x4_t {
     }
 
     #[inline(always)]
-    unsafe fn load_u16(ptr: *const u16) -> Self {
+    unsafe fn load_u16(ptr: *const u8) -> Self {
         let v = ptr.cast::<uint16x4_t>().read_unaligned();
         let v = vmovl_u16(v);
 
@@ -115,8 +115,8 @@ unsafe impl Vector for float32x4_t {
     }
 
     #[inline(always)]
-    unsafe fn load_u16_3x_interleaved_2x(ptr: *const u16) -> [[Self; 3]; 2] {
-        let rgb_lanes = vld3q_u16(ptr);
+    unsafe fn load_u16_3x_interleaved_2x(ptr: *const u8) -> [[Self; 3]; 2] {
+        let rgb_lanes = vld3q_u16(ptr.cast());
 
         let [r, g, b]: [uint16x8_t; 3] = transmute(rgb_lanes);
 
@@ -158,8 +158,8 @@ unsafe impl Vector for float32x4_t {
     }
 
     #[inline(always)]
-    unsafe fn load_u16_4x_interleaved_2x(ptr: *const u16) -> [[Self; 4]; 2] {
-        let rgba_lanes = vld4q_u16(ptr);
+    unsafe fn load_u16_4x_interleaved_2x(ptr: *const u8) -> [[Self; 4]; 2] {
+        let rgba_lanes = vld4q_u16(ptr.cast());
 
         let [r, g, b, a]: [uint16x8_t; 4] = transmute(rgba_lanes);
 
@@ -191,13 +191,13 @@ unsafe impl Vector for float32x4_t {
     }
 
     #[inline(always)]
-    unsafe fn write_u16(self, ptr: *mut u16) {
+    unsafe fn write_u16(self, ptr: *mut u8) {
         ptr.cast::<[u16; 4]>()
             .write_unaligned(float32x4_to_u16x4(self))
     }
 
     #[inline(always)]
-    unsafe fn write_u16_2x(v0: Self, v1: Self, ptr: *mut u16) {
+    unsafe fn write_u16_2x(v0: Self, v1: Self, ptr: *mut u8) {
         ptr.cast::<[u16; 8]>()
             .write_unaligned(float32x4x2_to_u16x8(v0, v1))
     }
@@ -214,14 +214,14 @@ unsafe impl Vector for float32x4_t {
     }
 
     #[inline(always)]
-    unsafe fn write_interleaved_3x_2x_u16(this: [[Self; 3]; 2], ptr: *mut u16) {
+    unsafe fn write_interleaved_3x_2x_u16(this: [[Self; 3]; 2], ptr: *mut u8) {
         let v0 = float32x4x2_to_u16x8(this[0][0], this[1][0]);
         let v1 = float32x4x2_to_u16x8(this[0][1], this[1][1]);
         let v2 = float32x4x2_to_u16x8(this[0][2], this[1][2]);
 
         let v = transmute::<[[u16; 8]; 3], uint16x8x3_t>([v0, v1, v2]);
 
-        vst3q_u16(ptr, v)
+        vst3q_u16(ptr.cast(), v)
     }
 
     #[inline(always)]
@@ -237,7 +237,7 @@ unsafe impl Vector for float32x4_t {
     }
 
     #[inline(always)]
-    unsafe fn write_interleaved_4x_2x_u16(this: [[Self; 4]; 2], ptr: *mut u16) {
+    unsafe fn write_interleaved_4x_2x_u16(this: [[Self; 4]; 2], ptr: *mut u8) {
         let v0 = float32x4x2_to_u16x8(this[0][0], this[1][0]);
         let v1 = float32x4x2_to_u16x8(this[0][1], this[1][1]);
         let v2 = float32x4x2_to_u16x8(this[0][2], this[1][2]);
@@ -245,7 +245,7 @@ unsafe impl Vector for float32x4_t {
 
         let v = transmute::<[[u16; 8]; 4], uint16x8x4_t>([v0, v1, v2, v3]);
 
-        vst4q_u16(ptr, v)
+        vst4q_u16(ptr.cast(), v)
     }
 
     #[inline(always)]

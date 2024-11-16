@@ -1,13 +1,13 @@
+use crate::planes::read_planes;
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
-use crate::{ConvertError, I422Block, I422Src, PixelFormat, PixelFormatPlanes, Window};
+use crate::{ConvertError, I422Block, I422Src, ImageRef, ImageRefExt};
 use std::marker::PhantomData;
 
 pub(crate) struct YUYVReader<'a, P: PrimitiveInternal> {
-    window: Window,
+    yuyv: *const u8,
 
-    src_width: usize,
-    yuyv: *const P,
+    yuyv_stride: usize,
 
     max_value: f32,
 
@@ -15,36 +15,15 @@ pub(crate) struct YUYVReader<'a, P: PrimitiveInternal> {
 }
 
 impl<'a, P: PrimitiveInternal> YUYVReader<'a, P> {
-    pub(crate) fn new(
-        src_width: usize,
-        src_height: usize,
-        src_planes: PixelFormatPlanes<&'a [P]>,
-        bits_per_component: usize,
-        window: Option<Window>,
-    ) -> Result<Self, ConvertError> {
-        if !src_planes.bounds_check(src_width, src_height) {
-            return Err(ConvertError::InvalidPlaneSizeForDimensions);
-        }
+    pub(crate) fn new(src: &'a impl ImageRef) -> Result<Self, ConvertError> {
+        src.bounds_check()?;
 
-        let PixelFormatPlanes::YUYV(yuyv) = src_planes else {
-            return Err(ConvertError::InvalidPlanesForPixelFormat(PixelFormat::YUYV));
-        };
-
-        let window = window.unwrap_or(Window {
-            x: 0,
-            y: 0,
-            width: src_width,
-            height: src_height,
-        });
-
-        assert!((window.x + window.width) <= src_width);
-        assert!((window.y + window.height) <= src_height);
+        let [(yuyv, yuyv_stride)] = read_planes(src.planes())?;
 
         Ok(Self {
-            window,
-            src_width,
             yuyv: yuyv.as_ptr(),
-            max_value: crate::formats::max_value_for_bits(bits_per_component),
+            yuyv_stride,
+            max_value: crate::formats::max_value_for_bits(src.format().bits_per_component()),
             _m: PhantomData,
         })
     }
@@ -60,16 +39,13 @@ impl<'a, P: PrimitiveInternal> YUYVReader<'a, P> {
 impl<P: PrimitiveInternal> I422Src for YUYVReader<'_, P> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> I422Block<V> {
-        let x = self.window.x + x;
-        let y = self.window.y + y;
+        let offset0 = y * self.yuyv_stride + x * 2 * P::SIZE;
+        let offset1 = (y + 1) * self.yuyv_stride + x * 2 * P::SIZE;
 
-        let offset0 = (y * self.src_width) + x;
-        let offset1 = ((y + 1) * self.src_width) + x;
-
-        let (y00, uv00) = self.read_yuyv::<V>(offset0 * 2);
-        let (y01, uv01) = self.read_yuyv::<V>((offset0 + V::LEN) * 2);
-        let (y10, uv10) = self.read_yuyv::<V>(offset1 * 2);
-        let (y11, uv11) = self.read_yuyv::<V>((offset1 + V::LEN) * 2);
+        let (y00, uv00) = self.read_yuyv::<V>(offset0);
+        let (y01, uv01) = self.read_yuyv::<V>(offset0 + V::LEN * 2 * P::SIZE);
+        let (y10, uv10) = self.read_yuyv::<V>(offset1);
+        let (y11, uv11) = self.read_yuyv::<V>(offset1 + V::LEN * 2 * P::SIZE);
 
         let (u0, v0) = uv00.unzip(uv01);
         let (u1, v1) = uv10.unzip(uv11);

@@ -1,73 +1,45 @@
 use crate::formats::rgba::{RgbaBlock, RgbaPixel, RgbaSrc};
+use crate::planes::read_planes;
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
-use crate::{ConvertError, PixelFormat, PixelFormatPlanes, Window};
+use crate::{ConvertError, ImageRef, ImageRefExt};
 use std::marker::PhantomData;
 
-/// Writes 3 Bytes for every visited pixel in R G B order
 pub(crate) struct RgbReader<'a, const REVERSE: bool, P: PrimitiveInternal> {
-    window: Window,
+    rgb: *const u8,
 
-    src_width: usize,
-    src: *const P,
+    rgb_stride: usize,
+
     max_value: f32,
 
     _m: PhantomData<&'a [P]>,
 }
 
 impl<'a, const REVERSE: bool, P: PrimitiveInternal> RgbReader<'a, REVERSE, P> {
-    pub(crate) fn new(
-        src_width: usize,
-        src_height: usize,
-        src_planes: PixelFormatPlanes<&'a [P]>,
-        bits_per_component: usize,
-        window: Option<Window>,
-    ) -> Result<Self, ConvertError> {
-        if !src_planes.bounds_check(src_width, src_height) {
-            return Err(ConvertError::InvalidPlaneSizeForDimensions);
-        }
+    pub(crate) fn new(src: &'a impl ImageRef) -> Result<Self, ConvertError> {
+        src.bounds_check()?;
 
-        let PixelFormatPlanes::RGB(src) = src_planes else {
-            return Err(ConvertError::InvalidPlanesForPixelFormat(if REVERSE {
-                PixelFormat::BGR
-            } else {
-                PixelFormat::RGB
-            }));
-        };
-
-        let window = window.unwrap_or(Window {
-            x: 0,
-            y: 0,
-            width: src_width,
-            height: src_height,
-        });
-
-        assert!((window.x + window.width) <= src_width);
-        assert!((window.y + window.height) <= src_height);
+        let [(rgb, rgb_stride)] = read_planes(src.planes())?;
 
         Ok(Self {
-            window,
-            src_width,
-            src: src.as_ptr(),
-            max_value: crate::formats::max_value_for_bits(bits_per_component),
+            rgb: rgb.as_ptr(),
+            rgb_stride,
+            max_value: crate::formats::max_value_for_bits(src.format().bits_per_component()),
             _m: PhantomData,
         })
     }
 }
 
-impl<'a, const REVERSE: bool, P: PrimitiveInternal> RgbaSrc for RgbReader<'a, REVERSE, P> {
+impl<const REVERSE: bool, P: PrimitiveInternal> RgbaSrc for RgbReader<'_, REVERSE, P> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbaBlock<V> {
-        let x = self.window.x + x;
-        let y = self.window.y + y;
-
-        let rgb00offset = (y * self.src_width) + x;
-        let rgb10offset = ((y + 1) * self.src_width) + x;
+        let rgb00offset = y * self.rgb_stride + x * 3 * P::SIZE;
+        let rgb10offset = (y + 1) * self.rgb_stride + x * 3 * P::SIZE;
 
         let [[r00, g00, b00], [r01, g01, b01]] =
-            P::load_3x_interleaved_2x::<V>(self.src.add(rgb00offset * 3));
+            P::load_3x_interleaved_2x::<V>(self.rgb.add(rgb00offset));
         let [[r10, g10, b10], [r11, g11, b11]] =
-            P::load_3x_interleaved_2x::<V>(self.src.add(rgb10offset * 3));
+            P::load_3x_interleaved_2x::<V>(self.rgb.add(rgb10offset));
 
         let r00 = r00.vdivf(self.max_value);
         let g00 = g00.vdivf(self.max_value);

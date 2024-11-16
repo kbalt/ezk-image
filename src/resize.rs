@@ -1,11 +1,10 @@
-use crate::{Image, PixelFormatPlanes, Primitive, Window};
-use std::error::Error;
-use std::fmt;
-
+use crate::{ImageMut, ImageRef};
+use fir::{pixels::InnerPixel, IntoImageView, IntoImageViewMut};
 #[cfg(feature = "multi-thread")]
 use rayon::scope;
 #[cfg(not(feature = "multi-thread"))]
 use rayon_stub::scope;
+use std::{cmp, error::Error, fmt, marker::PhantomData};
 
 pub use fir::{Filter, FilterType, ResizeAlg};
 
@@ -28,7 +27,7 @@ impl fmt::Display for ResizeError {
 
 impl Error for ResizeError {}
 
-/// Wrapper over [`fast_image_resize`](fir) to resize [`Image`]s
+/// Wrapper over [`fast_image_resize`](fir)
 #[derive(Clone)]
 pub struct Resizer {
     alg: fir::ResizeAlg,
@@ -40,367 +39,104 @@ impl Resizer {
         Self { alg, fir: vec![] }
     }
 
-    fn ensure_resizer_len<const N: usize>(&mut self) -> [&mut fir::Resizer; N] {
-        self.fir.resize_with(N, fir::Resizer::new);
-
-        let mut iter = self.fir.iter_mut();
-
-        std::array::from_fn(|_| iter.next().expect("just resized to the correct len"))
-    }
-
     /// Resize an image. `src` and `dst` must have the same pixel format.
     ///
     /// Color characteristics of the images are ignored.
-    pub fn resize<P>(&mut self, src: Image<&[P]>, dst: Image<&mut [P]>) -> Result<(), ResizeError>
-    where
-        P: Primitive,
-    {
-        if src.format != dst.format {
+    pub fn resize(
+        &mut self,
+        src: &impl ImageRef,
+        dst: &mut impl ImageMut,
+    ) -> Result<(), ResizeError> {
+        if src.format() != dst.format() {
             return Err(ResizeError::DifferentFormats);
         }
 
         let alg = self.alg;
 
-        match (src.planes, dst.planes) {
-            (
-                PixelFormatPlanes::I420 {
-                    y: src_y,
-                    u: src_u,
-                    v: src_v,
-                },
-                PixelFormatPlanes::I420 {
-                    y: dst_y,
-                    u: dst_u,
-                    v: dst_v,
-                },
-            ) => {
-                let [fir_resizer0, fir_resizer1, fir_resizer2] = self.ensure_resizer_len::<3>();
+        let desc = src.format().plane_desc();
 
-                scope(|s| {
-                    s.spawn(move |_| {
-                        Self::resize_plane::<P, P::FirPixel1>(
-                            fir_resizer0,
-                            alg,
-                            src_y,
-                            src.width as u32,
-                            src.height as u32,
-                            src.window,
-                            dst_y,
-                            dst.width as u32,
-                            dst.height as u32,
-                            dst.window,
-                        );
-                    });
+        let src_width = src.width();
+        let dst_width = dst.width();
 
-                    s.spawn(move |_| {
-                        Self::resize_plane::<P, P::FirPixel1>(
-                            fir_resizer1,
-                            alg,
-                            src_u,
-                            src.width as u32 / 2,
-                            src.height as u32 / 2,
-                            src.window.map(window_div_2x2),
-                            dst_u,
-                            dst.width as u32 / 2,
-                            dst.height as u32 / 2,
-                            dst.window.map(window_div_2x2),
-                        );
-                    });
+        let src_planes: Vec<(&[u8], usize)> = src.planes().collect();
+        let dst_planes: Vec<(&mut [u8], usize)> = dst.planes_mut().collect();
 
-                    s.spawn(move |_| {
-                        Self::resize_plane::<P, P::FirPixel1>(
-                            fir_resizer2,
-                            alg,
-                            src_v,
-                            src.width as u32 / 2,
-                            src.height as u32 / 2,
-                            src.window.map(window_div_2x2),
-                            dst_v,
-                            dst.width as u32 / 2,
-                            dst.height as u32 / 2,
-                            dst.window.map(window_div_2x2),
-                        );
-                    });
-                });
-            }
-            (
-                PixelFormatPlanes::I422 {
-                    y: src_y,
-                    u: src_u,
-                    v: src_v,
-                },
-                PixelFormatPlanes::I422 {
-                    y: dst_y,
-                    u: dst_u,
-                    v: dst_v,
-                },
-            ) => {
-                let [fir_resizer0, fir_resizer1, fir_resizer2] = self.ensure_resizer_len::<3>();
+        self.fir.resize_with(
+            cmp::max(self.fir.len(), src_planes.len()),
+            fir::Resizer::new,
+        );
 
-                scope(|s| {
-                    s.spawn(move |_| {
-                        Self::resize_plane::<P, P::FirPixel1>(
-                            fir_resizer0,
-                            alg,
-                            src_y,
-                            src.width as u32,
-                            src.height as u32,
-                            src.window,
-                            dst_y,
-                            dst.width as u32,
-                            dst.height as u32,
-                            dst.window,
-                        );
-                    });
-                    s.spawn(move |_| {
-                        Self::resize_plane::<P, P::FirPixel1>(
-                            fir_resizer1,
-                            alg,
-                            src_u,
-                            src.width as u32,
-                            src.height as u32 / 2,
-                            src.window.map(window_div_1x2),
-                            dst_u,
-                            dst.width as u32,
-                            dst.height as u32 / 2,
-                            dst.window.map(window_div_1x2),
-                        );
-                    });
-                    s.spawn(move |_| {
-                        Self::resize_plane::<P, P::FirPixel1>(
-                            fir_resizer2,
-                            alg,
-                            src_v,
-                            src.width as u32,
-                            src.height as u32 / 2,
-                            src.window.map(window_div_1x2),
-                            dst_v,
-                            dst.width as u32,
-                            dst.height as u32 / 2,
-                            dst.window.map(window_div_1x2),
-                        );
-                    });
-                });
-            }
-            (
-                PixelFormatPlanes::I444 {
-                    y: src_y,
-                    u: src_u,
-                    v: src_v,
-                },
-                PixelFormatPlanes::I444 {
-                    y: dst_y,
-                    u: dst_u,
-                    v: dst_v,
-                },
-            ) => {
-                let [fir_resizer0, fir_resizer1, fir_resizer2] = self.ensure_resizer_len::<3>();
+        scope(|s| {
+            for ((plane_desc, ((src_plane, src_stride), (dst_plane, dst_stride))), fir_resizer) in
+                desc.iter()
+                    .zip(src_planes.into_iter().zip(dst_planes))
+                    .zip(&mut self.fir)
+            {
+                s.spawn(move |_| {
+                    let src_fir_width = plane_desc.width_op.op(src_width)
+                        / (plane_desc.pixel_type.size() / plane_desc.bytes_per_primitive);
+                    let dst_fir_width = plane_desc.width_op.op(dst_width)
+                        / (plane_desc.pixel_type.size() / plane_desc.bytes_per_primitive);
 
-                scope(|s| {
-                    s.spawn(move |_| {
-                        Self::resize_plane::<P, P::FirPixel1>(
-                            fir_resizer0,
-                            alg,
-                            src_y,
-                            src.width as u32,
-                            src.height as u32,
-                            src.window,
-                            dst_y,
-                            dst.width as u32,
-                            dst.height as u32,
-                            dst.window,
-                        );
-                    });
+                    let src_height = src_plane.len() / src_stride;
+                    let dst_height = dst_plane.len() / dst_stride;
 
-                    s.spawn(move |_| {
-                        Self::resize_plane::<P, P::FirPixel1>(
-                            fir_resizer1,
-                            alg,
-                            src_u,
-                            src.width as u32,
-                            src.height as u32,
-                            src.window,
-                            dst_u,
-                            dst.width as u32,
-                            dst.height as u32,
-                            dst.window,
-                        );
-                    });
-
-                    s.spawn(move |_| {
-                        Self::resize_plane::<P, P::FirPixel1>(
-                            fir_resizer2,
-                            alg,
-                            src_v,
-                            src.width as u32,
-                            src.height as u32,
-                            src.window,
-                            dst_v,
-                            dst.width as u32,
-                            dst.height as u32,
-                            dst.window,
-                        );
-                    });
+                    Self::resize_plane(
+                        fir_resizer,
+                        alg,
+                        plane_desc.pixel_type,
+                        src_plane,
+                        src_stride,
+                        src_fir_width,
+                        src_height,
+                        dst_plane,
+                        dst_stride,
+                        dst_fir_width,
+                        dst_height,
+                    );
                 })
             }
-            (
-                PixelFormatPlanes::NV12 {
-                    y: src_y,
-                    uv: src_uv,
-                },
-                PixelFormatPlanes::NV12 {
-                    y: dst_y,
-                    uv: dst_uv,
-                },
-            ) => {
-                let [fir_resizer0, fir_resizer1] = self.ensure_resizer_len::<2>();
-
-                scope(|s| {
-                    s.spawn(move |_| {
-                        Self::resize_plane::<P, P::FirPixel1>(
-                            fir_resizer0,
-                            alg,
-                            src_y,
-                            src.width as u32,
-                            src.height as u32,
-                            src.window,
-                            dst_y,
-                            dst.width as u32,
-                            dst.height as u32,
-                            dst.window,
-                        );
-                    });
-
-                    s.spawn(move |_| {
-                        Self::resize_plane::<P, P::FirPixel2>(
-                            fir_resizer1,
-                            alg,
-                            src_uv,
-                            src.width as u32 / 2,
-                            src.height as u32 / 2,
-                            src.window.map(window_div_2x2),
-                            dst_uv,
-                            dst.width as u32 / 2,
-                            dst.height as u32 / 2,
-                            dst.window.map(window_div_2x2),
-                        );
-                    });
-                });
-            }
-            (PixelFormatPlanes::YUYV(src_yuyv), PixelFormatPlanes::YUYV(dst_yuyv)) => {
-                let [fir_resizer] = self.ensure_resizer_len::<1>();
-
-                // Pretend this is a 4 byte per pixel image (even though its 2) by dividing the width in half
-                Self::resize_plane::<P, P::FirPixel4>(
-                    fir_resizer,
-                    alg,
-                    src_yuyv,
-                    (src.width / 2) as u32,
-                    (src.height) as u32,
-                    src.window,
-                    dst_yuyv,
-                    (dst.width / 2) as u32,
-                    (dst.height) as u32,
-                    dst.window,
-                );
-            }
-            (PixelFormatPlanes::RGB(src_rgb), PixelFormatPlanes::RGB(dst_rgb)) => {
-                let [fir_resizer] = self.ensure_resizer_len::<1>();
-
-                Self::resize_plane::<P, P::FirPixel3>(
-                    fir_resizer,
-                    alg,
-                    src_rgb,
-                    src.width as u32,
-                    src.height as u32,
-                    src.window,
-                    dst_rgb,
-                    dst.width as u32,
-                    dst.height as u32,
-                    dst.window,
-                );
-            }
-            (PixelFormatPlanes::RGBA(src_rgba), PixelFormatPlanes::RGBA(dst_rgba)) => {
-                let [fir_resizer] = self.ensure_resizer_len::<1>();
-
-                Self::resize_plane::<P, P::FirPixel4>(
-                    fir_resizer,
-                    alg,
-                    src_rgba,
-                    src.width as u32,
-                    src.height as u32,
-                    src.window,
-                    dst_rgba,
-                    dst.width as u32,
-                    dst.height as u32,
-                    dst.window,
-                );
-            }
-            _ => return Err(ResizeError::DifferentFormats),
-        }
+        });
 
         Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn resize_plane<P, Px>(
+    fn resize_plane(
         fir_resizer: &mut fir::Resizer,
         alg: ResizeAlg,
+        pixel_type: fir::PixelType,
 
-        src: &[P],
-        src_width: u32,
-        src_height: u32,
-        src_window: Option<Window>,
+        src: &[u8],
+        src_stride: usize,
+        src_width: usize,
+        src_height: usize,
 
-        dst: &mut [P],
-        dst_width: u32,
-        dst_height: u32,
-        dst_window: Option<Window>,
-    ) where
-        P: Primitive,
-        Px: fir::PixelTrait,
-    {
-        // Safety:
-        // P is either u8 or u16, so transmuting to u8 isn't an issue
-        let src_slice = unsafe { src.align_to::<u8>().1 };
-        let dst_slice = unsafe { dst.align_to_mut::<u8>().1 };
-
-        let src_view =
-            fir::images::ImageRef::new(src_width, src_height, src_slice, Px::pixel_type())
-                .expect("ImageBuffer invariants should have been checked beforehand");
-
-        let src_image = if let Some(window) = src_window {
-            fir::images::CroppedImage::new(
-                &src_view,
-                window.x as u32,
-                window.y as u32,
-                window.width as u32,
-                window.height as u32,
-            )
-        } else {
-            fir::images::CroppedImage::new(&src_view, 0, 0, src_width, src_height)
+        dst: &mut [u8],
+        dst_stride: usize,
+        dst_width: usize,
+        dst_height: usize,
+    ) {
+        let src = FirAdapterFirAdapterIntoImageView {
+            pixel_type,
+            width: src_width,
+            height: src_height,
+            stride: src_stride,
+            plane: src,
         };
 
-        let mut dst_view =
-            fir::images::Image::from_slice_u8(dst_width, dst_height, dst_slice, Px::pixel_type())
-                .expect("ImageBuffer invariants should have been checked beforehand");
-
-        let dst_image = if let Some(window) = dst_window {
-            fir::images::CroppedImageMut::new(
-                &mut dst_view,
-                window.x as u32,
-                window.y as u32,
-                window.width as u32,
-                window.height as u32,
-            )
-        } else {
-            fir::images::CroppedImageMut::new(&mut dst_view, 0, 0, dst_width, dst_height)
+        let mut dst = FirAdapterFirAdapterIntoImageView {
+            pixel_type,
+            width: dst_width,
+            height: dst_height,
+            stride: dst_stride,
+            plane: dst,
         };
 
         fir_resizer
             .resize(
-                &src_image.expect("Crop must be checked by Image"),
-                &mut dst_image.expect("Crop must be checked by Image"),
+                &src,
+                &mut dst,
                 Some(&fir::ResizeOptions {
                     algorithm: alg,
                     cropping: fir::SrcCropping::None,
@@ -408,24 +144,6 @@ impl Resizer {
                 }),
             )
             .expect("Pixel type must be assured to be the same before calling fir's resize");
-    }
-}
-
-fn window_div_1x2(w: Window) -> Window {
-    Window {
-        x: w.x,
-        y: w.y / 2,
-        width: w.width,
-        height: w.height / 2,
-    }
-}
-
-fn window_div_2x2(w: Window) -> Window {
-    Window {
-        x: w.x / 2,
-        y: w.y / 2,
-        width: w.width / 2,
-        height: w.height / 2,
     }
 }
 
@@ -441,5 +159,121 @@ mod rayon_stub {
 
     pub(super) fn scope(f: impl FnOnce(&Scope)) {
         f(&Scope {})
+    }
+}
+
+struct FirAdapterFirAdapterIntoImageView<T> {
+    pixel_type: fir::PixelType,
+    width: usize,
+    height: usize,
+    stride: usize,
+    plane: T,
+}
+
+impl<T: AsRef<[u8]>> IntoImageView for FirAdapterFirAdapterIntoImageView<T> {
+    fn pixel_type(&self) -> Option<fir::PixelType> {
+        Some(self.pixel_type)
+    }
+
+    fn width(&self) -> u32 {
+        self.width as u32
+    }
+
+    fn height(&self) -> u32 {
+        self.height as u32
+    }
+
+    fn image_view<P: fir::PixelTrait>(&self) -> Option<impl fir::ImageView<Pixel = P>> {
+        if P::pixel_type() != self.pixel_type {
+            return None;
+        }
+
+        Some(FirAdapterImageView {
+            width: self.width,
+            height: self.height,
+            stride: self.stride,
+            plane: self.plane.as_ref(),
+            _m: PhantomData,
+        })
+    }
+}
+
+impl<T: AsRef<[u8]> + AsMut<[u8]> + Send + Sync> IntoImageViewMut
+    for FirAdapterFirAdapterIntoImageView<T>
+{
+    fn image_view_mut<P: fir::PixelTrait>(&mut self) -> Option<impl fir::ImageViewMut<Pixel = P>> {
+        if P::pixel_type() != self.pixel_type {
+            return None;
+        }
+
+        Some(FirAdapterImageView {
+            width: self.width,
+            height: self.height,
+            stride: self.stride,
+            plane: self.plane.as_mut(),
+            _m: PhantomData,
+        })
+    }
+}
+
+struct FirAdapterImageView<T, P> {
+    width: usize,
+    height: usize,
+    stride: usize,
+    plane: T,
+    _m: PhantomData<P>,
+}
+
+unsafe impl<T: AsRef<[u8]> + Send + Sync, P: InnerPixel> fir::ImageView
+    for FirAdapterImageView<T, P>
+{
+    type Pixel = P;
+
+    fn width(&self) -> u32 {
+        self.width as u32
+    }
+
+    fn height(&self) -> u32 {
+        self.height as u32
+    }
+
+    fn iter_rows(&self, start_row: u32) -> impl Iterator<Item = &[Self::Pixel]> {
+        self.plane
+            .as_ref()
+            .chunks_exact(self.stride)
+            .skip(start_row as usize)
+            .map(|row| {
+                let row = &row[..self.width * P::pixel_type().size()];
+
+                let (unwanted1, row, unwanted2) = unsafe { row.align_to::<P>() };
+
+                assert_eq!(row.len(), self.width);
+                assert!(unwanted1.is_empty());
+                assert!(unwanted2.is_empty());
+
+                row
+            })
+    }
+}
+
+unsafe impl<T: AsRef<[u8]> + AsMut<[u8]> + Send + Sync, P: InnerPixel> fir::ImageViewMut
+    for FirAdapterImageView<T, P>
+{
+    fn iter_rows_mut(&mut self, start_row: u32) -> impl Iterator<Item = &mut [Self::Pixel]> {
+        self.plane
+            .as_mut()
+            .chunks_exact_mut(self.stride)
+            .skip(start_row as usize)
+            .map(|row| {
+                let row = &mut row[..self.width * P::pixel_type().size()];
+
+                let (unwanted1, row, unwanted2) = unsafe { row.align_to_mut::<P>() };
+
+                assert_eq!(row.len(), self.width);
+                assert!(unwanted1.is_empty());
+                assert!(unwanted2.is_empty());
+
+                row
+            })
     }
 }

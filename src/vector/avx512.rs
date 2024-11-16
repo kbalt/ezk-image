@@ -93,7 +93,7 @@ unsafe impl Vector for __m512 {
     }
 
     #[inline(always)]
-    unsafe fn load_u16(ptr: *const u16) -> Self {
+    unsafe fn load_u16(ptr: *const u8) -> Self {
         let v = ptr.cast::<__m256i>().read_unaligned();
         let v = _mm512_cvtepu16_epi32(v);
         _mm512_cvtepi32_ps(v)
@@ -117,9 +117,9 @@ unsafe impl Vector for __m512 {
     }
 
     #[inline(always)]
-    unsafe fn load_u16_3x_interleaved_2x(ptr: *const u16) -> [[Self; 3]; 2] {
+    unsafe fn load_u16_3x_interleaved_2x(ptr: *const u8) -> [[Self; 3]; 2] {
         #[inline(always)]
-        unsafe fn inner(ptr: *const u16) -> (__m512, __m512, __m512) {
+        unsafe fn inner(ptr: *const u8) -> (__m512, __m512, __m512) {
             let m1 = __m512::load_u16(ptr);
             let m2 = __m512::load_u16(ptr.add(__m512::LEN));
             let m3 = __m512::load_u16(ptr.add(__m512::LEN * 2));
@@ -152,9 +152,9 @@ unsafe impl Vector for __m512 {
     }
 
     #[inline(always)]
-    unsafe fn load_u16_4x_interleaved_2x(ptr: *const u16) -> [[Self; 4]; 2] {
+    unsafe fn load_u16_4x_interleaved_2x(ptr: *const u8) -> [[Self; 4]; 2] {
         #[inline(always)]
-        unsafe fn inner(ptr: *const u16) -> (__m512, __m512, __m512, __m512) {
+        unsafe fn inner(ptr: *const u8) -> (__m512, __m512, __m512, __m512) {
             let m1 = __m512::load_u16(ptr);
             let m2 = __m512::load_u16(ptr.add(__m512::LEN));
             let m3 = __m512::load_u16(ptr.add(__m512::LEN * 2));
@@ -182,13 +182,13 @@ unsafe impl Vector for __m512 {
     }
 
     #[inline(always)]
-    unsafe fn write_u16(self, ptr: *mut u16) {
+    unsafe fn write_u16(self, ptr: *mut u8) {
         ptr.cast::<[u16; 16]>()
             .write_unaligned(f32x16_to_u16x16(self))
     }
 
     #[inline(always)]
-    unsafe fn write_u16_2x(v0: Self, v1: Self, ptr: *mut u16) {
+    unsafe fn write_u16_2x(v0: Self, v1: Self, ptr: *mut u8) {
         ptr.cast::<[u16; 32]>()
             .write_unaligned(f32x16x2_to_u16x32(v0, v1))
     }
@@ -202,7 +202,7 @@ unsafe impl Vector for __m512 {
     }
 
     #[inline(always)]
-    unsafe fn write_interleaved_3x_2x_u16(this: [[Self; 3]; 2], ptr: *mut u16) {
+    unsafe fn write_interleaved_3x_2x_u16(this: [[Self; 3]; 2], ptr: *mut u8) {
         let a = interleave_f32x16x3_to_u16x48(this[0][0], this[0][1], this[0][2]);
         let b = interleave_f32x16x3_to_u16x48(this[1][0], this[1][1], this[1][2]);
 
@@ -218,7 +218,7 @@ unsafe impl Vector for __m512 {
     }
 
     #[inline(always)]
-    unsafe fn write_interleaved_4x_2x_u16(this: [[Self; 4]; 2], ptr: *mut u16) {
+    unsafe fn write_interleaved_4x_2x_u16(this: [[Self; 4]; 2], ptr: *mut u8) {
         let a = interleave_f32x16x4_to_u16x64(this[0][0], this[0][1], this[0][2], this[0][3]);
         let b = interleave_f32x16x4_to_u16x64(this[1][0], this[1][1], this[1][2], this[1][3]);
 
@@ -493,7 +493,7 @@ mod math {
 
     #[inline(always)]
     pub(super) unsafe fn log(x: __m512) -> __m512 {
-        const INV_MANT_MASK: __m512 = splat(unsafe { transmute::<i32, f32>(!0x7f800000) });
+        const INV_MANT_MASK: __m512 = splat(f32::from_bits(!0x7f800000));
         const CEPHES_SQRT_HF: __m512 = splat(0.707_106_77);
         const CEPHES_LOG_P0: __m512 = splat(7.037_683_6E-2);
         const CEPHES_LOG_P1: __m512 = splat(-1.151_461E-1);

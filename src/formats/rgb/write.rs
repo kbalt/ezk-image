@@ -1,7 +1,8 @@
 use crate::formats::visit_2x2::{visit, Image2x2Visitor};
+use crate::planes::read_planes_mut;
 use crate::primitive::PrimitiveInternal;
 use crate::vector::Vector;
-use crate::{ConvertError, PixelFormat, PixelFormatPlanes, RgbaPixel, RgbaSrc, Window};
+use crate::{ConvertError, ImageMut, ImageRefExt, RgbaPixel, RgbaSrc};
 use std::marker::PhantomData;
 
 pub(crate) struct RgbWriter<'a, const REVERSE: bool, P, S>
@@ -9,9 +10,9 @@ where
     P: PrimitiveInternal,
     S: RgbaSrc,
 {
-    window: Window,
-    dst_width: usize,
-    dst: *mut P,
+    rgb: *mut u8,
+
+    rgb_stride: usize,
 
     max_value: f32,
 
@@ -25,40 +26,22 @@ where
     P: PrimitiveInternal,
     S: RgbaSrc,
 {
-    pub(crate) fn write(
-        dst_width: usize,
-        dst_height: usize,
-        dst_planes: PixelFormatPlanes<&mut [P]>,
-        bits_per_component: usize,
-        window: Option<Window>,
-        rgba_src: S,
-    ) -> Result<(), ConvertError> {
-        if !dst_planes.bounds_check(dst_width, dst_height) {
-            return Err(ConvertError::InvalidPlaneSizeForDimensions);
-        }
+    pub(crate) fn write(dst: &'a mut impl ImageMut, rgba_src: S) -> Result<(), ConvertError> {
+        dst.bounds_check()?;
 
-        let PixelFormatPlanes::RGB(dst) = dst_planes else {
-            return Err(ConvertError::InvalidPlanesForPixelFormat(if REVERSE {
-                PixelFormat::BGR
-            } else {
-                PixelFormat::RGB
-            }));
-        };
+        let dst_width = dst.width();
+        let dst_height = dst.height();
+        let dst_format = dst.format();
+
+        let [(rgb, rgb_stride)] = read_planes_mut(dst.planes_mut())?;
 
         visit(
             dst_width,
             dst_height,
-            window,
             Self {
-                window: window.unwrap_or(Window {
-                    x: 0,
-                    y: 0,
-                    width: dst_width,
-                    height: dst_height,
-                }),
-                dst_width,
-                dst: dst.as_mut_ptr(),
-                max_value: crate::formats::max_value_for_bits(bits_per_component),
+                rgb: rgb.as_mut_ptr(),
+                rgb_stride,
+                max_value: crate::formats::max_value_for_bits(dst_format.bits_per_component()),
                 rgba_src,
                 _m: PhantomData,
             },
@@ -66,30 +49,28 @@ where
     }
 }
 
-impl<'a, const REVERSE: bool, B, S> Image2x2Visitor for RgbWriter<'a, REVERSE, B, S>
+impl<const REVERSE: bool, P, S> Image2x2Visitor for RgbWriter<'_, REVERSE, P, S>
 where
-    B: PrimitiveInternal,
+    P: PrimitiveInternal,
     S: RgbaSrc,
 {
     #[inline(always)]
     unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize) {
-        let block = self
-            .rgba_src
-            .read::<V>(x - self.window.x, y - self.window.y);
+        let block = self.rgba_src.read::<V>(x, y);
 
-        let offset00 = y * self.dst_width + x;
-        let offset10 = (y + 1) * self.dst_width + x;
+        let offset00 = y * self.rgb_stride + x * 3 * P::SIZE;
+        let offset10 = (y + 1) * self.rgb_stride + x * 3 * P::SIZE;
 
-        B::write_interleaved_3x_2x(
-            self.dst.add(offset00 * 3),
+        P::write_interleaved_3x_2x(
+            self.rgb.add(offset00),
             [
                 multiply_and_reverse::<REVERSE, V>(block.px00, self.max_value),
                 multiply_and_reverse::<REVERSE, V>(block.px01, self.max_value),
             ],
         );
 
-        B::write_interleaved_3x_2x(
-            self.dst.add(offset10 * 3),
+        P::write_interleaved_3x_2x(
+            self.rgb.add(offset10),
             [
                 multiply_and_reverse::<REVERSE, V>(block.px10, self.max_value),
                 multiply_and_reverse::<REVERSE, V>(block.px11, self.max_value),

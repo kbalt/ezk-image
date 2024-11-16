@@ -1,115 +1,179 @@
-use crate::{planes::AnySlice, ColorInfo, PixelFormat, PixelFormatPlanes};
-use std::error::Error;
-use std::fmt;
+use crate::{infer, BoundsCheckError, ColorInfo, ImageMut, ImageRef, ImageRefExt, PixelFormat};
 
-/// Everything that can go wrong when constructing an [`Image`]
-#[derive(Debug, PartialEq)]
-pub enum ImageError {
-    InvalidDimensions,
-    InvalidPlaneSize,
+/// Basic wrapper around any image, implementing the [`ImageRef`] and [`ImageMut`] trait
+#[derive(Debug, Clone)]
+pub struct Image<S> {
+    format: PixelFormat,
+    buffer: Buffer<S>,
+    strides: Vec<usize>,
+    width: usize,
+    height: usize,
+
+    color: ColorInfo,
 }
 
-impl fmt::Display for ImageError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+#[derive(Debug, Clone)]
+enum Buffer<S> {
+    Whole(S),
+    Split(Vec<S>),
+}
+
+enum BufferIter<T, U, I> {
+    Whole(T),
+    Split(U),
+
+    _Marker(fn() -> I),
+}
+
+impl<T, U, I> Iterator for BufferIter<T, U, I>
+where
+    T: Iterator<Item = I>,
+    U: Iterator<Item = I>,
+{
+    type Item = I;
+
+    fn next(&mut self) -> Option<Self::Item> {
         match self {
-            ImageError::InvalidDimensions => write!(f, "width or height must not be zero"),
-            ImageError::InvalidPlaneSize => write!(
-                f,
-                "plane size does not match the provided dimensions and pixel format"
-            ),
+            BufferIter::Whole(iter) => iter.next(),
+            BufferIter::Split(iter) => iter.next(),
+            BufferIter::_Marker(_) => unreachable!(),
         }
     }
 }
 
-impl Error for ImageError {}
+/// Everything that can go wrong when constructing an [`Image`]
+#[derive(Debug, thiserror::Error)]
+pub enum ImageError {
+    #[error("width or height must not be zero")]
+    InvalidDimensions,
 
-/// Error indicating an invalid [`Window`]
-#[derive(Debug)]
-pub struct ImageWindowError;
+    #[error(transparent)]
+    BoundsCheck(#[from] BoundsCheckError),
+}
 
-impl fmt::Display for ImageWindowError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "window position and/or size does not fit in the image")
+impl Image<Vec<u8>> {
+    pub fn blank(format: PixelFormat, width: usize, height: usize, color: ColorInfo) -> Self {
+        Self {
+            format,
+            buffer: Buffer::Whole(vec![0u8; format.buffer_size(width, height)]),
+            strides: format.packed_strides(width),
+            width,
+            height,
+            color,
+        }
     }
 }
 
-impl Error for ImageWindowError {}
-
-/// Raw image data with information about dimensions, cropping, colorimetry, bit depth and pixel format
-///
-/// Type parameter `S` can be any of `&[u8]`, `&[u16]`, `&mut [u8]` or `&mut [u16]`, referencing the raw image data.
-#[derive(Debug, Clone, Copy)]
-pub struct Image<S: AnySlice> {
-    pub(crate) format: PixelFormat,
-    pub(crate) planes: PixelFormatPlanes<S>,
-    pub(crate) width: usize,
-    pub(crate) height: usize,
-
-    pub(crate) color: ColorInfo,
-    pub(crate) bits_per_component: usize,
-
-    pub(crate) window: Option<Window>,
-}
-
-impl<S: AnySlice> Image<S> {
-    /// Create a new image from all non-optional fields
-    #[deny(clippy::arithmetic_side_effects)]
-    pub fn new(
+impl<S> Image<S>
+where
+    Image<S>: ImageRef,
+{
+    pub fn from_buffer(
         format: PixelFormat,
-        planes: PixelFormatPlanes<S>,
+        buffer: S,
+        strides: Option<Vec<usize>>,
         width: usize,
         height: usize,
         color: ColorInfo,
-        bits_per_component: usize,
+    ) -> Result<Self, ImageError> {
+        Self::new(format, Buffer::Whole(buffer), strides, width, height, color)
+    }
+
+    pub fn from_planes(
+        format: PixelFormat,
+        planes: Vec<S>,
+        strides: Option<Vec<usize>>,
+        width: usize,
+        height: usize,
+        color: ColorInfo,
+    ) -> Result<Self, ImageError> {
+        Self::new(format, Buffer::Split(planes), strides, width, height, color)
+    }
+
+    fn new(
+        format: PixelFormat,
+        buffer: Buffer<S>,
+        strides: Option<Vec<usize>>,
+        width: usize,
+        height: usize,
+        color: ColorInfo,
     ) -> Result<Self, ImageError> {
         if width == 0 || height == 0 {
             return Err(ImageError::InvalidDimensions);
         }
 
-        if !planes.bounds_check(width, height) {
-            return Err(ImageError::InvalidPlaneSize);
-        }
+        let strides = strides.unwrap_or_else(|| format.packed_strides(width));
 
-        Ok(Self {
+        let this = Self {
             format,
-            planes,
+            buffer,
+            strides,
             width,
             height,
             color,
-            bits_per_component,
-            window: None,
-        })
-    }
+        };
 
-    /// Set a cropping window but in a builder pattern
-    pub fn with_window(mut self, window: Window) -> Result<Self, ImageWindowError> {
-        self.set_window(window)?;
+        this.bounds_check()?;
 
-        Ok(self)
-    }
-
-    /// Set a cropping window
-    #[deny(clippy::arithmetic_side_effects)]
-    pub fn set_window(&mut self, window: Window) -> Result<(), ImageWindowError> {
-        type Error = ImageWindowError;
-
-        if (window.x.checked_add(window.width).ok_or(Error {})? > self.width)
-            || (window.y.checked_add(window.height).ok_or(Error {})? > self.height)
-        {
-            return Err(ImageWindowError);
-        }
-
-        self.window = Some(window);
-
-        Ok(())
+        Ok(this)
     }
 }
 
-/// Cropping window of an [`Image`]
-#[derive(Debug, Clone, Copy)]
-pub struct Window {
-    pub x: usize,
-    pub y: usize,
-    pub width: usize,
-    pub height: usize,
+unsafe impl<S: AsRef<[u8]>> ImageRef for Image<S> {
+    fn format(&self) -> PixelFormat {
+        self.format
+    }
+    fn width(&self) -> usize {
+        self.width
+    }
+    fn height(&self) -> usize {
+        self.height
+    }
+
+    fn planes(&self) -> impl Iterator<Item = (&[u8], usize)> {
+        match &self.buffer {
+            Buffer::Whole(buffer) => BufferIter::Whole(
+                infer(
+                    self.format,
+                    buffer.as_ref(),
+                    self.width,
+                    self.height,
+                    Some(&self.strides),
+                )
+                .zip(self.strides.iter().copied()),
+            ),
+            Buffer::Split(planes) => BufferIter::Split(
+                planes
+                    .iter()
+                    .map(|p| p.as_ref())
+                    .zip(self.strides.iter().copied()),
+            ),
+        }
+    }
+    fn color(&self) -> ColorInfo {
+        self.color
+    }
+}
+
+unsafe impl<S: AsRef<[u8]> + AsMut<[u8]>> ImageMut for Image<S> {
+    fn planes_mut(&mut self) -> impl Iterator<Item = (&mut [u8], usize)> {
+        match &mut self.buffer {
+            Buffer::Whole(buffer) => BufferIter::Whole(
+                infer(
+                    self.format,
+                    buffer.as_mut(),
+                    self.width,
+                    self.height,
+                    Some(&self.strides),
+                )
+                .zip(self.strides.iter().copied()),
+            ),
+            Buffer::Split(planes) => BufferIter::Split(
+                planes
+                    .iter_mut()
+                    .map(|plane| plane.as_mut())
+                    .zip(self.strides.iter().copied()),
+            ),
+        }
+    }
 }
