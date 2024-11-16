@@ -68,7 +68,7 @@ impl PixelFormat {
             size
         }
 
-        buffer_size(&self.plane_desc(), width, height)
+        buffer_size(self.plane_desc(), width, height)
     }
 
     /// Calculate the strides of an image in a packed buffer
@@ -81,7 +81,7 @@ impl PixelFormat {
                 .collect()
         }
 
-        packed_strides(&self.plane_desc(), width)
+        packed_strides(self.plane_desc(), width)
     }
 
     /// Check if the given planes+strides are valid for dimensions

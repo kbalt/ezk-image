@@ -152,7 +152,7 @@ impl ImageRef for Image<&[u8]> {
     }
 }
 
-impl<'a> ImageRef for Image<&'a mut [u8]> {
+impl ImageRef for Image<&mut [u8]> {
     fn format(&self) -> PixelFormat {
         self.format
     }
@@ -187,7 +187,7 @@ impl<'a> ImageRef for Image<&'a mut [u8]> {
     }
 }
 
-impl<'a> ImageMut for Image<&'a mut [u8]> {
+impl ImageMut for Image<&mut [u8]> {
     fn planes_mut(&mut self) -> impl Iterator<Item = (&mut [u8], usize)> {
         match &mut self.buffer {
             Buffer::Whole(buffer) => BufferIter::Whole(

@@ -100,7 +100,7 @@ impl<R: RgbaSrc> DynRgbaReaderSpec<f32> for R {
     }
 }
 
-impl<'a> RgbaSrc for Box<dyn DynRgbaReader + 'a> {
+impl RgbaSrc for Box<dyn DynRgbaReader + '_> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbaBlock<V> {
         V::dyn_rgba_read(&mut **self, x, y)

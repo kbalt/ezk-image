@@ -30,7 +30,7 @@ impl<'a, const REVERSE: bool, P: PrimitiveInternal> RgbaReader<'a, REVERSE, P> {
     }
 }
 
-impl<'a, const REVERSE: bool, P: PrimitiveInternal> RgbaSrc for RgbaReader<'a, REVERSE, P> {
+impl<const REVERSE: bool, P: PrimitiveInternal> RgbaSrc for RgbaReader<'_, REVERSE, P> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbaBlock<V> {
         let rgba00offset = y * self.rgba_stride + x * 4 * P::SIZE;

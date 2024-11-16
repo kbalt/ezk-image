@@ -38,7 +38,7 @@ impl<'a, P: PrimitiveInternal> I420Reader<'a, P> {
     }
 }
 
-impl<'a, P: PrimitiveInternal> I420Src for I420Reader<'a, P> {
+impl<P: PrimitiveInternal> I420Src for I420Reader<'_, P> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> I420Block<V> {
         let y00_offset = (y * self.y_stride) + x * P::SIZE;

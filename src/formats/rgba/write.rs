@@ -50,7 +50,7 @@ where
     }
 }
 
-impl<'a, const REVERSE: bool, P, S> Image2x2Visitor for RgbaWriter<'a, REVERSE, P, S>
+impl<const REVERSE: bool, P, S> Image2x2Visitor for RgbaWriter<'_, REVERSE, P, S>
 where
     P: PrimitiveInternal,
     S: RgbaSrc,
