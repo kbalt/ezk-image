@@ -11,8 +11,8 @@ mod color;
 // mod copy;
 mod formats;
 mod image;
-// #[cfg(feature = "multi-thread")]
-// mod multi_thread;
+#[cfg(feature = "multi-thread")]
+mod multi_thread;
 mod planes;
 mod primitive;
 // #[cfg(feature = "resize")]
@@ -44,8 +44,8 @@ pub use planes::*;
 // pub use copy::copy;
 pub use image::{Image, ImageError};
 pub use image_traits::{ImageMut, ImageRef, ImageRefExt};
-// #[cfg(feature = "multi-thread")]
-// pub use multi_thread::convert_multi_thread;
+#[cfg(feature = "multi-thread")]
+pub use multi_thread::convert_multi_thread;
 
 // compile_error!("pointer arithmetic for u16 !!!");
 

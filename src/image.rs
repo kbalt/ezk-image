@@ -119,7 +119,7 @@ where
     }
 }
 
-impl<'a> ImageRef for Image<&'a [u8]> {
+impl ImageRef for Image<&[u8]> {
     fn format(&self) -> PixelFormat {
         self.format
     }

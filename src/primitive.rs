@@ -1,8 +1,6 @@
 use crate::vector::Vector;
 
-#[allow(private_bounds)]
 // pub trait Primitive: PrimitiveInternal + Copy + Send + Sync + 'static {}
-
 pub(crate) trait PrimitiveInternal {
     #[cfg(feature = "resize")]
     type FirPixel1: fir::PixelTrait;

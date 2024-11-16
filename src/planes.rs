@@ -4,9 +4,9 @@ use crate::{
         NV12_PLANES,
     },
     util::ArrayIter,
-    PixelFormat, StrictApi, Window,
+    PixelFormat, StrictApi,
 };
-use std::mem::MaybeUninit;
+use std::mem::{take, MaybeUninit};
 
 #[derive(Debug, thiserror::Error)]
 #[error("got invalid number of planes, expected {expected} but only got {got}")]
@@ -211,187 +211,6 @@ pub fn infer_nv12<S: AnySlice>(
     infer_impl(NV12_PLANES, buf, width, height, strides)
 }
 
-// /// Split the planes into multiple planes, where
-// /// - `width` is the width of the image which is represented by the planes
-// /// - `initial_window` is the window in the image, if the complete image should be processed it should have the same dimensions has the image
-// /// - `max_results` how often the image should be split (upper limit, might be less if the image is too small)
-// ///
-// /// Returns a list containing the new planes and the window piece of the `initial_window`
-// ///
-// /// # Panics
-// ///
-// /// Panics when the initial window is larger than the image's dimensions
-// #[deny(clippy::arithmetic_side_effects)]
-// pub fn split(
-//     planes: ,
-//     width: usize,
-//     initial_window: Window,
-//     max_results: usize,
-// ) -> Vec<(Self, Window)> {
-//     assert!(width >= initial_window.x.strict_add_(initial_window.width));
-//     assert!(self.bounds_check(
-//         initial_window.x.strict_add_(initial_window.width),
-//         initial_window.y.strict_add_(initial_window.height)
-//     ));
-
-//     let mut rects = calculate_windows_by_rows(initial_window, max_results);
-
-//     // Ugly hack: Insert a rect as the first window,
-//     // to have the loop trim the beginning of the planes
-//     // then remove it in the result
-//     rects.insert(
-//         0,
-//         Window {
-//             x: 0,
-//             y: 0,
-//             width: initial_window.width,
-//             height: initial_window.y,
-//         },
-//     );
-
-//     let mut ret = vec![];
-
-//     for rect in rects {
-//         match &mut self {
-//             Self::I420 { y, u, v } => {
-//                 let (y_, y_remaining) = take(y).slice_split_at(width.strict_mul_(rect.height));
-//                 let (u_, u_remaining) = take(u).slice_split_at(width.strict_mul_(rect.height) / 4);
-//                 let (v_, v_remaining) = take(v).slice_split_at(width.strict_mul_(rect.height) / 4);
-
-//                 *y = y_remaining;
-//                 *u = u_remaining;
-//                 *v = v_remaining;
-
-//                 ret.push((
-//                     Self::I420 {
-//                         y: y_,
-//                         u: u_,
-//                         v: v_,
-//                     },
-//                     Window {
-//                         x: rect.x,
-//                         y: 0,
-//                         width: rect.width,
-//                         height: rect.height,
-//                     },
-//                 ));
-//             }
-//             Self::I422 { y, u, v } => {
-//                 let (y_, y_remaining) = take(y).slice_split_at(width.strict_mul_(rect.height));
-//                 let (u_, u_remaining) = take(u).slice_split_at(width.strict_mul_(rect.height) / 2);
-//                 let (v_, v_remaining) = take(v).slice_split_at(width.strict_mul_(rect.height) / 2);
-
-//                 *y = y_remaining;
-//                 *u = u_remaining;
-//                 *v = v_remaining;
-
-//                 ret.push((
-//                     Self::I422 {
-//                         y: y_,
-//                         u: u_,
-//                         v: v_,
-//                     },
-//                     Window {
-//                         x: rect.x,
-//                         y: 0,
-//                         width: rect.width,
-//                         height: rect.height,
-//                     },
-//                 ));
-//             }
-//             Self::I444 { y, u, v } => {
-//                 let (y_, y_remaining) = take(y).slice_split_at(width.strict_mul_(rect.height));
-//                 let (u_, u_remaining) = take(u).slice_split_at(width.strict_mul_(rect.height));
-//                 let (v_, v_remaining) = take(v).slice_split_at(width.strict_mul_(rect.height));
-
-//                 *y = y_remaining;
-//                 *u = u_remaining;
-//                 *v = v_remaining;
-
-//                 ret.push((
-//                     Self::I444 {
-//                         y: y_,
-//                         u: u_,
-//                         v: v_,
-//                     },
-//                     Window {
-//                         x: rect.x,
-//                         y: 0,
-//                         width: rect.width,
-//                         height: rect.height,
-//                     },
-//                 ));
-//             }
-//             Self::NV12 { y, uv } => {
-//                 let (y_, y_remaining) = take(y).slice_split_at(width.strict_mul_(rect.height));
-//                 let (uv_, uv_remaining) =
-//                     take(uv).slice_split_at(width.strict_mul_(rect.height) / 2);
-
-//                 *y = y_remaining;
-//                 *uv = uv_remaining;
-
-//                 ret.push((
-//                     Self::NV12 { y: y_, uv: uv_ },
-//                     Window {
-//                         x: rect.x,
-//                         y: 0,
-//                         width: rect.width,
-//                         height: rect.height,
-//                     },
-//                 ));
-//             }
-//             Self::YUYV(buf) => {
-//                 let (x, remaining) =
-//                     take(buf).slice_split_at(width.strict_mul_(rect.height).strict_mul_(2));
-//                 *buf = remaining;
-
-//                 ret.push((
-//                     Self::YUYV(x),
-//                     Window {
-//                         x: rect.x,
-//                         y: 0,
-//                         width: rect.width,
-//                         height: rect.height,
-//                     },
-//                 ));
-//             }
-//             Self::RGB(buf) => {
-//                 let (x, remaining) =
-//                     take(buf).slice_split_at(width.strict_mul_(rect.height).strict_mul_(3));
-//                 *buf = remaining;
-//                 ret.push((
-//                     Self::RGB(x),
-//                     Window {
-//                         x: rect.x,
-//                         y: 0,
-//                         width: rect.width,
-//                         height: rect.height,
-//                     },
-//                 ));
-//             }
-//             Self::RGBA(buf) => {
-//                 let (x, remaining) =
-//                     take(buf).slice_split_at(width.strict_mul_(rect.height).strict_mul_(4));
-//                 *buf = remaining;
-//                 ret.push((
-//                     Self::RGBA(x),
-//                     Window {
-//                         x: rect.x,
-//                         y: 0,
-//                         width: rect.width,
-//                         height: rect.height,
-//                     },
-//                 ));
-//             }
-//         }
-//     }
-
-//     // Part of the before mentioned hack, remove the temporary window
-//     ret.remove(0);
-
-//     ret
-// }
-
 #[diagnostic::on_unimplemented(message = "AnySlice is only implemented for &[T] and &mut [T].\n\
                When using or Vec<T> or similar try .as_slice() or .as_mut_slice()")]
 pub trait AnySlice: sealed::Sealed + Default + Sized {
@@ -426,33 +245,19 @@ impl<T> AnySlice for &mut [T] {
     }
 }
 
-// TODO: remove me
-impl<T> AnySlice for Vec<T>
-where
-    T: Clone,
-{
-    fn slice_len(&self) -> usize {
-        self.len()
-    }
-
-    fn slice_split_at(mut self, at: usize) -> (Self, Self) {
-        let off = self.split_off(at);
-
-        (self, off)
-    }
-}
-
-/// Split the work up into windows into the image by calculating the number of rows each thread should handle
-fn calculate_windows_by_rows(initial_window: Window, threads: usize) -> Vec<Window> {
-    assert_eq!(initial_window.height & 1, 0);
-
-    let sections = initial_window.height / 2;
+pub(crate) fn split_planes<S: AnySlice>(
+    plane_decs: &[PlaneDesc],
+    mut planes: Vec<(S, usize)>,
+    height: usize,
+    threads: usize,
+) -> Vec<(usize, Vec<(S, usize)>)> {
+    let sections = height / 2;
     let threads = threads.min(sections);
 
     let parts_per_section = sections / threads;
     let mut remainder = sections % threads;
 
-    let mut rects = Vec::with_capacity(threads);
+    let mut ret = vec![];
 
     for _ in 0..threads {
         let extra = if remainder > 0 {
@@ -462,47 +267,35 @@ fn calculate_windows_by_rows(initial_window: Window, threads: usize) -> Vec<Wind
             0
         };
 
-        let prev = rects.last().unwrap_or(&Window {
-            x: 0,
-            y: 0,
-            width: 0,
-            height: 0,
-        });
+        let h = (parts_per_section + extra).strict_mul_(2);
 
-        rects.push(Window {
-            x: initial_window.x,
-            y: prev.y + prev.height,
-            width: initial_window.width,
-            height: (parts_per_section + extra) * 2,
-        });
+        let mut out = vec![];
+
+        for (plane_desc, (slice, stride)) in plane_decs.iter().zip(&mut planes) {
+            let split_at = stride.strict_mul_(plane_desc.height_op.op(h));
+
+            let (prev, rem) = take(slice).slice_split_at(split_at);
+            *slice = rem;
+
+            out.push((prev, *stride));
+        }
+
+        ret.push((h, out));
     }
 
-    rects
+    ret
 }
 
-#[cfg(test)]
-#[test]
-fn verify_windows() {
-    let windows = calculate_windows_by_rows(
-        Window {
-            x: 0,
-            y: 0,
-            width: 1920,
-            height: 1440,
-        },
-        32,
-    );
+// #[cfg(test)]
+// #[test]
+// fn verify_windows() {
+//     let planes = split_planes([(&[0u8; 100][..], 10); 1], 10, 5);
+//     assert!(planes.iter().all(|plane| { dbg!(plane[0].0.len()) == 20 }));
 
-    let mut prev = windows[0];
-    let mut height_accum = prev.height;
+//     let planes = split_planes([(&[0u8; 100][..], 10); 1], 10, 2);
 
-    for rect in &windows[1..] {
-        assert_eq!(rect.width, 1920);
-        assert_eq!(prev.y + prev.height, rect.y);
-
-        height_accum += rect.height;
-        prev = *rect;
-    }
-
-    assert_eq!(height_accum, 1440);
-}
+//     assert_eq!(
+//         planes,
+//         vec![[(&[0u8; 60][..], 10usize),], [(&[0u8; 40][..], 10usize)]]
+//     )
+// }

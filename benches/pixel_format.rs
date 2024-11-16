@@ -19,14 +19,12 @@ fn do_convert(src: &Image<Vec<u8>>, dst: &mut Image<Vec<u8>>) {
     convert(black_box(src), black_box(dst)).unwrap();
 }
 
-// #[cfg(feature = "multi-thread")]
-// fn do_convert_multi_thread(
-// src: &Image<Vec<u8>>,
-// dst: &mut Image<Vec<u8>>,
-// ) {
+#[cfg(feature = "multi-thread")]
+fn do_convert_multi_thread(src: &Image<Vec<u8>>, dst: &mut Image<Vec<u8>>) {
+    use ezk_image::convert_multi_thread;
 
-//     convert_multi_thread(src, dst).unwrap();
-// }
+    convert_multi_thread(src, dst).unwrap();
+}
 
 type ConvertFunction = fn(&Image<Vec<u8>>, &mut Image<Vec<u8>>);
 
@@ -90,13 +88,13 @@ fn single_threaded(c: &mut Criterion) {
     run_benchmarks(c, do_convert, "single threaded")
 }
 
-// #[cfg(feature = "multi-thread")]
-// fn multi_threaded(c: &mut Criterion) {
-//     run_benchmarks(c, do_convert_multi_thread, "multi threaded")
-// }
+#[cfg(feature = "multi-thread")]
+fn multi_threaded(c: &mut Criterion) {
+    run_benchmarks(c, do_convert_multi_thread, "multi threaded")
+}
 
 #[cfg(feature = "multi-thread")]
-criterion_group!(img, single_threaded);
+criterion_group!(img, single_threaded, multi_threaded);
 
 #[cfg(not(feature = "multi-thread"))]
 criterion_group!(img, single_threaded);

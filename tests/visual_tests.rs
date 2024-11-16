@@ -1,6 +1,6 @@
 use ezk_image::{
-    convert, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, Image, ImageMut, ImageRef,
-    ImageRefExt, PixelFormat, RgbColorInfo, Window, YuvColorInfo,
+    convert_multi_thread, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, Image, ImageMut,
+    ImageRef, ImageRefExt, PixelFormat, RgbColorInfo, Window, YuvColorInfo,
 };
 use image::{Rgb, Rgba};
 
@@ -56,7 +56,7 @@ fn make_i420_image(color: YuvColorInfo) -> Image<Vec<u8>> {
         ColorInfo::YUV(color),
     );
 
-    convert(&rgba, &mut i420).unwrap();
+    convert_multi_thread(&rgba, &mut i420).unwrap();
 
     i420
 }
@@ -71,7 +71,7 @@ fn make_nv12_image(color: YuvColorInfo) -> Image<Vec<u8>> {
         ColorInfo::YUV(color),
     );
 
-    convert(&rgba, &mut nv12).unwrap();
+    convert_multi_thread(&rgba, &mut nv12).unwrap();
 
     nv12
 }
@@ -95,7 +95,7 @@ fn i420_to_rgb() {
         }),
     );
 
-    convert(&i420, &mut rgb).unwrap();
+    convert_multi_thread(&i420, &mut rgb).unwrap();
 
     let buffer = image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(
         i420.width() as _,
@@ -140,7 +140,7 @@ fn i420_to_rgb_window() {
     })
     .unwrap();
 
-    convert(&i420, &mut rgb).unwrap();
+    convert_multi_thread(&i420, &mut rgb).unwrap();
 
     let buffer = image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(
         640,
@@ -171,7 +171,7 @@ fn i420_to_rgba_with_window() {
         }),
     );
 
-    convert(
+    convert_multi_thread(
         &(&i420)
             .crop(Window {
                 x: 100,
@@ -214,7 +214,7 @@ fn rgba_to_rgba() {
         .iter_mut()
         .for_each(|b| *b = 255);
 
-    convert(&rgba1, &mut rgba2).unwrap();
+    convert_multi_thread(&rgba1, &mut rgba2).unwrap();
 
     let buffer = image::ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(
         rgba2.width() as _,
@@ -245,7 +245,7 @@ fn rgba_to_rgb() {
     )
     .unwrap();
 
-    convert(&rgba, &mut rgb).unwrap();
+    convert_multi_thread(&rgba, &mut rgb).unwrap();
 
     let buffer = image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(
         rgb.width() as _,
@@ -305,7 +305,7 @@ fn i420_to_rgb_scale() {
 
     Resizer::new(ResizeAlg::Nearest).resize(src, dst).unwrap();
 
-    // Convert I420 to RGB
+    // convert_multi_thread I420 to RGB
 
     let src = Image::new(
         PixelFormat::NV12,
@@ -337,7 +337,7 @@ fn i420_to_rgb_scale() {
     )
     .unwrap();
 
-    convert(src, dst).unwrap();
+    convert_multi_thread(src, dst).unwrap();
 
     let buffer = image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(
         scaled_width as _,
@@ -381,7 +381,7 @@ fn rgba8_to_rgba16_and_back() {
     )
     .unwrap();
 
-    convert(src, dst).unwrap();
+    convert_multi_thread(src, dst).unwrap();
 
     {
         // let buffer = image::ImageBuffer::<Rgb<u16>, Vec<u16>>::from_vec(
@@ -420,7 +420,7 @@ fn rgba8_to_rgba16_and_back() {
     )
     .unwrap();
 
-    convert(src, dst).unwrap();
+    convert_multi_thread(src, dst).unwrap();
 
     let buffer =
         image::ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(width as _, height as _, rgba8).unwrap();
@@ -444,11 +444,11 @@ fn rgba8_to_nv12_and_back() {
         }),
     );
 
-    convert(&rgba, &mut nv12).unwrap();
+    convert_multi_thread(&rgba, &mut nv12).unwrap();
 
     rgba.planes_mut().next().unwrap().0.fill(255);
 
-    convert(&nv12, &mut rgba).unwrap();
+    convert_multi_thread(&nv12, &mut rgba).unwrap();
 
     let buffer = image::ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(
         rgba.width() as _,
@@ -476,9 +476,9 @@ fn rgba8_to_i422_and_back() {
         }),
     );
 
-    convert(&rgba, &mut i422).unwrap();
+    convert_multi_thread(&rgba, &mut i422).unwrap();
 
-    convert(&i422, &mut rgba).unwrap();
+    convert_multi_thread(&i422, &mut rgba).unwrap();
 
     let buffer = image::ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(
         rgba.width() as _,
@@ -526,7 +526,7 @@ fn rgba8_to_i444_and_back() {
     )
     .unwrap();
 
-    convert(src, dst).unwrap();
+    convert_multi_thread(src, dst).unwrap();
 
     let src = Image::new(
         PixelFormat::I444,
@@ -556,7 +556,7 @@ fn rgba8_to_i444_and_back() {
     )
     .unwrap();
 
-    convert(src, dst).unwrap();
+    convert_multi_thread(src, dst).unwrap();
 
     let buffer =
         image::ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(width as _, height as _, rgba8).unwrap();
@@ -598,7 +598,7 @@ fn rgba8_to_nv12_and_back_ictcp_pq() {
     )
     .unwrap();
 
-    convert(src, dst).unwrap();
+    convert_multi_thread(src, dst).unwrap();
 
     let src = Image::new(
         PixelFormat::NV12,
@@ -628,7 +628,7 @@ fn rgba8_to_nv12_and_back_ictcp_pq() {
     )
     .unwrap();
 
-    convert(src, dst).unwrap();
+    convert_multi_thread(src, dst).unwrap();
 
     let buffer =
         image::ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(width as _, height as _, rgba8).unwrap();
@@ -641,7 +641,7 @@ fn rgba8_to_i012_and_back_ictcp_hlg() {
     let mut rgba = make_rgba8_image(ColorPrimaries::BT709, ColorTransfer::Linear);
 
     let mut nv12 = Image::blank(
-        PixelFormat::I012,
+        PixelFormat::I420,
         rgba.width(),
         rgba.height(),
         ColorInfo::YUV(YuvColorInfo {
@@ -653,10 +653,10 @@ fn rgba8_to_i012_and_back_ictcp_hlg() {
     );
 
     println!("1");
-    convert(&rgba, &mut nv12).unwrap();
+    convert_multi_thread(&rgba, &mut nv12).unwrap();
 
     println!("2");
-    convert(&nv12, &mut rgba).unwrap();
+    convert_multi_thread(&nv12, &mut rgba).unwrap();
 
     println!("3");
     let buffer = image::ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(
@@ -701,7 +701,7 @@ fn yuyv_to_rgb() {
         }),
     );
 
-    convert(&yuyv, &mut rgb).unwrap();
+    convert_multi_thread(&yuyv, &mut rgb).unwrap();
 
     let buffer = image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(
         1920,
@@ -714,11 +714,11 @@ fn yuyv_to_rgb() {
 
     // // RGB -> YUYV
 
-    convert(&rgb, &mut yuyv).unwrap();
+    convert_multi_thread(&rgb, &mut yuyv).unwrap();
 
     // // YUYV -> RGB
 
-    convert(&yuyv, &mut rgb).unwrap();
+    convert_multi_thread(&yuyv, &mut rgb).unwrap();
 
     let buffer = image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(
         1920,
@@ -745,7 +745,7 @@ fn windows_offsets() {
 
     for x in 2..3 {
         for y in 2..3 {
-            convert(
+            convert_multi_thread(
                 Image::new(
                     PixelFormat::I420,
                     PixelFormatPlanes::infer_i420(i420_src.as_slice(), width, height),
@@ -800,7 +800,7 @@ fn windows_offsets() {
     )
     .unwrap();
 
-    convert(src, dst).unwrap();
+    convert_multi_thread(src, dst).unwrap();
 
     let buffer =
         image::ImageBuffer::<Rgb<u8>, Vec<u8>>::from_vec(1920, 1080, rgb_dst.clone()).unwrap();
