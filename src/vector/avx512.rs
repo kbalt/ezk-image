@@ -493,7 +493,7 @@ mod math {
 
     #[inline(always)]
     pub(super) unsafe fn log(x: __m512) -> __m512 {
-        const INV_MANT_MASK: __m512 = splat(f32::from_bits(!0x7f800000));
+        const INV_MANT_MASK: __m512 = splat(unsafe { transmute::<i32, f32>(!0x7f800000) });
         const CEPHES_SQRT_HF: __m512 = splat(0.707_106_77);
         const CEPHES_LOG_P0: __m512 = splat(7.037_683_6E-2);
         const CEPHES_LOG_P1: __m512 = splat(-1.151_461E-1);
