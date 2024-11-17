@@ -1,6 +1,6 @@
 [package]
 name = "ezk-image"
-version = "0.1.4"
+version = "0.2.0"
 edition = "2021"
 description = "Convert pixel and color formats such and RGB, YUV (YCbCr), ICtCp"
 categories = ["multimedia", "multimedia::images", "multimedia::video"]
