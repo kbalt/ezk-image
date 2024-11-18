@@ -15,7 +15,7 @@ pub(crate) struct YUYVReader<'a, P: PrimitiveInternal> {
 }
 
 impl<'a, P: PrimitiveInternal> YUYVReader<'a, P> {
-    pub(crate) fn new(src: &'a impl ImageRef) -> Result<Self, ConvertError> {
+    pub(crate) fn new(src: &'a dyn ImageRef) -> Result<Self, ConvertError> {
         src.bounds_check()?;
 
         let [(yuyv, yuyv_stride)] = read_planes(src.planes())?;
@@ -30,7 +30,7 @@ impl<'a, P: PrimitiveInternal> YUYVReader<'a, P> {
 
     unsafe fn read_yuyv<V: Vector>(&mut self, offset: usize) -> (V, V) {
         let yuyv00 = P::load::<V>(self.yuyv.add(offset));
-        let yuyv01 = P::load::<V>(self.yuyv.add(offset + V::LEN));
+        let yuyv01 = P::load::<V>(self.yuyv.add(offset + V::LEN * P::SIZE));
 
         yuyv00.unzip(yuyv01)
     }

@@ -70,7 +70,7 @@ unsafe impl<T: ImageRef> ImageRef for Cropped<T> {
         self.1.height
     }
 
-    fn planes(&self) -> impl Iterator<Item = (&[u8], usize)> {
+    fn planes(&self) -> Box<dyn Iterator<Item = (&[u8], usize)> + '_> {
         use PixelFormat::*;
 
         match self.format() {
@@ -96,7 +96,7 @@ unsafe impl<T: ImageRef> ImageRef for Cropped<T> {
 }
 
 unsafe impl<T: ImageMut> ImageMut for Cropped<T> {
-    fn planes_mut(&mut self) -> impl Iterator<Item = (&mut [u8], usize)> {
+    fn planes_mut(&mut self) -> Box<dyn Iterator<Item = (&mut [u8], usize)> + '_> {
         use PixelFormat::*;
 
         let format = self.format();
@@ -162,14 +162,11 @@ impl<S> Iterator for ArrayIter<S> {
     }
 }
 
-fn crop_planes<const N: usize, S: AnySlice>(
+fn crop_planes<'s, const N: usize, S: AnySlice + 's>(
     plane_desc: [PlaneDesc; N],
     planes: [(S, usize); N],
     window: Window,
-) -> ArrayIter<(S, usize)>
-where
-    ArrayIter<(S, usize)>: From<[(S, usize); N]>,
-{
+) -> Box<dyn Iterator<Item = (S, usize)> + 's> {
     let mut out = [const { MaybeUninit::uninit() }; N];
 
     for ((plane_desc, (slice, stride)), out) in
@@ -185,5 +182,5 @@ where
         out.write((slice, stride));
     }
 
-    ArrayIter::from(out.map(|p| unsafe { p.assume_init() }))
+    Box::new(out.map(|p| unsafe { p.assume_init() }).into_iter())
 }

@@ -18,29 +18,6 @@ enum Buffer<S> {
     Split(Vec<S>),
 }
 
-enum BufferIter<T, U, I> {
-    Whole(T),
-    Split(U),
-
-    _Marker(fn() -> I),
-}
-
-impl<T, U, I> Iterator for BufferIter<T, U, I>
-where
-    T: Iterator<Item = I>,
-    U: Iterator<Item = I>,
-{
-    type Item = I;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            BufferIter::Whole(iter) => iter.next(),
-            BufferIter::Split(iter) => iter.next(),
-            BufferIter::_Marker(_) => unreachable!(),
-        }
-    }
-}
-
 /// Everything that can go wrong when constructing an [`Image`]
 #[derive(Debug, thiserror::Error)]
 pub enum ImageError {
@@ -130,9 +107,9 @@ unsafe impl<S: AsRef<[u8]>> ImageRef for Image<S> {
         self.height
     }
 
-    fn planes(&self) -> impl Iterator<Item = (&[u8], usize)> {
+    fn planes(&self) -> Box<dyn Iterator<Item = (&[u8], usize)> + '_> {
         match &self.buffer {
-            Buffer::Whole(buffer) => BufferIter::Whole(
+            Buffer::Whole(buffer) => Box::new(
                 infer(
                     self.format,
                     buffer.as_ref(),
@@ -142,7 +119,7 @@ unsafe impl<S: AsRef<[u8]>> ImageRef for Image<S> {
                 )
                 .zip(self.strides.iter().copied()),
             ),
-            Buffer::Split(planes) => BufferIter::Split(
+            Buffer::Split(planes) => Box::new(
                 planes
                     .iter()
                     .map(|p| p.as_ref())
@@ -156,9 +133,9 @@ unsafe impl<S: AsRef<[u8]>> ImageRef for Image<S> {
 }
 
 unsafe impl<S: AsRef<[u8]> + AsMut<[u8]>> ImageMut for Image<S> {
-    fn planes_mut(&mut self) -> impl Iterator<Item = (&mut [u8], usize)> {
+    fn planes_mut(&mut self) -> Box<dyn Iterator<Item = (&mut [u8], usize)> + '_> {
         match &mut self.buffer {
-            Buffer::Whole(buffer) => BufferIter::Whole(
+            Buffer::Whole(buffer) => Box::new(
                 infer(
                     self.format,
                     buffer.as_mut(),
@@ -168,7 +145,7 @@ unsafe impl<S: AsRef<[u8]> + AsMut<[u8]>> ImageMut for Image<S> {
                 )
                 .zip(self.strides.iter().copied()),
             ),
-            Buffer::Split(planes) => BufferIter::Split(
+            Buffer::Split(planes) => Box::new(
                 planes
                     .iter_mut()
                     .map(|plane| plane.as_mut())

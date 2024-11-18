@@ -31,7 +31,7 @@ where
     P: PrimitiveInternal,
     S: I420Src,
 {
-    pub(crate) fn write(dst: &'a mut impl ImageMut, i420_src: S) -> Result<(), ConvertError> {
+    pub(crate) fn write(dst: &'a mut dyn ImageMut, i420_src: S) -> Result<(), ConvertError> {
         dst.bounds_check()?;
 
         let dst_width = dst.width();

@@ -1,8 +1,8 @@
 use crate::{verify_input_windows, ConvertError, ImageMut, ImageRef, ImageRefExt};
 
 #[inline(always)]
-pub(crate) fn copy_impl(src: &impl ImageRef, dst: &mut impl ImageMut) -> Result<(), ConvertError> {
-    verify_input_windows(&src, &dst)?;
+pub(crate) fn copy_impl(src: &dyn ImageRef, dst: &mut dyn ImageMut) -> Result<(), ConvertError> {
+    verify_input_windows(src, dst)?;
 
     assert_eq!(src.format(), dst.format());
 
@@ -31,11 +31,11 @@ pub(crate) fn copy_impl(src: &impl ImageRef, dst: &mut impl ImageMut) -> Result<
 
 #[inline(never)]
 #[doc(hidden)]
-pub fn copy(src: &impl ImageRef, dst: &mut impl ImageMut) -> Result<(), ConvertError> {
+pub fn copy(src: &dyn ImageRef, dst: &mut dyn ImageMut) -> Result<(), ConvertError> {
     #[cfg(all(feature = "unstable", any(target_arch = "x86", target_arch = "x86_64")))]
     if is_x86_feature_detected!("avx512f") && is_x86_feature_detected!("avx512bw") {
         #[target_feature(enable = "avx512f", enable = "avx512bw")]
-        unsafe fn call(src: &impl ImageRef, dst: &mut impl ImageMut) -> Result<(), ConvertError> {
+        unsafe fn call(src: &dyn ImageRef, dst: &mut dyn ImageMut) -> Result<(), ConvertError> {
             copy_impl(src, dst)
         }
 
@@ -48,7 +48,7 @@ pub fn copy(src: &impl ImageRef, dst: &mut impl ImageMut) -> Result<(), ConvertE
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     if is_x86_feature_detected!("avx2") {
         #[target_feature(enable = "avx2")]
-        unsafe fn call(src: &impl ImageRef, dst: &mut impl ImageMut) -> Result<(), ConvertError> {
+        unsafe fn call(src: &dyn ImageRef, dst: &mut dyn ImageMut) -> Result<(), ConvertError> {
             copy_impl(src, dst)
         }
 
@@ -61,7 +61,7 @@ pub fn copy(src: &impl ImageRef, dst: &mut impl ImageMut) -> Result<(), ConvertE
     #[cfg(target_arch = "aarch64")]
     if crate::arch::is_aarch64_feature_detected!("neon") {
         #[target_feature(enable = "neon")]
-        unsafe fn call(src: &impl ImageRef, dst: &mut impl ImageMut) -> Result<(), ConvertError> {
+        unsafe fn call(src: &dyn ImageRef, dst: &mut dyn ImageMut) -> Result<(), ConvertError> {
             copy_impl(src, dst)
         }
 

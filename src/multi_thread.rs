@@ -9,10 +9,10 @@ use crate::{
 
 /// Parallelizes [`convert`] using as many threads as there are CPU cores.
 pub fn convert_multi_thread(
-    src: &impl ImageRef,
-    dst: &mut impl ImageMut,
+    src: &dyn ImageRef,
+    dst: &mut dyn ImageMut,
 ) -> Result<(), ConvertError> {
-    verify_input_windows(&src, &dst)?;
+    verify_input_windows(src, dst)?;
 
     if src.format() == dst.format() && src.color() == dst.color() {
         return convert_same_color_and_pixel_format(src, dst);

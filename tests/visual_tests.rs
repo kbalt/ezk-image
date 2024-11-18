@@ -1,6 +1,6 @@
 use ezk_image::{
-    convert as convert_multi_thread, resize::Resizer, ColorInfo, ColorPrimaries, ColorSpace,
-    ColorTransfer, Image, ImageRef, PixelFormat, RgbColorInfo, YuvColorInfo,
+    convert_multi_thread, resize::Resizer, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer,
+    Image, ImageRef, PixelFormat, RgbColorInfo, YuvColorInfo,
 };
 use fir::ResizeAlg;
 use image::Rgb;
@@ -57,7 +57,7 @@ fn all_from_rgb_and_back() {
         full_range: false,
     });
 
-    let rgba = make_rgba8_image(100, 100, ColorPrimaries::BT709, ColorTransfer::Linear);
+    let rgba = make_rgba8_image(500, 500, ColorPrimaries::BT709, ColorTransfer::Linear);
 
     for format in PixelFormat::variants() {
         let mut tmp_small = Image::blank(format, rgba.width(), rgba.height(), color);

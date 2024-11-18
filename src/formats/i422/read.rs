@@ -20,7 +20,7 @@ pub(crate) struct I422Reader<'a, P: PrimitiveInternal> {
 }
 
 impl<'a, P: PrimitiveInternal> I422Reader<'a, P> {
-    pub(crate) fn new(src: &'a impl ImageRef) -> Result<Self, ConvertError> {
+    pub(crate) fn new(src: &'a dyn ImageRef) -> Result<Self, ConvertError> {
         src.bounds_check()?;
 
         let [(y, y_stride), (u, u_stride), (v, v_stride)] = read_planes(src.planes())?;

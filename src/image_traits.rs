@@ -8,7 +8,7 @@ pub unsafe trait ImageRef {
     fn width(&self) -> usize;
     fn height(&self) -> usize;
     /// Returns an iterator yielding every plane with their associated stride
-    fn planes(&self) -> impl Iterator<Item = (&[u8], usize)>;
+    fn planes(&self) -> Box<dyn Iterator<Item = (&[u8], usize)> + '_>;
     fn color(&self) -> ColorInfo;
 }
 
@@ -17,7 +17,7 @@ pub unsafe trait ImageRef {
 /// Values returned must always be the same every call
 pub unsafe trait ImageMut: ImageRef {
     /// Returns an iterator yielding every plane with their associated stride
-    fn planes_mut(&mut self) -> impl Iterator<Item = (&mut [u8], usize)>;
+    fn planes_mut(&mut self) -> Box<dyn Iterator<Item = (&mut [u8], usize)> + '_>;
 }
 
 /// [`ImageRef`] extension methods
@@ -37,7 +37,7 @@ pub trait ImageRefExt: ImageRef {
     }
 }
 
-impl<T: ImageRef> ImageRefExt for T {}
+impl<T: ImageRef + ?Sized> ImageRefExt for T {}
 
 unsafe impl<T: ImageRef> ImageRef for &T {
     fn format(&self) -> PixelFormat {
@@ -52,7 +52,7 @@ unsafe impl<T: ImageRef> ImageRef for &T {
         <T as ImageRef>::height(self)
     }
 
-    fn planes(&self) -> impl Iterator<Item = (&[u8], usize)> {
+    fn planes(&self) -> Box<dyn Iterator<Item = (&[u8], usize)> + '_> {
         <T as ImageRef>::planes(self)
     }
 
@@ -74,7 +74,7 @@ unsafe impl<T: ImageRef> ImageRef for &mut T {
         <T as ImageRef>::height(self)
     }
 
-    fn planes(&self) -> impl Iterator<Item = (&[u8], usize)> {
+    fn planes(&self) -> Box<dyn Iterator<Item = (&[u8], usize)> + '_> {
         <T as ImageRef>::planes(self)
     }
 
@@ -84,7 +84,7 @@ unsafe impl<T: ImageRef> ImageRef for &mut T {
 }
 
 unsafe impl<T: ImageMut> ImageMut for &mut T {
-    fn planes_mut(&mut self) -> impl Iterator<Item = (&mut [u8], usize)> {
+    fn planes_mut(&mut self) -> Box<dyn Iterator<Item = (&mut [u8], usize)> + '_> {
         <T as ImageMut>::planes_mut(self)
     }
 }

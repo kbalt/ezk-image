@@ -44,8 +44,8 @@ impl Resizer {
     /// Color characteristics of the images are ignored.
     pub fn resize(
         &mut self,
-        src: &impl ImageRef,
-        dst: &mut impl ImageMut,
+        src: &dyn ImageRef,
+        dst: &mut dyn ImageMut,
     ) -> Result<(), ResizeError> {
         if src.format() != dst.format() {
             return Err(ResizeError::DifferentFormats);

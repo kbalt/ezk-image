@@ -27,7 +27,7 @@ where
     P: PrimitiveInternal,
     S: RgbaSrc,
 {
-    pub(crate) fn write(dst: &'a mut impl ImageMut, rgba_src: S) -> Result<(), ConvertError> {
+    pub(crate) fn write(dst: &'a mut dyn ImageMut, rgba_src: S) -> Result<(), ConvertError> {
         dst.bounds_check()?;
 
         let dst_width = dst.width();

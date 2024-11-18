@@ -16,7 +16,7 @@ pub(crate) struct RgbReader<'a, const REVERSE: bool, P: PrimitiveInternal> {
 }
 
 impl<'a, const REVERSE: bool, P: PrimitiveInternal> RgbReader<'a, REVERSE, P> {
-    pub(crate) fn new(src: &'a impl ImageRef) -> Result<Self, ConvertError> {
+    pub(crate) fn new(src: &'a dyn ImageRef) -> Result<Self, ConvertError> {
         src.bounds_check()?;
 
         let [(rgb, rgb_stride)] = read_planes(src.planes())?;
