@@ -22,7 +22,7 @@ pub unsafe trait ImageMut: ImageRef {
 
 /// [`ImageRef`] extension methods
 pub trait ImageRefExt: ImageRef {
-    // Perform a bounds check, return an error when it fails
+    /// Perform a bounds check, return an error when it fails
     fn bounds_check(&self) -> Result<(), BoundsCheckError> {
         self.format()
             .bounds_check(self.planes(), self.width(), self.height())
