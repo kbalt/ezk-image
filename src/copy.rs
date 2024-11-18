@@ -22,7 +22,7 @@ pub(crate) fn copy_impl(src: &dyn ImageRef, dst: &mut dyn ImageMut) -> Result<()
         let dst_rows = dst_plane.chunks_exact_mut(dst_stride);
 
         for (src_row, dst_row) in src_rows.zip(dst_rows) {
-            dst_row[..n].copy_from_slice(src_row);
+            dst_row[..n].copy_from_slice(&src_row[..n]);
         }
     }
 
@@ -92,6 +92,63 @@ mod tests {
         for format in PixelFormat::variants() {
             let src = Image::blank(format, width, height, color);
             let mut dst = Image::blank(format, width, height, color);
+
+            super::copy(&src, &mut dst).unwrap();
+        }
+    }
+
+    #[test]
+    fn run_copy_custom_src_strides() {
+        let width = 1920;
+        let height = 1080;
+
+        let color = ColorInfo::YUV(YuvColorInfo {
+            transfer: ColorTransfer::Linear,
+            primaries: ColorPrimaries::BT709,
+            space: crate::ColorSpace::BT709,
+            full_range: false,
+        });
+
+        for format in PixelFormat::variants() {
+            let src = Image::from_buffer(
+                format,
+                vec![0; format.buffer_size(width + 100, height)],
+                Some(format.packed_strides(width + 100)),
+                width,
+                height,
+                color,
+            )
+            .unwrap();
+            let mut dst = Image::blank(format, width, height, color);
+
+            super::copy(&src, &mut dst).unwrap();
+        }
+    }
+
+    #[test]
+    fn run_copy_custom_dst_strides() {
+        let width = 1920;
+        let height = 1080;
+
+        let color = ColorInfo::YUV(YuvColorInfo {
+            transfer: ColorTransfer::Linear,
+            primaries: ColorPrimaries::BT709,
+            space: crate::ColorSpace::BT709,
+            full_range: false,
+        });
+
+        for format in PixelFormat::variants() {
+            let src = Image::blank(format, width, height, color);
+
+            let mut dst = Image::from_buffer(
+                format,
+                vec![0; format.buffer_size(width + 100, height)],
+                Some(format.packed_strides(width + 100)),
+                width,
+                height,
+                color,
+            )
+            .unwrap();
 
             super::copy(&src, &mut dst).unwrap();
         }
