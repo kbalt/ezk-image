@@ -7,7 +7,6 @@ use crate::{
     AnySlice, BoundsCheckError, ColorInfo, ImageMut, ImageRef, ImageRefExt,
     InvalidNumberOfPlanesError, PixelFormat,
 };
-use std::mem::MaybeUninit;
 
 /// Error indicating an invalid [`Window`] for a given image
 #[derive(Debug, thiserror::Error)]
@@ -131,20 +130,19 @@ fn crop_planes<'s, const N: usize, S: AnySlice + 's>(
     planes: [(S, usize); N],
     window: Window,
 ) -> Box<dyn Iterator<Item = (S, usize)> + 's> {
-    let mut out = [const { MaybeUninit::uninit() }; N];
+    Box::new(
+        plane_desc
+            .into_iter()
+            .zip(planes)
+            .map(move |(plane_desc, (slice, stride))| {
+                let x = plane_desc.width_op.op(window.x);
+                let y = plane_desc.height_op.op(window.y);
 
-    for ((plane_desc, (slice, stride)), out) in
-        plane_desc.into_iter().zip(planes).zip(out.iter_mut())
-    {
-        let x = plane_desc.width_op.op(window.x);
-        let y = plane_desc.height_op.op(window.y);
+                let split_at = (y * stride + x) * plane_desc.bytes_per_primitive;
 
-        let split_at = (y * stride + x) * plane_desc.bytes_per_primitive;
+                let (_, slice) = slice.slice_split_at(split_at);
 
-        let (_, slice) = slice.slice_split_at(split_at);
-
-        out.write((slice, stride));
-    }
-
-    Box::new(out.map(|p| unsafe { p.assume_init() }).into_iter())
+                (slice, stride)
+            }),
+    )
 }
