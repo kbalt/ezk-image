@@ -10,7 +10,7 @@ where
     P: Primitive,
     S: I422Src,
 {
-    yuyv: *mut u8,
+    yuyv: &'a mut [u8],
 
     yuyv_stride: usize,
 
@@ -39,7 +39,7 @@ where
             dst_width,
             dst_height,
             Self {
-                yuyv: yuyv.as_mut_ptr(),
+                yuyv,
                 yuyv_stride,
                 max_value: crate::formats::max_value_for_bits(dst_format.bits_per_component()),
                 i422_src,
@@ -54,7 +54,7 @@ where
     {
         let (yuyv00, yuyv01) = y.zip(uv);
 
-        P::write_2x(self.yuyv.add(offset0), yuyv00, yuyv01);
+        P::write_2x(&mut self.yuyv[offset0..], yuyv00, yuyv01);
     }
 }
 

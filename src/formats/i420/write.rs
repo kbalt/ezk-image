@@ -11,9 +11,9 @@ where
     P: Primitive,
     S: I420Src,
 {
-    dst_y: *mut u8,
-    dst_u: *mut u8,
-    dst_v: *mut u8,
+    y: &'a mut [u8],
+    u: &'a mut [u8],
+    v: &'a mut [u8],
 
     y_stride: usize,
     u_stride: usize,
@@ -44,9 +44,9 @@ where
             dst_width,
             dst_height,
             Self {
-                dst_y: y.as_mut_ptr(),
-                dst_u: u.as_mut_ptr(),
-                dst_v: v.as_mut_ptr(),
+                y,
+                u,
+                v,
                 y_stride,
                 u_stride,
                 v_stride,
@@ -88,10 +88,10 @@ where
         let u_offset = (y / 2) * (self.u_stride) + (x / 2) * P::SIZE;
         let v_offset = (y / 2) * (self.v_stride) + (x / 2) * P::SIZE;
 
-        P::write_2x(self.dst_y.add(y00_offset), y00, y01);
-        P::write_2x(self.dst_y.add(y10_offset), y10, y11);
+        P::write_2x(&mut self.y[y00_offset..], y00, y01);
+        P::write_2x(&mut self.y[y10_offset..], y10, y11);
 
-        P::write(self.dst_u.add(u_offset), u);
-        P::write(self.dst_v.add(v_offset), v);
+        P::write(&mut self.u[u_offset..], u);
+        P::write(&mut self.v[v_offset..], v);
     }
 }

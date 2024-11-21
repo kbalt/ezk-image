@@ -11,7 +11,7 @@ where
     P: Primitive,
     S: RgbaSrc,
 {
-    rgba: *mut u8,
+    rgba: &'a mut [u8],
 
     rgba_stride: usize,
 
@@ -40,7 +40,7 @@ where
             dst_width,
             dst_height,
             Self {
-                rgba: rgba.as_mut_ptr(),
+                rgba,
                 rgba_stride,
                 max_value: crate::formats::max_value_for_bits(dst_format.bits_per_component()),
                 rgba_src,
@@ -63,7 +63,7 @@ where
         let offset10 = (y + 1) * self.rgba_stride + x * 4 * P::SIZE;
 
         P::write_interleaved_4x_2x(
-            self.rgba.add(offset00),
+            &mut self.rgba[offset00..],
             [
                 multiply_and_reverse::<REVERSE, V>(block.px00, self.max_value),
                 multiply_and_reverse::<REVERSE, V>(block.px01, self.max_value),
@@ -71,7 +71,7 @@ where
         );
 
         P::write_interleaved_4x_2x(
-            self.rgba.add(offset10),
+            &mut self.rgba[offset10..],
             [
                 multiply_and_reverse::<REVERSE, V>(block.px10, self.max_value),
                 multiply_and_reverse::<REVERSE, V>(block.px11, self.max_value),

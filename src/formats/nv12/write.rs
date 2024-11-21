@@ -11,8 +11,8 @@ where
     P: Primitive,
     S: I420Src,
 {
-    y: *mut u8,
-    uv: *mut u8,
+    y: &'a mut [u8],
+    uv: &'a mut [u8],
 
     y_stride: usize,
     uv_stride: usize,
@@ -42,8 +42,8 @@ where
             dst_width,
             dst_height,
             Self {
-                y: y.as_mut_ptr(),
-                uv: uv.as_mut_ptr(),
+                y,
+                uv,
                 y_stride,
                 uv_stride,
                 max_value: crate::formats::max_value_for_bits(dst_format.bits_per_component()),
@@ -82,11 +82,11 @@ where
 
         let uv_offset = (y / 2) * self.uv_stride + x * P::SIZE;
 
-        P::write_2x(self.y.add(y00_offset), y00, y01);
-        P::write_2x(self.y.add(y10_offset), y10, y11);
+        P::write_2x(&mut self.y[y00_offset..], y00, y01);
+        P::write_2x(&mut self.y[y10_offset..], y10, y11);
 
         let (uv0, uv1) = u.zip(v);
 
-        P::write_2x(self.uv.add(uv_offset), uv0, uv1);
+        P::write_2x(&mut self.uv[uv_offset..], uv0, uv1);
     }
 }
