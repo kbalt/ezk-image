@@ -1,14 +1,14 @@
 use super::{I422Block, I422Src};
 use crate::formats::visit_2x2::{visit, Image2x2Visitor};
 use crate::planes::read_planes_mut;
-use crate::primitive::PrimitiveInternal;
+use crate::primitive::Primitive;
 use crate::vector::Vector;
 use crate::{ConvertError, ImageMut, ImageRefExt};
 use std::marker::PhantomData;
 
 pub(crate) struct I422Writer<'a, P, S>
 where
-    P: PrimitiveInternal,
+    P: Primitive,
     S: I422Src,
 {
     dst_y: *mut u8,
@@ -28,7 +28,7 @@ where
 
 impl<'a, P, S> I422Writer<'a, P, S>
 where
-    P: PrimitiveInternal,
+    P: Primitive,
     S: I422Src,
 {
     pub(crate) fn write(dst: &'a mut dyn ImageMut, i422_src: S) -> Result<(), ConvertError> {
@@ -60,7 +60,7 @@ where
 
 impl<P, S> Image2x2Visitor for I422Writer<'_, P, S>
 where
-    P: PrimitiveInternal,
+    P: Primitive,
     S: I422Src,
 {
     #[inline(always)]

@@ -1,11 +1,11 @@
 use crate::planes::read_planes;
-use crate::primitive::PrimitiveInternal;
+use crate::primitive::Primitive;
 use crate::vector::Vector;
 use crate::{ConvertError, I422Block, I422Src, ImageRef, ImageRefExt};
 use std::marker::PhantomData;
 
-pub(crate) struct YUYVReader<'a, P: PrimitiveInternal> {
-    yuyv: *const u8,
+pub(crate) struct YUYVReader<'a, P: Primitive> {
+    yuyv: &'a [u8],
 
     yuyv_stride: usize,
 
@@ -14,14 +14,14 @@ pub(crate) struct YUYVReader<'a, P: PrimitiveInternal> {
     _m: PhantomData<&'a [P]>,
 }
 
-impl<'a, P: PrimitiveInternal> YUYVReader<'a, P> {
+impl<'a, P: Primitive> YUYVReader<'a, P> {
     pub(crate) fn new(src: &'a dyn ImageRef) -> Result<Self, ConvertError> {
         src.bounds_check()?;
 
         let [(yuyv, yuyv_stride)] = read_planes(src.planes())?;
 
         Ok(Self {
-            yuyv: yuyv.as_ptr(),
+            yuyv,
             yuyv_stride,
             max_value: crate::formats::max_value_for_bits(src.format().bits_per_component()),
             _m: PhantomData,
@@ -29,14 +29,14 @@ impl<'a, P: PrimitiveInternal> YUYVReader<'a, P> {
     }
 
     unsafe fn read_yuyv<V: Vector>(&mut self, offset: usize) -> (V, V) {
-        let yuyv00 = P::load::<V>(self.yuyv.add(offset));
-        let yuyv01 = P::load::<V>(self.yuyv.add(offset + V::LEN * P::SIZE));
+        let yuyv00 = P::load::<V>(&self.yuyv[offset..]);
+        let yuyv01 = P::load::<V>(&self.yuyv[offset + V::LEN * P::SIZE..]);
 
         yuyv00.unzip(yuyv01)
     }
 }
 
-impl<P: PrimitiveInternal> I422Src for YUYVReader<'_, P> {
+impl<P: Primitive> I422Src for YUYVReader<'_, P> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> I422Block<V> {
         let offset0 = y * self.yuyv_stride + x * 2 * P::SIZE;

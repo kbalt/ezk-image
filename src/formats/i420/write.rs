@@ -1,14 +1,14 @@
 use super::{I420Block, I420Src};
 use crate::formats::visit_2x2::{visit, Image2x2Visitor};
 use crate::planes::read_planes_mut;
-use crate::primitive::PrimitiveInternal;
+use crate::primitive::Primitive;
 use crate::vector::Vector;
 use crate::{ConvertError, ImageMut, ImageRefExt};
 use std::marker::PhantomData;
 
 pub(crate) struct I420Writer<'a, P, S>
 where
-    P: PrimitiveInternal,
+    P: Primitive,
     S: I420Src,
 {
     dst_y: *mut u8,
@@ -28,7 +28,7 @@ where
 
 impl<'a, P, S> I420Writer<'a, P, S>
 where
-    P: PrimitiveInternal,
+    P: Primitive,
     S: I420Src,
 {
     pub(crate) fn write(dst: &'a mut dyn ImageMut, i420_src: S) -> Result<(), ConvertError> {
@@ -60,7 +60,7 @@ where
 
 impl<P, S> Image2x2Visitor for I420Writer<'_, P, S>
 where
-    P: PrimitiveInternal,
+    P: Primitive,
     S: I420Src,
 {
     #[inline(always)]

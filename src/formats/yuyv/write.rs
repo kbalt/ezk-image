@@ -1,13 +1,13 @@
 use crate::formats::visit_2x2::{visit, Image2x2Visitor};
 use crate::planes::read_planes_mut;
-use crate::primitive::PrimitiveInternal;
+use crate::primitive::Primitive;
 use crate::vector::Vector;
 use crate::{ConvertError, I422Block, I422Src, ImageMut, ImageRefExt};
 use std::marker::PhantomData;
 
 pub(crate) struct YUYVWriter<'a, P, S>
 where
-    P: PrimitiveInternal,
+    P: Primitive,
     S: I422Src,
 {
     yuyv: *mut u8,
@@ -23,7 +23,7 @@ where
 
 impl<'a, P, S> YUYVWriter<'a, P, S>
 where
-    P: PrimitiveInternal,
+    P: Primitive,
     S: I422Src,
 {
     pub(crate) fn write(dst: &'a mut dyn ImageMut, i422_src: S) -> Result<(), ConvertError> {
@@ -50,7 +50,7 @@ where
 
     unsafe fn write_yuyv<V: Vector>(&mut self, y: V, uv: V, offset0: usize)
     where
-        P: PrimitiveInternal,
+        P: Primitive,
     {
         let (yuyv00, yuyv01) = y.zip(uv);
 
@@ -60,7 +60,7 @@ where
 
 impl<P, S> Image2x2Visitor for YUYVWriter<'_, P, S>
 where
-    P: PrimitiveInternal,
+    P: Primitive,
     S: I422Src,
 {
     #[inline(always)]

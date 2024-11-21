@@ -1,13 +1,13 @@
 use crate::formats::visit_2x2::{visit, Image2x2Visitor};
 use crate::planes::read_planes_mut;
-use crate::primitive::PrimitiveInternal;
+use crate::primitive::Primitive;
 use crate::vector::Vector;
 use crate::{ConvertError, ImageMut, ImageRefExt, RgbaPixel, RgbaSrc};
 use std::marker::PhantomData;
 
 pub(crate) struct RgbWriter<'a, const REVERSE: bool, P, S>
 where
-    P: PrimitiveInternal,
+    P: Primitive,
     S: RgbaSrc,
 {
     rgb: *mut u8,
@@ -23,7 +23,7 @@ where
 
 impl<'a, const REVERSE: bool, P, S> RgbWriter<'a, REVERSE, P, S>
 where
-    P: PrimitiveInternal,
+    P: Primitive,
     S: RgbaSrc,
 {
     pub(crate) fn write(dst: &'a mut dyn ImageMut, rgba_src: S) -> Result<(), ConvertError> {
@@ -51,7 +51,7 @@ where
 
 impl<const REVERSE: bool, P, S> Image2x2Visitor for RgbWriter<'_, REVERSE, P, S>
 where
-    P: PrimitiveInternal,
+    P: Primitive,
     S: RgbaSrc,
 {
     #[inline(always)]

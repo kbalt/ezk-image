@@ -1,11 +1,11 @@
 use crate::vector::Vector;
 
-pub(crate) trait PrimitiveInternal {
+pub(crate) trait Primitive {
     const SIZE: usize;
 
-    unsafe fn load<V: Vector>(ptr: *const u8) -> V;
-    unsafe fn load_3x_interleaved_2x<V: Vector>(ptr: *const u8) -> [[V; 3]; 2];
-    unsafe fn load_4x_interleaved_2x<V: Vector>(ptr: *const u8) -> [[V; 4]; 2];
+    unsafe fn load<V: Vector>(ptr: &[u8]) -> V;
+    unsafe fn load_3x_interleaved_2x<V: Vector>(ptr: &[u8]) -> [[V; 3]; 2];
+    unsafe fn load_4x_interleaved_2x<V: Vector>(ptr: &[u8]) -> [[V; 4]; 2];
 
     unsafe fn write<V: Vector>(ptr: *mut u8, v: V);
     unsafe fn write_2x<V: Vector>(ptr: *mut u8, v0: V, v1: V);
@@ -14,12 +14,13 @@ pub(crate) trait PrimitiveInternal {
     unsafe fn write_interleaved_4x_2x<V: Vector>(ptr: *mut u8, v: [[V; 4]; 2]);
 }
 
-impl PrimitiveInternal for u8 {
+impl Primitive for u8 {
     const SIZE: usize = 1;
 
     #[inline(always)]
-    unsafe fn load<V: Vector>(ptr: *const u8) -> V {
-        V::load_u8(ptr)
+    unsafe fn load<V: Vector>(slice: &[u8]) -> V {
+        debug_assert!(slice.len() >= V::LEN);
+        V::load_u8(slice.as_ptr())
     }
 
     #[inline(always)]
@@ -32,12 +33,14 @@ impl PrimitiveInternal for u8 {
     }
 
     #[inline(always)]
-    unsafe fn load_3x_interleaved_2x<V: Vector>(ptr: *const u8) -> [[V; 3]; 2] {
-        V::load_u8_3x_interleaved_2x(ptr)
+    unsafe fn load_3x_interleaved_2x<V: Vector>(ptr: &[u8]) -> [[V; 3]; 2] {
+        debug_assert!(ptr.len() >= V::LEN * 3 * 2 * Self::SIZE);
+        V::load_u8_3x_interleaved_2x(ptr.as_ptr())
     }
     #[inline(always)]
-    unsafe fn load_4x_interleaved_2x<V: Vector>(ptr: *const u8) -> [[V; 4]; 2] {
-        V::load_u8_4x_interleaved_2x(ptr)
+    unsafe fn load_4x_interleaved_2x<V: Vector>(ptr: &[u8]) -> [[V; 4]; 2] {
+        debug_assert!(ptr.len() >= V::LEN * 4 * 2 * Self::SIZE);
+        V::load_u8_4x_interleaved_2x(ptr.as_ptr())
     }
 
     #[inline(always)]
@@ -50,12 +53,13 @@ impl PrimitiveInternal for u8 {
     }
 }
 
-impl PrimitiveInternal for u16 {
+impl Primitive for u16 {
     const SIZE: usize = 2;
 
     #[inline(always)]
-    unsafe fn load<V: Vector>(ptr: *const u8) -> V {
-        V::load_u16(ptr)
+    unsafe fn load<V: Vector>(ptr: &[u8]) -> V {
+        debug_assert!(ptr.len() >= V::LEN * 2);
+        V::load_u16(ptr.as_ptr())
     }
 
     #[inline(always)]
@@ -68,12 +72,14 @@ impl PrimitiveInternal for u16 {
     }
 
     #[inline(always)]
-    unsafe fn load_3x_interleaved_2x<V: Vector>(ptr: *const u8) -> [[V; 3]; 2] {
-        V::load_u16_3x_interleaved_2x(ptr)
+    unsafe fn load_3x_interleaved_2x<V: Vector>(ptr: &[u8]) -> [[V; 3]; 2] {
+        debug_assert!(ptr.len() >= V::LEN * 3 * 2 * Self::SIZE);
+        V::load_u16_3x_interleaved_2x(ptr.as_ptr())
     }
     #[inline(always)]
-    unsafe fn load_4x_interleaved_2x<V: Vector>(ptr: *const u8) -> [[V; 4]; 2] {
-        V::load_u16_4x_interleaved_2x(ptr)
+    unsafe fn load_4x_interleaved_2x<V: Vector>(ptr: &[u8]) -> [[V; 4]; 2] {
+        debug_assert!(ptr.len() >= V::LEN * 4 * 2 * Self::SIZE);
+        V::load_u16_4x_interleaved_2x(ptr.as_ptr())
     }
 
     #[inline(always)]

@@ -1,14 +1,14 @@
 use super::{I420Block, I420Src};
 use crate::planes::read_planes;
-use crate::primitive::PrimitiveInternal;
+use crate::primitive::Primitive;
 use crate::vector::Vector;
 use crate::{ConvertError, ImageRef, ImageRefExt};
 use std::marker::PhantomData;
 
-pub(crate) struct I420Reader<'a, P: PrimitiveInternal> {
-    y: *const u8,
-    u: *const u8,
-    v: *const u8,
+pub(crate) struct I420Reader<'a, P: Primitive> {
+    y: &'a [u8],
+    u: &'a [u8],
+    v: &'a [u8],
 
     y_stride: usize,
     u_stride: usize,
@@ -19,16 +19,16 @@ pub(crate) struct I420Reader<'a, P: PrimitiveInternal> {
     _m: PhantomData<&'a [P]>,
 }
 
-impl<'a, P: PrimitiveInternal> I420Reader<'a, P> {
+impl<'a, P: Primitive> I420Reader<'a, P> {
     pub(crate) fn new(src: &'a dyn ImageRef) -> Result<Self, ConvertError> {
         src.bounds_check()?;
 
         let [(y, y_stride), (u, u_stride), (v, v_stride)] = read_planes(src.planes())?;
 
         Ok(Self {
-            y: y.as_ptr(),
-            u: u.as_ptr(),
-            v: v.as_ptr(),
+            y,
+            u,
+            v,
             y_stride,
             u_stride,
             v_stride,
@@ -38,7 +38,7 @@ impl<'a, P: PrimitiveInternal> I420Reader<'a, P> {
     }
 }
 
-impl<P: PrimitiveInternal> I420Src for I420Reader<'_, P> {
+impl<P: Primitive> I420Src for I420Reader<'_, P> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> I420Block<V> {
         let y00_offset = (y * self.y_stride) + x * P::SIZE;
@@ -48,14 +48,14 @@ impl<P: PrimitiveInternal> I420Src for I420Reader<'_, P> {
         let v_offset = (y / 2) * (self.v_stride) + (x / 2) * P::SIZE;
 
         // Load Y pixels
-        let y00 = P::load::<V>(self.y.add(y00_offset));
-        let y01 = P::load::<V>(self.y.add(y00_offset + V::LEN * P::SIZE));
-        let y10 = P::load::<V>(self.y.add(y10_offset));
-        let y11 = P::load::<V>(self.y.add(y10_offset + V::LEN * P::SIZE));
+        let y00 = P::load::<V>(&self.y[y00_offset..]);
+        let y01 = P::load::<V>(&self.y[y00_offset + V::LEN * P::SIZE..]);
+        let y10 = P::load::<V>(&self.y[y10_offset..]);
+        let y11 = P::load::<V>(&self.y[y10_offset + V::LEN * P::SIZE..]);
 
         // Load U and V
-        let u = P::load::<V>(self.u.add(u_offset));
-        let v = P::load::<V>(self.v.add(v_offset));
+        let u = P::load::<V>(&self.u[u_offset..]);
+        let v = P::load::<V>(&self.v[v_offset..]);
 
         // Convert to analog 0..=1.0
         let y00 = y00.vdivf(self.max_value);
