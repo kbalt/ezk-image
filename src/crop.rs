@@ -1,11 +1,6 @@
 use crate::{
-    plane_decs::{
-        PlaneDesc, I01X_PLANES, I21X_PLANES, I41X_PLANES, I420_PLANES, I422_PLANES, I444_PLANES,
-        NV12_PLANES, RGBA_PLANES, RGB_PLANES, YUYV_PLANES,
-    },
-    planes::{read_planes, read_planes_mut},
-    AnySlice, BoundsCheckError, ColorInfo, ImageMut, ImageRef, ImageRefExt,
-    InvalidNumberOfPlanesError, PixelFormat,
+    plane_decs::PlaneDesc, AnySlice, BoundsCheckError, ColorInfo, ImageMut, ImageRef, ImageRefExt,
+    PixelFormat,
 };
 
 /// Error indicating an invalid [`Window`] for a given image
@@ -70,23 +65,7 @@ unsafe impl<T: ImageRef> ImageRef for Cropped<T> {
     }
 
     fn planes(&self) -> Box<dyn Iterator<Item = (&[u8], usize)> + '_> {
-        use PixelFormat::*;
-
-        match self.format() {
-            I420 => crop_planes(I420_PLANES, expect(read_planes(self.0.planes())), self.1),
-            I422 => crop_planes(I422_PLANES, expect(read_planes(self.0.planes())), self.1),
-            I444 => crop_planes(I444_PLANES, expect(read_planes(self.0.planes())), self.1),
-
-            I010 | I012 => crop_planes(I01X_PLANES, expect(read_planes(self.0.planes())), self.1),
-            I210 | I212 => crop_planes(I21X_PLANES, expect(read_planes(self.0.planes())), self.1),
-            I410 | I412 => crop_planes(I41X_PLANES, expect(read_planes(self.0.planes())), self.1),
-
-            NV12 => crop_planes(NV12_PLANES, expect(read_planes(self.0.planes())), self.1),
-            YUYV => crop_planes(YUYV_PLANES, expect(read_planes(self.0.planes())), self.1),
-
-            RGBA | BGRA => crop_planes(RGBA_PLANES, expect(read_planes(self.0.planes())), self.1),
-            RGB | BGR => crop_planes(RGB_PLANES, expect(read_planes(self.0.planes())), self.1),
-        }
+        crop_planes(self.format().plane_desc(), self.0.planes(), self.1)
     }
 
     fn color(&self) -> ColorInfo {
@@ -96,40 +75,15 @@ unsafe impl<T: ImageRef> ImageRef for Cropped<T> {
 
 unsafe impl<T: ImageMut> ImageMut for Cropped<T> {
     fn planes_mut(&mut self) -> Box<dyn Iterator<Item = (&mut [u8], usize)> + '_> {
-        use PixelFormat::*;
-
-        let format = self.format();
-        let planes_mut = self.0.planes_mut();
-
-        match format {
-            I420 => crop_planes(I420_PLANES, expect(read_planes_mut(planes_mut)), self.1),
-
-            I422 => crop_planes(I422_PLANES, expect(read_planes_mut(planes_mut)), self.1),
-            I444 => crop_planes(I444_PLANES, expect(read_planes_mut(planes_mut)), self.1),
-
-            I010 | I012 => crop_planes(I01X_PLANES, expect(read_planes_mut(planes_mut)), self.1),
-            I210 | I212 => crop_planes(I21X_PLANES, expect(read_planes_mut(planes_mut)), self.1),
-            I410 | I412 => crop_planes(I41X_PLANES, expect(read_planes_mut(planes_mut)), self.1),
-
-            NV12 => crop_planes(NV12_PLANES, expect(read_planes_mut(planes_mut)), self.1),
-            YUYV => crop_planes(YUYV_PLANES, expect(read_planes_mut(planes_mut)), self.1),
-
-            RGBA | BGRA => crop_planes(RGBA_PLANES, expect(read_planes_mut(planes_mut)), self.1),
-            RGB | BGR => crop_planes(RGB_PLANES, expect(read_planes_mut(planes_mut)), self.1),
-        }
+        crop_planes(self.format().plane_desc(), self.0.planes_mut(), self.1)
     }
 }
 
-#[track_caller]
-fn expect<T>(result: Result<T, InvalidNumberOfPlanesError>) -> T {
-    result.expect("Cropped expects a valid number of planes")
-}
-
-fn crop_planes<'s, const N: usize, S: AnySlice + 's>(
-    plane_desc: [PlaneDesc; N],
-    planes: [(S, usize); N],
+fn crop_planes<'a, S: AnySlice + 'a>(
+    plane_desc: &'static [PlaneDesc],
+    planes: Box<dyn Iterator<Item = (S, usize)> + 'a>,
     window: Window,
-) -> Box<dyn Iterator<Item = (S, usize)> + 's> {
+) -> Box<dyn Iterator<Item = (S, usize)> + 'a> {
     Box::new(
         plane_desc
             .into_iter()
