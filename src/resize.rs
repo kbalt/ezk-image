@@ -1,4 +1,4 @@
-use crate::{ImageMut, ImageRef};
+use crate::{ImageMut, ImageRef, PixelFormat};
 use fir::{pixels::InnerPixel, IntoImageView, IntoImageViewMut};
 #[cfg(feature = "multi-thread")]
 use rayon::scope;
@@ -11,15 +11,15 @@ pub use fir::{Filter, FilterType, ResizeAlg};
 /// Everything that can go wrong when calling [`Resizer::resize`]
 #[derive(Debug, PartialEq)]
 pub enum ResizeError {
-    DifferentFormats,
+    DifferentFormats(PixelFormat, PixelFormat),
 }
 
 impl fmt::Display for ResizeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ResizeError::DifferentFormats => write!(
+            ResizeError::DifferentFormats(src, dst) => write!(
                 f,
-                "source and destination images have different pixel formats"
+                "source and destination images have different pixel formats (source image is {src:?} and destination is {dst:?})"
             ),
         }
     }
@@ -48,7 +48,7 @@ impl Resizer {
         dst: &mut dyn ImageMut,
     ) -> Result<(), ResizeError> {
         if src.format() != dst.format() {
-            return Err(ResizeError::DifferentFormats);
+            return Err(ResizeError::DifferentFormats(src.format(), dst.format()));
         }
 
         let alg = self.alg;
@@ -81,69 +81,40 @@ impl Resizer {
                     let src_height = src_plane.len() / src_stride;
                     let dst_height = dst_plane.len() / dst_stride;
 
-                    Self::resize_plane(
-                        fir_resizer,
-                        alg,
-                        plane_desc.pixel_type,
-                        src_plane,
-                        src_stride,
-                        src_fir_width,
-                        src_height,
-                        dst_plane,
-                        dst_stride,
-                        dst_fir_width,
-                        dst_height,
-                    );
+                    let src = FirAdapterIntoImageView {
+                        pixel_type: plane_desc.pixel_type,
+                        width: src_fir_width,
+                        height: src_height,
+                        stride: src_stride,
+                        plane: src_plane,
+                    };
+
+                    let mut dst = FirAdapterIntoImageView {
+                        pixel_type: plane_desc.pixel_type,
+                        width: dst_fir_width,
+                        height: dst_height,
+                        stride: dst_stride,
+                        plane: dst_plane,
+                    };
+
+                    fir_resizer
+                        .resize(
+                            &src,
+                            &mut dst,
+                            Some(&fir::ResizeOptions {
+                                algorithm: alg,
+                                cropping: fir::SrcCropping::None,
+                                mul_div_alpha: false,
+                            }),
+                        )
+                        .expect(
+                            "Pixel type must be assured to be the same before calling fir's resize",
+                        );
                 })
             }
         });
 
         Ok(())
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn resize_plane(
-        fir_resizer: &mut fir::Resizer,
-        alg: ResizeAlg,
-        pixel_type: fir::PixelType,
-
-        src: &[u8],
-        src_stride: usize,
-        src_width: usize,
-        src_height: usize,
-
-        dst: &mut [u8],
-        dst_stride: usize,
-        dst_width: usize,
-        dst_height: usize,
-    ) {
-        let src = FirAdapterFirAdapterIntoImageView {
-            pixel_type,
-            width: src_width,
-            height: src_height,
-            stride: src_stride,
-            plane: src,
-        };
-
-        let mut dst = FirAdapterFirAdapterIntoImageView {
-            pixel_type,
-            width: dst_width,
-            height: dst_height,
-            stride: dst_stride,
-            plane: dst,
-        };
-
-        fir_resizer
-            .resize(
-                &src,
-                &mut dst,
-                Some(&fir::ResizeOptions {
-                    algorithm: alg,
-                    cropping: fir::SrcCropping::None,
-                    mul_div_alpha: false,
-                }),
-            )
-            .expect("Pixel type must be assured to be the same before calling fir's resize");
     }
 }
 
@@ -162,7 +133,7 @@ mod rayon_stub {
     }
 }
 
-struct FirAdapterFirAdapterIntoImageView<T> {
+struct FirAdapterIntoImageView<T> {
     pixel_type: fir::PixelType,
     width: usize,
     height: usize,
@@ -170,7 +141,7 @@ struct FirAdapterFirAdapterIntoImageView<T> {
     plane: T,
 }
 
-impl<T: AsRef<[u8]>> IntoImageView for FirAdapterFirAdapterIntoImageView<T> {
+impl<T: AsRef<[u8]>> IntoImageView for FirAdapterIntoImageView<T> {
     fn pixel_type(&self) -> Option<fir::PixelType> {
         Some(self.pixel_type)
     }
@@ -193,14 +164,12 @@ impl<T: AsRef<[u8]>> IntoImageView for FirAdapterFirAdapterIntoImageView<T> {
             height: self.height,
             stride: self.stride,
             plane: self.plane.as_ref(),
-            _m: PhantomData,
+            _pixel_type: PhantomData,
         })
     }
 }
 
-impl<T: AsRef<[u8]> + AsMut<[u8]> + Send + Sync> IntoImageViewMut
-    for FirAdapterFirAdapterIntoImageView<T>
-{
+impl<T: AsRef<[u8]> + AsMut<[u8]> + Send + Sync> IntoImageViewMut for FirAdapterIntoImageView<T> {
     fn image_view_mut<P: fir::PixelTrait>(&mut self) -> Option<impl fir::ImageViewMut<Pixel = P>> {
         if P::pixel_type() != self.pixel_type {
             return None;
@@ -211,7 +180,7 @@ impl<T: AsRef<[u8]> + AsMut<[u8]> + Send + Sync> IntoImageViewMut
             height: self.height,
             stride: self.stride,
             plane: self.plane.as_mut(),
-            _m: PhantomData,
+            _pixel_type: PhantomData,
         })
     }
 }
@@ -221,7 +190,7 @@ struct FirAdapterImageView<T, P> {
     height: usize,
     stride: usize,
     plane: T,
-    _m: PhantomData<P>,
+    _pixel_type: PhantomData<P>,
 }
 
 unsafe impl<T: AsRef<[u8]> + Send + Sync, P: InnerPixel> fir::ImageView

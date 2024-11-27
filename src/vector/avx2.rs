@@ -362,18 +362,18 @@ unsafe fn interleave_f32x8x3_to_u8x24(r: __m256, g: __m256, b: __m256) -> [u8; 2
     let rgb = interleave_f32x8x4_to_u8x32(r, g, b, _mm256_setzero_ps());
 
     #[rustfmt::skip]
-        let idx = _mm256_setr_epi8(
-            0, 1, 2,
-            4, 5, 6,
-            8, 9,10,
-            12, 13, 14,
-            -128, -128, -128, -128,
-            0, 1, 2,
-            4, 5, 6,
-            8, 9,10,
-            12, 13, 14,
-            -128, -128, -128, -128,
-        );
+    let idx = _mm256_setr_epi8(
+        0, 1, 2,
+        4, 5, 6,
+        8, 9,10,
+        12, 13, 14,
+        -128, -128, -128, -128,
+        0, 1, 2,
+        4, 5, 6,
+        8, 9,10,
+        12, 13, 14,
+        -128, -128, -128, -128,
+    );
 
     let rgb = _mm256_shuffle_epi8(rgb, idx);
 
@@ -388,13 +388,13 @@ unsafe fn interleave_f32x8x3_to_u16x24(r: __m256, g: __m256, b: __m256) -> [u16;
     let [rgb_lo, rgb_hi] = interleave_f32x8x4_to_u16x32(r, g, b, _mm256_setzero_ps());
 
     #[rustfmt::skip]
-        let idx = _mm256_setr_epi8(
-            0, 1, 2, 3, 4, 5,
-            8, 9, 10, 11, 12, 13,
-            16, 17, 18, 19, 20, 21,
-            24, 25, 26, 27, 28, 29,
-            -128,-128,-128,-128,-128,-128,-128,-128,
-        );
+    let idx = _mm256_setr_epi8(
+        0, 1, 2, 3, 4, 5,
+        8, 9, 10, 11, 12, 13,
+        16, 17, 18, 19, 20, 21,
+        24, 25, 26, 27, 28, 29,
+        -128,-128,-128,-128,-128,-128,-128,-128,
+    );
 
     let rgb_lo = _mm256_shuffle_epi8(rgb_lo, idx);
     let rgb_hi = _mm256_shuffle_epi8(rgb_hi, idx);
