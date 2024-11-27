@@ -138,9 +138,13 @@ fn crop_planes<'s, const N: usize, S: AnySlice + 's>(
                 let x = plane_desc.width_op.op(window.x);
                 let y = plane_desc.height_op.op(window.y);
 
+                // First trim the bytes byte "in front" of the window
                 let split_at = (y * stride + x) * plane_desc.bytes_per_primitive;
-
                 let (_, slice) = slice.slice_split_at(split_at);
+
+                // Trim the bytes at the end of the window
+                let split_at = plane_desc.height_op.op(window.height) * stride;
+                let (slice, _) = slice.slice_split_at(split_at);
 
                 (slice, stride)
             }),
