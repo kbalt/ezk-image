@@ -1,10 +1,10 @@
 use crate::{
+    PixelFormat, StrictApi,
     plane_decs::{
-        PlaneDesc, I01X_PLANES, I21X_PLANES, I41X_PLANES, I420_PLANES, I422_PLANES, I444_PLANES,
-        NV12_PLANES,
+        I01X_PLANES, I21X_PLANES, I41X_PLANES, I420_PLANES, I422_PLANES, I444_PLANES, NV12_PLANES,
+        PlaneDesc,
     },
     util::ArrayIter,
-    PixelFormat, StrictApi,
 };
 use std::mem::MaybeUninit;
 

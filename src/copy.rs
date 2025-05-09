@@ -1,4 +1,4 @@
-use crate::{verify_input_windows, ConvertError, ImageMut, ImageRef, ImageRefExt};
+use crate::{ConvertError, ImageMut, ImageRef, ImageRefExt, verify_input_windows};
 
 #[inline(always)]
 pub(crate) fn copy_impl(src: &dyn ImageRef, dst: &mut dyn ImageMut) -> Result<(), ConvertError> {

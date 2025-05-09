@@ -68,7 +68,12 @@ impl<S: I420Src> RgbaSrc for I420ToRgb<S> {
         u = u.vsubf(0.5);
         v = v.vsubf(0.5);
 
-        let [[r00, g00, b00], [r01, g01, b01], [r10, g10, b10], [r11, g11, b11]] = self
+        let [
+            [r00, g00, b00],
+            [r01, g01, b01],
+            [r10, g10, b10],
+            [r11, g11, b11],
+        ] = self
             .space
             .yx4_uv_to_rgb(self.transfer, self.xyz_to_rgb, y00, y01, y10, y11, u, v);
 

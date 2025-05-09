@@ -1,4 +1,4 @@
-use crate::{plane_decs::*, planes::read_planes, InvalidNumberOfPlanesError, StrictApi as _};
+use crate::{InvalidNumberOfPlanesError, StrictApi as _, plane_decs::*, planes::read_planes};
 
 /// Supported pixel formats
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -192,9 +192,7 @@ pub enum BoundsCheckError {
     #[error(transparent)]
     InvalidNumberOfPlanes(#[from] InvalidNumberOfPlanesError),
 
-    #[error(
-        "invalid stride at plane {plane}, expected it to be at least {minimum}, but got {got}"
-    )]
+    #[error("invalid stride at plane {plane}, expected it to be at least {minimum}, but got {got}")]
     InvalidStride {
         plane: usize,
         minimum: usize,

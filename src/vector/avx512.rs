@@ -1,5 +1,5 @@
 use super::Vector;
-use crate::{arch::*, DynRgbaReader, DynRgbaReaderSpec, RgbaBlock};
+use crate::{DynRgbaReader, DynRgbaReaderSpec, RgbaBlock, arch::*};
 use std::mem::transmute;
 
 unsafe impl Vector for __m512 {
@@ -698,11 +698,13 @@ mod tests {
         assert!(is_x86_feature_detected!("avx512f"));
 
         unsafe {
-            assert!(make_arr(math::pow(
-                _mm512_set1_ps(f32::NAN),
-                _mm512_set1_ps(f32::NAN)
-            ))[0]
-                .is_nan());
+            assert!(
+                make_arr(math::pow(
+                    _mm512_set1_ps(f32::NAN),
+                    _mm512_set1_ps(f32::NAN)
+                ))[0]
+                    .is_nan()
+            );
 
             assert!(make_arr(math::pow(_mm512_set1_ps(1.0), _mm512_set1_ps(f32::NAN)))[0].is_nan());
             assert!(make_arr(math::pow(_mm512_set1_ps(f32::NAN), _mm512_set1_ps(1.0)))[0].is_nan());

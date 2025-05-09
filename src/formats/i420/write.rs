@@ -1,5 +1,5 @@
 use super::{I420Block, I420Src};
-use crate::formats::visit_2x2::{visit, Image2x2Visitor};
+use crate::formats::visit_2x2::{Image2x2Visitor, visit};
 use crate::planes::read_planes_mut;
 use crate::primitive::Primitive;
 use crate::vector::Vector;
@@ -54,7 +54,9 @@ where
                 i420_src,
                 _m: PhantomData,
             },
-        )
+        );
+
+        Ok(())
     }
 }
 

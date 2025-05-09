@@ -1,4 +1,4 @@
-use crate::formats::visit_2x2::{visit, Image2x2Visitor};
+use crate::formats::visit_2x2::{Image2x2Visitor, visit};
 use crate::planes::read_planes_mut;
 use crate::primitive::Primitive;
 use crate::vector::Vector;
@@ -45,7 +45,9 @@ where
                 rgba_src,
                 _m: PhantomData,
             },
-        )
+        );
+
+        Ok(())
     }
 }
 
@@ -88,9 +90,5 @@ unsafe fn multiply_and_reverse<const REVERSE: bool, V: Vector>(
     let g = px.g.vmulf(max_value);
     let b = px.b.vmulf(max_value);
 
-    if REVERSE {
-        [b, g, r]
-    } else {
-        [r, g, b]
-    }
+    if REVERSE { [b, g, r] } else { [r, g, b] }
 }

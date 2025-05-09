@@ -1,12 +1,12 @@
+use crate::arch::*;
 use crate::vector::Vector;
-use crate::{arch::*, ConvertError};
 
 pub(crate) trait Image2x2Visitor {
     unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize);
 }
 
 #[inline(never)]
-pub(crate) fn visit<R>(width: usize, height: usize, visitor: R) -> Result<(), ConvertError>
+pub(crate) fn visit<R>(width: usize, height: usize, visitor: R)
 where
     R: Image2x2Visitor,
 {
@@ -26,7 +26,7 @@ where
         // Safety: Did a feature check
         unsafe {
             call::<R>(width, height, visitor);
-            return Ok(());
+            return;
         }
     }
 
@@ -43,7 +43,7 @@ where
         // Safety: Did a feature check
         unsafe {
             call::<R>(width, height, visitor);
-            return Ok(());
+            return;
         }
     }
 
@@ -60,15 +60,13 @@ where
         // Safety: Did a feature check
         unsafe {
             call::<R>(width, height, visitor);
-            return Ok(());
+            return;
         }
     }
 
     // Fallback to naive
     // Safety: Inputs have been checked
     unsafe { visit_impl::<f32, _>(width, height, visitor) };
-
-    Ok(())
 }
 
 #[inline(always)]

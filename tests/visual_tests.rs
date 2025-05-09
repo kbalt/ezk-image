@@ -1,6 +1,6 @@
 use ezk_image::{
-    convert_multi_thread, resize::Resizer, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer,
-    Image, ImageRef, PixelFormat, RgbColorInfo, YuvColorInfo,
+    ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, Image, ImageRef, PixelFormat,
+    RgbColorInfo, YuvColorInfo, convert_multi_thread, resize::Resizer,
 };
 use fir::ResizeAlg;
 use image::Rgb;

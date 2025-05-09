@@ -1,7 +1,7 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 
 use ezk_image::{
-    convert, ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, Image, PixelFormat, YuvColorInfo,
+    ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, Image, PixelFormat, YuvColorInfo, convert,
 };
 use std::hint::black_box;
 

@@ -1,6 +1,6 @@
 use crate::{
-    plane_decs::PlaneDesc, AnySlice, BoundsCheckError, ColorInfo, ImageMut, ImageRef, ImageRefExt,
-    PixelFormat,
+    AnySlice, BoundsCheckError, ColorInfo, ImageMut, ImageRef, ImageRefExt, PixelFormat,
+    plane_decs::PlaneDesc,
 };
 
 /// Error indicating an invalid [`Window`] for a given image

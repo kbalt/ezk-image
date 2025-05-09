@@ -14,7 +14,7 @@ pub(crate) use platform::DynRgbaReader;
 ))]
 mod platform {
     use super::DynRgbaReaderSpec;
-    use crate::{arch::*, RgbaBlock, RgbaSrc};
+    use crate::{RgbaBlock, RgbaSrc, arch::*};
 
     pub(crate) trait DynRgbaReader:
         DynRgbaReaderSpec<f32> + DynRgbaReaderSpec<__m256>
@@ -34,7 +34,7 @@ mod platform {
 #[cfg(all(feature = "unstable", any(target_arch = "x86", target_arch = "x86_64")))]
 mod platform {
     use super::DynRgbaReaderSpec;
-    use crate::{arch::*, RgbaBlock, RgbaSrc};
+    use crate::{RgbaBlock, RgbaSrc, arch::*};
 
     pub(crate) trait DynRgbaReader:
         DynRgbaReaderSpec<f32> + DynRgbaReaderSpec<__m256> + DynRgbaReaderSpec<__m512>
@@ -65,7 +65,7 @@ mod platform {
 #[cfg(target_arch = "aarch64")]
 mod platform {
     use super::DynRgbaReaderSpec;
-    use crate::{arch::*, RgbaBlock, RgbaSrc};
+    use crate::{RgbaBlock, RgbaSrc, arch::*};
 
     pub(crate) trait DynRgbaReader:
         DynRgbaReaderSpec<f32> + DynRgbaReaderSpec<float32x4_t>

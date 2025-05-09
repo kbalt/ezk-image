@@ -1,5 +1,6 @@
 #![doc = include_str!("../README.md")]
 #![warn(unreachable_pub)]
+#![allow(unsafe_op_in_unsafe_fn)]
 #![cfg_attr(
     feature = "unstable",
     feature(stdarch_x86_avx512, avx512_target_feature)

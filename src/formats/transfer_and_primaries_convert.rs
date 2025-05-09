@@ -1,8 +1,8 @@
 use super::rgba::{RgbaBlock, RgbaSrc};
-use crate::color::primaries::{rgb_to_xyz, xyz_to_rgb};
-use crate::color::ColorInfo;
-use crate::vector::Vector;
 use crate::ColorTransfer;
+use crate::color::ColorInfo;
+use crate::color::primaries::{rgb_to_xyz, xyz_to_rgb};
+use crate::vector::Vector;
 
 pub(crate) struct TransferAndPrimariesConvert<S> {
     rgb_to_xyz: &'static [[f32; 3]; 3],

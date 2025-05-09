@@ -3,8 +3,8 @@ use std::mem::take;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 use crate::{
-    convert, plane_decs::PlaneDesc, verify_input_windows, AnySlice, ConvertError, Image, ImageMut,
-    ImageRef, StrictApi,
+    AnySlice, ConvertError, Image, ImageMut, ImageRef, StrictApi, convert, plane_decs::PlaneDesc,
+    verify_input_windows,
 };
 
 /// Parallelizes [`convert`] using as many threads as there are CPU cores.

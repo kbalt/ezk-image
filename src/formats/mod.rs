@@ -18,7 +18,7 @@ pub(crate) use nv12::*;
 pub(crate) use rgb::*;
 pub(crate) use rgba::*;
 pub(crate) use transfer_and_primaries_convert::{
-    need_transfer_and_primaries_convert, TransferAndPrimariesConvert,
+    TransferAndPrimariesConvert, need_transfer_and_primaries_convert,
 };
 pub(crate) use yuyv::*;
 

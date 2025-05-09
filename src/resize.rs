@@ -1,5 +1,5 @@
 use crate::{ImageMut, ImageRef, PixelFormat};
-use fir::{pixels::InnerPixel, IntoImageView, IntoImageViewMut};
+use fir::{IntoImageView, IntoImageViewMut, pixels::InnerPixel};
 #[cfg(feature = "multi-thread")]
 use rayon::scope;
 #[cfg(not(feature = "multi-thread"))]

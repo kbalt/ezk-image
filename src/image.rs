@@ -1,4 +1,4 @@
-use crate::{infer, BoundsCheckError, ColorInfo, ImageMut, ImageRef, ImageRefExt, PixelFormat};
+use crate::{BoundsCheckError, ColorInfo, ImageMut, ImageRef, ImageRefExt, PixelFormat, infer};
 
 /// Basic wrapper around any image, implementing the [`ImageRef`] and [`ImageMut`] trait
 #[derive(Debug, Clone)]

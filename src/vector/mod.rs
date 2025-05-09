@@ -169,11 +169,7 @@ unsafe impl Vector for f32 {
     }
     #[inline(always)]
     unsafe fn select(a: Self, b: Self, mask: Self::Mask) -> Self {
-        if mask {
-            a
-        } else {
-            b
-        }
+        if mask { a } else { b }
     }
 
     #[inline(always)]

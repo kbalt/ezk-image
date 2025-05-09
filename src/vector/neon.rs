@@ -598,22 +598,28 @@ mod tests {
         assert!(is_aarch64_feature_detected!("neon"));
 
         unsafe {
-            assert!(make_arr(math::pow(
-                float32x4_t::splat(f32::NAN),
-                float32x4_t::splat(f32::NAN)
-            ))[0]
-                .is_nan());
+            assert!(
+                make_arr(math::pow(
+                    float32x4_t::splat(f32::NAN),
+                    float32x4_t::splat(f32::NAN)
+                ))[0]
+                    .is_nan()
+            );
 
-            assert!(make_arr(math::pow(
-                float32x4_t::splat(f32::NAN),
-                float32x4_t::splat(1.0)
-            ))[0]
-                .is_nan());
-            assert!(make_arr(math::pow(
-                float32x4_t::splat(1.0),
-                float32x4_t::splat(f32::NAN)
-            ))[0]
-                .is_nan());
+            assert!(
+                make_arr(math::pow(
+                    float32x4_t::splat(f32::NAN),
+                    float32x4_t::splat(1.0)
+                ))[0]
+                    .is_nan()
+            );
+            assert!(
+                make_arr(math::pow(
+                    float32x4_t::splat(1.0),
+                    float32x4_t::splat(f32::NAN)
+                ))[0]
+                    .is_nan()
+            );
 
             for a in 1..100 {
                 for p in 1..1000 {

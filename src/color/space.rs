@@ -1,8 +1,8 @@
 #![allow(clippy::too_many_arguments)]
 
+use crate::ColorTransfer;
 use crate::color::mat_idxs::*;
 use crate::vector::Vector;
-use crate::ColorTransfer;
 
 /// Color space used for RGB to YUV conversion
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -347,10 +347,10 @@ unsafe fn bt2100_rgbx4_to_yx4_uv<V: Vector>(
 }
 
 mod bt2100 {
+    use crate::ColorTransfer;
     use crate::color::primaries::{rgb_to_xyz, xyz_to_rgb};
     use crate::color::transfer::{bt2100_hlg, bt2100_pq};
     use crate::vector::Vector;
-    use crate::ColorTransfer;
 
     #[inline(always)]
     unsafe fn xyz_to_lms<V: Vector>(x: V, y: V, z: V) -> (V, V, V) {
