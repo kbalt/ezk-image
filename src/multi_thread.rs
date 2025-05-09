@@ -3,8 +3,8 @@ use std::mem::take;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 use crate::{
-    convert, convert_same_color_and_pixel_format, plane_decs::PlaneDesc, verify_input_windows,
-    AnySlice, ConvertError, Image, ImageMut, ImageRef, StrictApi,
+    convert, plane_decs::PlaneDesc, verify_input_windows, AnySlice, ConvertError, Image, ImageMut,
+    ImageRef, StrictApi,
 };
 
 /// Parallelizes [`convert`] using as many threads as there are CPU cores.
@@ -15,7 +15,7 @@ pub fn convert_multi_thread(
     verify_input_windows(src, dst)?;
 
     if src.format() == dst.format() && src.color() == dst.color() {
-        return convert_same_color_and_pixel_format(src, dst);
+        return crate::copy(src, dst);
     }
 
     let threads = num_cpus::get();

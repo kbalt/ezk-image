@@ -75,7 +75,7 @@ pub fn convert(src: &dyn ImageRef, dst: &mut dyn ImageMut) -> Result<(), Convert
 
     if src.format() == dst.format() && src.color() == dst.color() {
         // No color or pixel conversion needed just copy it over
-        return convert_same_color_and_pixel_format(src, dst);
+        return copy(src, dst);
     }
 
     let src_color = src.color();
@@ -89,33 +89,6 @@ pub fn convert(src: &dyn ImageRef, dst: &mut dyn ImageMut) -> Result<(), Convert
         rgba_to_any(dst, reader)
     } else {
         rgba_to_any(dst, reader)
-    }
-}
-
-#[inline(never)]
-fn convert_same_color_and_pixel_format(
-    src: &dyn ImageRef,
-    dst: &mut dyn ImageMut,
-) -> Result<(), ConvertError> {
-    use PixelFormat::*;
-    assert_eq!(src.format(), dst.format());
-
-    match src.format() {
-        I420 => I420Writer::<u8, _>::write(dst, I420Reader::<u8>::new(src)?),
-        I422 => I422Writer::<u8, _>::write(dst, I422Reader::<u8>::new(src)?),
-        I444 => I444Writer::<u8, _>::write(dst, I444Reader::<u8>::new(src)?),
-
-        I010 | I012 => I420Writer::<u16, _>::write(dst, I420Reader::<u16>::new(src)?),
-        I210 | I212 => I422Writer::<u16, _>::write(dst, I422Reader::<u16>::new(src)?),
-        I410 | I412 => I444Writer::<u16, _>::write(dst, I444Reader::<u16>::new(src)?),
-
-        NV12 => NV12Writer::<u8, _>::write(dst, NV12Reader::<u8>::new(src)?),
-        YUYV => YUYVWriter::<u8, _>::write(dst, YUYVReader::<u8>::new(src)?),
-
-        RGBA => RgbaWriter::<false, u8, _>::write(dst, RgbaReader::<false, u8>::new(src)?),
-        BGRA => RgbaWriter::<true, u8, _>::write(dst, RgbaReader::<true, u8>::new(src)?),
-        RGB => RgbWriter::<false, u8, _>::write(dst, RgbReader::<false, u8>::new(src)?),
-        BGR => RgbWriter::<true, u8, _>::write(dst, RgbReader::<true, u8>::new(src)?),
     }
 }
 
