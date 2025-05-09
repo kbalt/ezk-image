@@ -4,7 +4,7 @@ use crate::{BoundsCheckError, ColorInfo, ImageMut, ImageRef, ImageRefExt, PixelF
 #[derive(Debug, Clone)]
 pub struct Image<S> {
     format: PixelFormat,
-    buffer: Buffer<S>,
+    buffer: BufferKind<S>,
     strides: Vec<usize>,
     width: usize,
     height: usize,
@@ -13,7 +13,7 @@ pub struct Image<S> {
 }
 
 #[derive(Debug, Clone)]
-enum Buffer<S> {
+pub enum BufferKind<S> {
     Whole(S),
     Split(Vec<S>),
 }
@@ -32,7 +32,7 @@ impl Image<Vec<u8>> {
     pub fn blank(format: PixelFormat, width: usize, height: usize, color: ColorInfo) -> Self {
         Self {
             format,
-            buffer: Buffer::Whole(vec![0u8; format.buffer_size(width, height)]),
+            buffer: BufferKind::Whole(vec![0u8; format.buffer_size(width, height)]),
             strides: format.packed_strides(width),
             width,
             height,
@@ -53,7 +53,14 @@ where
         height: usize,
         color: ColorInfo,
     ) -> Result<Self, ImageError> {
-        Self::new(format, Buffer::Whole(buffer), strides, width, height, color)
+        Self::new(
+            format,
+            BufferKind::Whole(buffer),
+            strides,
+            width,
+            height,
+            color,
+        )
     }
 
     pub fn from_planes(
@@ -64,12 +71,19 @@ where
         height: usize,
         color: ColorInfo,
     ) -> Result<Self, ImageError> {
-        Self::new(format, Buffer::Split(planes), strides, width, height, color)
+        Self::new(
+            format,
+            BufferKind::Split(planes),
+            strides,
+            width,
+            height,
+            color,
+        )
     }
 
     fn new(
         format: PixelFormat,
-        buffer: Buffer<S>,
+        buffer: BufferKind<S>,
         strides: Option<Vec<usize>>,
         width: usize,
         height: usize,
@@ -94,6 +108,14 @@ where
 
         Ok(this)
     }
+
+    pub fn buffer(&self) -> &BufferKind<S> {
+        &self.buffer
+    }
+
+    pub fn into_buffer(self) -> BufferKind<S> {
+        self.buffer
+    }
 }
 
 unsafe impl<S: AsRef<[u8]>> ImageRef for Image<S> {
@@ -109,7 +131,7 @@ unsafe impl<S: AsRef<[u8]>> ImageRef for Image<S> {
 
     fn planes(&self) -> Box<dyn Iterator<Item = (&[u8], usize)> + '_> {
         match &self.buffer {
-            Buffer::Whole(buffer) => Box::new(
+            BufferKind::Whole(buffer) => Box::new(
                 infer(
                     self.format,
                     buffer.as_ref(),
@@ -119,7 +141,7 @@ unsafe impl<S: AsRef<[u8]>> ImageRef for Image<S> {
                 )
                 .zip(self.strides.iter().copied()),
             ),
-            Buffer::Split(planes) => Box::new(
+            BufferKind::Split(planes) => Box::new(
                 planes
                     .iter()
                     .map(|p| p.as_ref())
@@ -135,7 +157,7 @@ unsafe impl<S: AsRef<[u8]>> ImageRef for Image<S> {
 unsafe impl<S: AsRef<[u8]> + AsMut<[u8]>> ImageMut for Image<S> {
     fn planes_mut(&mut self) -> Box<dyn Iterator<Item = (&mut [u8], usize)> + '_> {
         match &mut self.buffer {
-            Buffer::Whole(buffer) => Box::new(
+            BufferKind::Whole(buffer) => Box::new(
                 infer(
                     self.format,
                     buffer.as_mut(),
@@ -145,7 +167,7 @@ unsafe impl<S: AsRef<[u8]> + AsMut<[u8]>> ImageMut for Image<S> {
                 )
                 .zip(self.strides.iter().copied()),
             ),
-            Buffer::Split(planes) => Box::new(
+            BufferKind::Split(planes) => Box::new(
                 planes
                     .iter_mut()
                     .map(|plane| plane.as_mut())

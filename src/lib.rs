@@ -41,7 +41,7 @@ pub use color::{ColorInfo, ColorPrimaries, ColorSpace, ColorTransfer, RgbColorIn
 #[doc(hidden)]
 pub use copy::copy;
 pub use crop::{CropError, Cropped, Window};
-pub use image::{Image, ImageError};
+pub use image::{Image, ImageError, BufferKind};
 pub use image_traits::{ImageMut, ImageRef, ImageRefExt};
 #[cfg(feature = "multi-thread")]
 pub use multi_thread::convert_multi_thread;
