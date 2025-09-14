@@ -38,11 +38,11 @@ unsafe impl Vector for __m256 {
 
     #[inline(always)]
     unsafe fn lt(self, other: Self) -> Self::Mask {
-        _mm256_cmp_ps(self, other, _CMP_LT_OQ)
+        _mm256_cmp_ps::<_CMP_LT_OQ>(self, other)
     }
     #[inline(always)]
     unsafe fn le(self, other: Self) -> Self::Mask {
-        _mm256_cmp_ps(self, other, _CMP_LE_OQ)
+        _mm256_cmp_ps::<_CMP_LE_OQ>(self, other)
     }
     #[inline(always)]
     unsafe fn select(a: Self, b: Self, mask: Self::Mask) -> Self {
@@ -69,18 +69,18 @@ unsafe impl Vector for __m256 {
         let hi = _mm256_unpackhi_ps(self, other);
 
         (
-            _mm256_permute2f128_ps(lo, hi, 0b10_00_00),
-            _mm256_permute2f128_ps(lo, hi, 0b11_00_01),
+            _mm256_permute2f128_ps::<0b10_00_00>(lo, hi),
+            _mm256_permute2f128_ps::<0b11_00_01>(lo, hi),
         )
     }
 
     #[inline(always)]
     unsafe fn unzip(self, other: Self) -> (Self, Self) {
-        let lo = _mm256_shuffle_ps(self, other, 0b10_00_10_00);
-        let lo = _mm256_permute4x64_epi64(_mm256_castps_si256(lo), 0b11_01_10_00);
+        let lo = _mm256_shuffle_ps::<0b10_00_10_00>(self, other);
+        let lo = _mm256_permute4x64_epi64::<0b11_01_10_00>(_mm256_castps_si256(lo));
 
-        let hi = _mm256_shuffle_ps(self, other, 0b11_01_11_01);
-        let hi = _mm256_permute4x64_epi64(_mm256_castps_si256(hi), 0b11_01_10_00);
+        let hi = _mm256_shuffle_ps::<0b11_01_11_01>(self, other);
+        let hi = _mm256_permute4x64_epi64::<0b11_01_10_00>(_mm256_castps_si256(hi));
 
         (_mm256_castsi256_ps(lo), _mm256_castsi256_ps(hi))
     }
@@ -310,8 +310,8 @@ unsafe fn f32x8_to_u8x8(v: __m256) -> [u8; 8] {
     let v = _mm256_packus_epi32(v, v);
     let v = _mm256_packus_epi16(v, v);
 
-    let a = _mm256_extract_epi32(v, 0);
-    let b = _mm256_extract_epi32(v, 4);
+    let a = _mm256_extract_epi32::<0>(v);
+    let b = _mm256_extract_epi32::<4>(v);
 
     transmute([a, b])
 }
@@ -321,8 +321,8 @@ unsafe fn f32x8_to_u16x8(v: __m256) -> [u16; 8] {
     let v = _mm256_cvtps_epi32(v);
     let v = _mm256_packus_epi32(v, v);
 
-    let a = _mm256_extract_epi64(v, 0);
-    let b = _mm256_extract_epi64(v, 2);
+    let a = _mm256_extract_epi64::<0>(v);
+    let b = _mm256_extract_epi64::<2>(v);
 
     let v = _mm_set_epi64x(b, a);
 
@@ -445,7 +445,7 @@ mod math {
         let fx = _mm256_mul_ps(x, L2E);
         let fx = _mm256_add_ps(fx, ONE_HALF);
         let tmp = _mm256_floor_ps(fx);
-        let mask = _mm256_cmp_ps(tmp, fx, _CMP_GT_OS);
+        let mask = _mm256_cmp_ps::<_CMP_GT_OS>(tmp, fx);
         let mask = _mm256_and_ps(mask, ONE);
         let fx = _mm256_sub_ps(tmp, mask);
         let tmp = _mm256_mul_ps(fx, C1);
@@ -467,15 +467,15 @@ mod math {
         /* build 2^n */
         let imm0 = _mm256_cvttps_epi32(fx);
         let imm0 = _mm256_add_epi32(imm0, _mm256_set1_epi32(0x7f));
-        let imm0 = _mm256_slli_epi32(imm0, 23);
+        let imm0 = _mm256_slli_epi32::<23>(imm0);
         let pow2n = _mm256_castsi256_ps(imm0);
         _mm256_mul_ps(y, pow2n)
     }
 
     #[inline(always)]
     pub(super) unsafe fn log(x: __m256) -> __m256 {
-        const INV_MANT_MASK: __m256 = splat(unsafe { transmute::<i32, f32>(!0x7f800000) });
-        const CEPHES_SQRT_HF: __m256 = splat(0.707_106_77);
+        const INV_MANT_MASK: __m256 = splat(f32::from_bits(i32::cast_unsigned(!0x7f800000)));
+        const CEPHES_SQRT_HF: __m256 = splat(std::f32::consts::FRAC_1_SQRT_2);
         const CEPHES_LOG_P0: __m256 = splat(7.037_683_6E-2);
         const CEPHES_LOG_P1: __m256 = splat(-1.151_461E-1);
         const CEPHES_LOG_P2: __m256 = splat(1.167_699_84E-1);
@@ -489,10 +489,10 @@ mod math {
         const CEPHES_LOG_Q2: __m256 = splat(0.693_359_4);
 
         // Find any numbers lower than 0 or NaN and make a mask for it
-        let nan_mask = _mm256_cmp_ps(x, _mm256_setzero_ps(), _CMP_NGE_UQ);
+        let nan_mask = _mm256_cmp_ps::<_CMP_NGE_UQ>(x, _mm256_setzero_ps());
         let x = _mm256_max_ps(_mm256_set1_ps(0.0), x);
 
-        let imm0 = _mm256_srli_epi32(_mm256_castps_si256(x), 23);
+        let imm0 = _mm256_srli_epi32::<23>(_mm256_castps_si256(x));
 
         // keep only the fractional part
         let x = _mm256_and_ps(INV_MANT_MASK, x);
@@ -503,7 +503,7 @@ mod math {
 
         let e = _mm256_add_ps(e, ONE);
 
-        let mask = _mm256_cmp_ps(x, CEPHES_SQRT_HF, _CMP_LT_OS);
+        let mask = _mm256_cmp_ps::<_CMP_LT_OS>(x, CEPHES_SQRT_HF);
         let tmp = _mm256_and_ps(x, mask);
 
         let x = _mm256_sub_ps(x, ONE);

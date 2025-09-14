@@ -38,11 +38,11 @@ unsafe impl Vector for __m512 {
 
     #[inline(always)]
     unsafe fn lt(self, other: Self) -> Self::Mask {
-        _mm512_cmp_ps_mask(self, other, _CMP_LT_OQ)
+        _mm512_cmp_ps_mask::<_CMP_LT_OQ>(self, other)
     }
     #[inline(always)]
     unsafe fn le(self, other: Self) -> Self::Mask {
-        _mm512_cmp_ps_mask(self, other, _CMP_LE_OQ)
+        _mm512_cmp_ps_mask::<_CMP_LE_OQ>(self, other)
     }
     #[inline(always)]
     unsafe fn select(a: Self, b: Self, mask: Self::Mask) -> Self {
@@ -463,8 +463,8 @@ mod math {
         /* express exp(x) as exp(g + n*log(2)) */
         let fx = _mm512_mul_ps(x, L2E);
         let fx = _mm512_add_ps(fx, ONE_HALF);
-        let tmp = _mm512_roundscale_ps(fx, _MM_FROUND_TO_NEG_INF);
-        let mask = _mm512_cmp_ps_mask(tmp, fx, _CMP_GT_OS);
+        let tmp = _mm512_roundscale_ps::<_MM_FROUND_TO_NEG_INF>(fx);
+        let mask = _mm512_cmp_ps_mask::<_CMP_GT_OS>(tmp, fx);
         let mask = _mm512_maskz_expand_ps(mask, ONE);
         let fx = _mm512_sub_ps(tmp, mask);
         let tmp = _mm512_mul_ps(fx, C1);
@@ -486,15 +486,15 @@ mod math {
         /* build 2^n */
         let imm0 = _mm512_cvttps_epi32(fx);
         let imm0 = _mm512_add_epi32(imm0, _mm512_set1_epi32(0x7f));
-        let imm0 = _mm512_slli_epi32(imm0, 23);
+        let imm0 = _mm512_slli_epi32::<23>(imm0);
         let pow2n = _mm512_castsi512_ps(imm0);
         _mm512_mul_ps(y, pow2n)
     }
 
     #[inline(always)]
     pub(super) unsafe fn log(x: __m512) -> __m512 {
-        const INV_MANT_MASK: __m512 = splat(unsafe { transmute::<i32, f32>(!0x7f800000) });
-        const CEPHES_SQRT_HF: __m512 = splat(0.707_106_77);
+        const INV_MANT_MASK: __m512 = splat(f32::from_bits(i32::cast_unsigned(!0x7f800000)));
+        const CEPHES_SQRT_HF: __m512 = splat(std::f32::consts::FRAC_1_SQRT_2);
         const CEPHES_LOG_P0: __m512 = splat(7.037_683_6E-2);
         const CEPHES_LOG_P1: __m512 = splat(-1.151_461E-1);
         const CEPHES_LOG_P2: __m512 = splat(1.167_699_84E-1);
@@ -508,10 +508,10 @@ mod math {
         const CEPHES_LOG_Q2: __m512 = splat(0.693_359_4);
 
         // Find any numbers lower than 0 or NaN and make a mask for it
-        let nan_mask = _mm512_cmp_ps_mask(x, _mm512_setzero_ps(), _CMP_NGE_UQ);
+        let nan_mask = _mm512_cmp_ps_mask::<_CMP_NGE_UQ>(x, _mm512_setzero_ps());
         let x = _mm512_max_ps(_mm512_set1_ps(0.0), x);
 
-        let imm0 = _mm512_srli_epi32(_mm512_castps_si512(x), 23);
+        let imm0 = _mm512_srli_epi32::<23>(_mm512_castps_si512(x));
 
         // keep only the fractional part
         let x = _mm512_and_si512(_mm512_castps_si512(INV_MANT_MASK), _mm512_castps_si512(x));
@@ -522,7 +522,7 @@ mod math {
 
         let e = _mm512_add_ps(e, ONE);
 
-        let mask = _mm512_cmp_ps_mask(x, CEPHES_SQRT_HF, _CMP_LT_OS);
+        let mask = _mm512_cmp_ps_mask::<_CMP_LT_OS>(x, CEPHES_SQRT_HF);
         let tmp = _mm512_mask_blend_ps(mask, _mm512_setzero_ps(), x);
 
         let x = _mm512_sub_ps(x, ONE);

@@ -7,31 +7,7 @@ pub(crate) trait DynRgbaReaderSpec<V> {
 
 pub(crate) use platform::DynRgbaReader;
 
-// x86, x86_64
-#[cfg(all(
-    not(feature = "unstable"),
-    any(target_arch = "x86", target_arch = "x86_64")
-))]
-mod platform {
-    use super::DynRgbaReaderSpec;
-    use crate::{RgbaBlock, RgbaSrc, arch::*};
-
-    pub(crate) trait DynRgbaReader:
-        DynRgbaReaderSpec<f32> + DynRgbaReaderSpec<__m256>
-    {
-    }
-
-    impl<R: DynRgbaReaderSpec<f32> + DynRgbaReaderSpec<__m256>> DynRgbaReader for R {}
-
-    impl<R: RgbaSrc> DynRgbaReaderSpec<__m256> for R {
-        #[target_feature(enable = "avx2", enable = "fma")]
-        unsafe fn dyn_read(&mut self, x: usize, y: usize) -> RgbaBlock<__m256> {
-            <R as RgbaSrc>::read(self, x, y)
-        }
-    }
-}
-
-#[cfg(all(feature = "unstable", any(target_arch = "x86", target_arch = "x86_64")))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 mod platform {
     use super::DynRgbaReaderSpec;
     use crate::{RgbaBlock, RgbaSrc, arch::*};
