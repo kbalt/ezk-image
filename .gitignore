@@ -2,3 +2,5 @@
 tests/*.png
 *.png
 Cargo.lock
+.idea
+.vscode
