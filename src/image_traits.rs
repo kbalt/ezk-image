@@ -35,6 +35,25 @@ pub trait ImageRefExt: ImageRef {
     {
         Cropped::new(self, window)
     }
+
+    /// Crop the image to the next lowest even resolution
+    fn crop_even(self) -> Result<Cropped<Self>, CropError>
+    where
+        Self: Sized,
+    {
+        let width = self.width().saturating_sub(1).next_multiple_of(2);
+        let height = self.height().saturating_sub(1).next_multiple_of(2);
+
+        Cropped::new(
+            self,
+            Window {
+                x: 0,
+                y: 0,
+                width,
+                height,
+            },
+        )
+    }
 }
 
 impl<T: ImageRef + ?Sized> ImageRefExt for T {}
