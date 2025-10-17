@@ -126,6 +126,10 @@ fn read_any_to_rgba<'a>(
             &src.color(),
             NV12Reader::<u8>::new(src)?,
         )?)),
+        P010 | P012 => Ok(Box::new(I420ToRgb::new(
+            &src.color(),
+            NV12Reader::<u16>::new(src)?,
+        )?)),
         YUYV => Ok(Box::new(I422ToRgb::new(
             &src.color(),
             YUYVReader::<u8>::new(src)?,
@@ -148,14 +152,12 @@ fn rgba_to_any(dst: &mut dyn ImageMut, reader: impl RgbaSrc) -> Result<(), Conve
         I420 => I420Writer::<u8, _>::write(dst, RgbToI420::new(&dst_color, reader)?),
         I422 => I422Writer::<u8, _>::write(dst, RgbToI422::new(&dst_color, reader)?),
         I444 => I444Writer::<u8, _>::write(dst, RgbToI444::new(&dst_color, reader)?),
-
         I010 | I012 => I420Writer::<u16, _>::write(dst, RgbToI420::new(&dst_color, reader)?),
         I210 | I212 => I422Writer::<u16, _>::write(dst, RgbToI422::new(&dst_color, reader)?),
         I410 | I412 => I444Writer::<u16, _>::write(dst, RgbToI444::new(&dst_color, reader)?),
-
         NV12 => NV12Writer::<u8, _>::write(dst, RgbToI420::new(&dst_color, reader)?),
+        P010 | P012 => NV12Writer::<u16, _>::write(dst, RgbToI420::new(&dst_color, reader)?),
         YUYV => YUYVWriter::<u8, _>::write(dst, RgbToI422::new(&dst_color, reader)?),
-
         RGBA => RgbaWriter::<false, u8, _>::write(dst, reader),
         BGRA => RgbaWriter::<true, u8, _>::write(dst, reader),
         RGB => RgbWriter::<false, u8, _>::write(dst, reader),

@@ -2,7 +2,7 @@ use crate::{
     PixelFormat, StrictApi,
     plane_decs::{
         I01X_PLANES, I21X_PLANES, I41X_PLANES, I420_PLANES, I422_PLANES, I444_PLANES, NV12_PLANES,
-        PlaneDesc,
+        P01X_PLANES, PlaneDesc,
     },
     util::ArrayIter,
 };
@@ -72,6 +72,9 @@ pub fn infer<S: AnySlice>(
             ArrayIter::from(infer_i41x(buf, width, height, strides))
         }
         PixelFormat::NV12 => ArrayIter::from(infer_nv12(buf, width, height, strides)),
+        PixelFormat::P010 | PixelFormat::P012 => {
+            ArrayIter::from(infer_p01x(buf, width, height, strides))
+        }
         PixelFormat::YUYV => ArrayIter::from([buf]),
         PixelFormat::RGBA | PixelFormat::BGRA => ArrayIter::from([buf]),
         PixelFormat::RGB | PixelFormat::BGR => ArrayIter::from([buf]),
@@ -209,6 +212,21 @@ pub fn infer_nv12<S: AnySlice>(
     strides: Option<&[usize]>,
 ) -> [S; 2] {
     infer_impl(NV12_PLANES, buf, width, height, strides)
+}
+
+/// Infer the planes for a full P010 / P012 image using the given dimensions
+///
+/// # Panics
+///
+/// If `buf` is too small for the given dimensions this function will panic
+#[deny(clippy::arithmetic_side_effects)]
+pub fn infer_p01x<S: AnySlice>(
+    buf: S,
+    width: usize,
+    height: usize,
+    strides: Option<&[usize]>,
+) -> [S; 2] {
+    infer_impl(P01X_PLANES, buf, width, height, strides)
 }
 
 /// Helper trait implemented on &[T] and &mut [T]

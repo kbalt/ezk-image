@@ -204,6 +204,23 @@ pub(crate) const NV12_PLANES: [PlaneDesc; 2] = [
     },
 ];
 
+pub(crate) const P01X_PLANES: [PlaneDesc; 2] = [
+    PlaneDesc {
+        width_op: Op::Identity,
+        height_op: Op::Identity,
+        bytes_per_primitive: 2,
+        #[cfg(feature = "resize")]
+        pixel_type: U16,
+    },
+    PlaneDesc {
+        width_op: Op::Identity,
+        height_op: Op::Div(2),
+        bytes_per_primitive: 2,
+        #[cfg(feature = "resize")]
+        pixel_type: U16x2,
+    },
+];
+
 pub(crate) const YUYV_PLANES: [PlaneDesc; 1] = [PlaneDesc {
     width_op: Op::Mul(2),
     height_op: Op::Identity,

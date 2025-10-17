@@ -86,7 +86,7 @@ fn crop_planes<'a, S: AnySlice + 'a>(
 ) -> Box<dyn Iterator<Item = (S, usize)> + 'a> {
     Box::new(
         plane_desc
-            .into_iter()
+            .iter()
             .zip(planes)
             .map(move |(plane_desc, (slice, stride))| {
                 let x = plane_desc.width_op.op(window.x);

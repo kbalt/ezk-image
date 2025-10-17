@@ -30,8 +30,14 @@ pub enum PixelFormat {
     /// Y, U, and V planes, 4:4:4 sub sampling, 12 bits per sample
     I412,
 
-    /// Y and interleaved UV planes, 4:2:0 sub sampling
+    /// Y and interleaved UV planes, 4:2:0 sub sampling, 8 bits per sample
     NV12,
+
+    /// Y and interleaved UV planes, 4:2:0 sub sampling, 10 bits per sample
+    P010,
+
+    /// Y and interleaved UV planes, 4:2:0 sub sampling, 12 bits per sample
+    P012,
 
     /// Single YUYV, 4:2:2 sub sampling
     YUYV,
@@ -135,6 +141,7 @@ impl PixelFormat {
             I210 | I212 => bounds_check(I21X_PLANES, read_planes(planes)?, width, height),
             I410 | I412 => bounds_check(I41X_PLANES, read_planes(planes)?, width, height),
             NV12 => bounds_check(NV12_PLANES, read_planes(planes)?, width, height),
+            P010 | P012 => bounds_check(P01X_PLANES, read_planes(planes)?, width, height),
             YUYV => bounds_check(YUYV_PLANES, read_planes(planes)?, width, height),
             RGBA | BGRA => bounds_check(RGBA_PLANES, read_planes(planes)?, width, height),
             RGB | BGR => bounds_check(RGB_PLANES, read_planes(planes)?, width, height),
@@ -153,6 +160,8 @@ impl PixelFormat {
             PixelFormat::I410 => 10,
             PixelFormat::I412 => 12,
             PixelFormat::NV12 => 8,
+            PixelFormat::P010 => 10,
+            PixelFormat::P012 => 12,
             PixelFormat::YUYV => 8,
             PixelFormat::RGBA => 8,
             PixelFormat::BGRA => 8,
@@ -172,6 +181,7 @@ impl PixelFormat {
             I210 | I212 => &I21X_PLANES,
             I410 | I412 => &I41X_PLANES,
             NV12 => &NV12_PLANES,
+            P010 | P012 => &P01X_PLANES,
             YUYV => &YUYV_PLANES,
             RGBA | BGRA => &RGBA_PLANES,
             RGB | BGR => &RGB_PLANES,
@@ -182,7 +192,8 @@ impl PixelFormat {
         use PixelFormat::*;
 
         [
-            I420, I422, I444, I010, I012, I210, I212, I410, I412, NV12, YUYV, RGBA, BGRA, RGB, BGR,
+            I420, I422, I444, I010, I012, I210, I212, I410, I412, NV12, P010, P012, YUYV, RGBA,
+            BGRA, RGB, BGR,
         ]
     }
 }
