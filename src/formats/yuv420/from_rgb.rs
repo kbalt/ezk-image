@@ -1,10 +1,11 @@
-use super::{I420Block, I420Src};
+use super::{Yuv420Block, Yuv420Src};
 use crate::color::ColorInfo;
-use crate::formats::rgba::{RgbaBlock, RgbaSrc};
+use crate::formats::rgb::{RgbaBlock, RgbaSrc};
 use crate::vector::Vector;
 use crate::{ColorSpace, ColorTransfer, ConvertError};
 
-pub(crate) struct RgbToI420<S> {
+/// RGB to YUV420 converter source
+pub(crate) struct FromRgb<S> {
     rgba_src: S,
     space: ColorSpace,
     transfer: ColorTransfer,
@@ -12,7 +13,7 @@ pub(crate) struct RgbToI420<S> {
     full_range: bool,
 }
 
-impl<S: RgbaSrc> RgbToI420<S> {
+impl<S: RgbaSrc> FromRgb<S> {
     pub(crate) fn new(color: &ColorInfo, rgba_src: S) -> Result<Self, ConvertError> {
         let ColorInfo::YUV(yuv) = color else {
             return Err(ConvertError::InvalidColorInfo);
@@ -28,9 +29,9 @@ impl<S: RgbaSrc> RgbToI420<S> {
     }
 }
 
-impl<S: RgbaSrc> I420Src for RgbToI420<S> {
+impl<S: RgbaSrc> Yuv420Src for FromRgb<S> {
     #[inline(always)]
-    unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> I420Block<V> {
+    unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> Yuv420Block<V> {
         let RgbaBlock {
             px00,
             px01,
@@ -69,7 +70,7 @@ impl<S: RgbaSrc> I420Src for RgbToI420<S> {
             (y00, y01, y10, y11, u, v)
         };
 
-        I420Block {
+        Yuv420Block {
             y00,
             y01,
             y10,

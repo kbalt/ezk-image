@@ -1,11 +1,12 @@
-use super::{I444Block, I444Pixel, I444Src};
+use super::{Yuv444Block, Yuv444Pixel, Yuv444Src};
 use crate::color::ColorInfo;
-use crate::formats::rgba::{RgbaBlock, RgbaPixel, RgbaSrc};
+use crate::formats::rgb::{RgbaBlock, RgbaPixel, RgbaSrc};
 use crate::vector::Vector;
 use crate::{ColorSpace, ColorTransfer, ConvertError};
 
-pub(crate) struct I444ToRgb<S> {
-    i444_src: S,
+/// YUV 444 to RGB converter source
+pub(crate) struct ToRgb<S> {
+    yuv444_src: S,
 
     space: ColorSpace,
     transfer: ColorTransfer,
@@ -13,14 +14,14 @@ pub(crate) struct I444ToRgb<S> {
     full_range: bool,
 }
 
-impl<S: I444Src> I444ToRgb<S> {
-    pub(crate) fn new(color: &ColorInfo, i444_src: S) -> Result<Self, ConvertError> {
+impl<S: Yuv444Src> ToRgb<S> {
+    pub(crate) fn new(color: &ColorInfo, yuv444_src: S) -> Result<Self, ConvertError> {
         let ColorInfo::YUV(yuv) = color else {
             return Err(ConvertError::InvalidColorInfo);
         };
 
         Ok(Self {
-            i444_src,
+            yuv444_src,
             space: yuv.space,
             transfer: yuv.transfer,
             xyz_to_rgb: yuv.primaries.xyz_to_rgb_mat(),
@@ -29,8 +30,8 @@ impl<S: I444Src> I444ToRgb<S> {
     }
 
     #[inline(always)]
-    unsafe fn convert_yuv_to_rgb<V: Vector>(&self, px: I444Pixel<V>) -> RgbaPixel<V> {
-        let I444Pixel {
+    unsafe fn convert_yuv_to_rgb<V: Vector>(&self, px: Yuv444Pixel<V>) -> RgbaPixel<V> {
+        let Yuv444Pixel {
             mut y,
             mut u,
             mut v,
@@ -70,15 +71,15 @@ impl<S: I444Src> I444ToRgb<S> {
     }
 }
 
-impl<S: I444Src> RgbaSrc for I444ToRgb<S> {
+impl<S: Yuv444Src> RgbaSrc for ToRgb<S> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbaBlock<V> {
-        let I444Block {
+        let Yuv444Block {
             px00,
             px01,
             px10,
             px11,
-        } = self.i444_src.read::<V>(x, y);
+        } = self.yuv444_src.read::<V>(x, y);
 
         RgbaBlock {
             px00: self.convert_yuv_to_rgb(px00),

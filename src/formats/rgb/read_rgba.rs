@@ -5,7 +5,7 @@ use crate::vector::Vector;
 use crate::{ConvertError, ImageRef, ImageRefExt};
 use std::marker::PhantomData;
 
-pub(crate) struct RgbaReader<'a, const SWIZZLE: u8, P: Primitive> {
+pub(crate) struct ReadRgba<'a, const SWIZZLE: u8, P: Primitive> {
     rgba: &'a [u8],
 
     rgba_stride: usize,
@@ -15,7 +15,7 @@ pub(crate) struct RgbaReader<'a, const SWIZZLE: u8, P: Primitive> {
     _m: PhantomData<&'a [P]>,
 }
 
-impl<'a, const SWIZZLE: u8, P: Primitive> RgbaReader<'a, SWIZZLE, P> {
+impl<'a, const SWIZZLE: u8, P: Primitive> ReadRgba<'a, SWIZZLE, P> {
     pub(crate) fn new(src: &'a dyn ImageRef) -> Result<Self, ConvertError> {
         src.bounds_check()?;
 
@@ -30,7 +30,7 @@ impl<'a, const SWIZZLE: u8, P: Primitive> RgbaReader<'a, SWIZZLE, P> {
     }
 }
 
-impl<const SWIZZLE: u8, P: Primitive> RgbaSrc for RgbaReader<'_, SWIZZLE, P> {
+impl<const SWIZZLE: u8, P: Primitive> RgbaSrc for ReadRgba<'_, SWIZZLE, P> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbaBlock<V> {
         let rgba00offset = y * self.rgba_stride + x * 4 * P::SIZE;

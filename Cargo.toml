@@ -20,13 +20,57 @@ num_cpus = { version = "1", optional = true }
 fir = { package = "fast_image_resize", version = "5", optional = true }
 
 [features]
-default = ["multi-thread", "resize"]
+default = ["multi-thread", "resize", "all-formats"]
 
 # Enable multi threading for image conversion
 multi-thread = ["dep:rayon", "dep:num_cpus"]
 
 # Include Resizer using fast_image_resize
 resize = ["dep:fir"]
+
+# Formats
+all-formats = [
+    "I420",
+    "I422",
+    "I444",
+    "I010",
+    "I012",
+    "I210",
+    "I212",
+    "I410",
+    "I412",
+    "NV12",
+    "P010",
+    "P012",
+    "YUYV",
+    "RGBA",
+    "BGRA",
+    "ARGB",
+    "ABGR",
+    "RGB",
+    "BGR",
+]
+
+# Make sure to include new formats in the CI & `all-formats` feature
+I420 = []
+I422 = []
+I444 = []
+I010 = []
+I012 = []
+I210 = []
+I212 = []
+I410 = []
+I412 = []
+NV12 = []
+P010 = []
+P012 = []
+YUYV = []
+RGBA = []
+BGRA = []
+ARGB = []
+ABGR = []
+RGB = []
+BGR = []
 
 [dev-dependencies]
 image = { version = "0.25", default-features = false, features = ["png"] }

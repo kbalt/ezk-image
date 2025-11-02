@@ -1,5 +1,5 @@
 use super::Vector;
-use crate::{DynRgbaReader, DynRgbaReaderSpec, RgbaBlock, arch::*};
+use crate::{DynRgbaReader, DynRgbaReaderSpec, arch::*, formats::rgb::RgbaBlock};
 use std::mem::transmute;
 
 unsafe impl Vector for __m512 {

@@ -1,18 +1,23 @@
 use crate::formats::visit_2x2::{Image2x2Visitor, visit};
+use crate::formats::yuv422::{Yuv422Block, Yuv422Src};
 use crate::planes::read_planes_mut;
 use crate::primitive::Primitive;
 use crate::vector::Vector;
-use crate::{ConvertError, I422Block, I422Src, ImageMut, ImageRefExt};
+use crate::{ConvertError, ImageMut, ImageRefExt};
 use std::marker::PhantomData;
 
-pub(crate) struct YUYVWriter<'a, P, S>
+pub(crate) struct Write3Plane<'a, P, S>
 where
     P: Primitive,
-    S: I422Src,
+    S: Yuv422Src,
 {
-    yuyv: &'a mut [u8],
+    y: &'a mut [u8],
+    u: &'a mut [u8],
+    v: &'a mut [u8],
 
-    yuyv_stride: usize,
+    y_stride: usize,
+    u_stride: usize,
+    v_stride: usize,
 
     max_value: f32,
 
@@ -21,10 +26,10 @@ where
     _m: PhantomData<&'a mut [P]>,
 }
 
-impl<'a, P, S> YUYVWriter<'a, P, S>
+impl<'a, P, S> Write3Plane<'a, P, S>
 where
     P: Primitive,
-    S: I422Src,
+    S: Yuv422Src,
 {
     pub(crate) fn write(dst: &'a mut dyn ImageMut, i422_src: S) -> Result<(), ConvertError> {
         dst.bounds_check()?;
@@ -33,14 +38,18 @@ where
         let dst_height = dst.height();
         let dst_format = dst.format();
 
-        let [(yuyv, yuyv_stride)] = read_planes_mut(dst.planes_mut())?;
+        let [(y, y_stride), (u, u_stride), (v, v_stride)] = read_planes_mut(dst.planes_mut())?;
 
         visit(
             dst_width,
             dst_height,
             Self {
-                yuyv,
-                yuyv_stride,
+                y,
+                u,
+                v,
+                y_stride,
+                u_stride,
+                v_stride,
                 max_value: crate::formats::max_value_for_bits(dst_format.bits_per_component()),
                 i422_src,
                 _m: PhantomData,
@@ -49,25 +58,16 @@ where
 
         Ok(())
     }
-
-    unsafe fn write_yuyv<V: Vector>(&mut self, y: V, uv: V, offset0: usize)
-    where
-        P: Primitive,
-    {
-        let (yuyv00, yuyv01) = y.zip(uv);
-
-        P::write_2x(&mut self.yuyv[offset0..], yuyv00, yuyv01);
-    }
 }
 
-impl<P, S> Image2x2Visitor for YUYVWriter<'_, P, S>
+impl<P, S> Image2x2Visitor for Write3Plane<'_, P, S>
 where
     P: Primitive,
-    S: I422Src,
+    S: Yuv422Src,
 {
     #[inline(always)]
     unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize) {
-        let I422Block {
+        let Yuv422Block {
             y00,
             y01,
             y10,
@@ -87,15 +87,22 @@ where
         let v0 = v0.vmulf(self.max_value);
         let v1 = v1.vmulf(self.max_value);
 
-        let offset0 = y * self.yuyv_stride + x * 2 * P::SIZE;
-        let offset1 = (y + 1) * self.yuyv_stride + x * 2 * P::SIZE;
+        let y00_offset = y * self.y_stride + x * P::SIZE;
+        let y10_offset = (y + 1) * self.y_stride + x * P::SIZE;
 
-        let (uv00, uv01) = u0.zip(v0);
-        let (uv10, uv11) = u1.zip(v1);
+        P::write_2x(&mut self.y[y00_offset..], y00, y01);
+        P::write_2x(&mut self.y[y10_offset..], y10, y11);
 
-        self.write_yuyv(y00, uv00, offset0);
-        self.write_yuyv(y01, uv01, offset0 + V::LEN * 2 * P::SIZE);
-        self.write_yuyv(y10, uv10, offset1);
-        self.write_yuyv(y11, uv11, offset1 + V::LEN * 2 * P::SIZE);
+        let u0_offset = (y) * (self.u_stride) + (x / 2) * P::SIZE;
+        let u1_offset = (y + 1) * (self.u_stride) + (x / 2) * P::SIZE;
+
+        let v0_offset = (y) * (self.v_stride) + (x / 2) * P::SIZE;
+        let v1_offset = (y + 1) * (self.v_stride) + (x / 2) * P::SIZE;
+
+        P::write(&mut self.u[u0_offset..], u0);
+        P::write(&mut self.u[u1_offset..], u1);
+
+        P::write(&mut self.v[v0_offset..], v0);
+        P::write(&mut self.v[v1_offset..], v1);
     }
 }

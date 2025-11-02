@@ -1,10 +1,11 @@
+use crate::formats::yuv422::{Yuv422Block, Yuv422Src};
 use crate::planes::read_planes;
 use crate::primitive::Primitive;
 use crate::vector::Vector;
-use crate::{ConvertError, I422Block, I422Src, ImageRef, ImageRefExt};
+use crate::{ConvertError, ImageRef, ImageRefExt};
 use std::marker::PhantomData;
 
-pub(crate) struct YUYVReader<'a, P: Primitive> {
+pub(crate) struct Read1Plane<'a, P: Primitive> {
     yuyv: &'a [u8],
 
     yuyv_stride: usize,
@@ -14,7 +15,7 @@ pub(crate) struct YUYVReader<'a, P: Primitive> {
     _m: PhantomData<&'a [P]>,
 }
 
-impl<'a, P: Primitive> YUYVReader<'a, P> {
+impl<'a, P: Primitive> Read1Plane<'a, P> {
     pub(crate) fn new(src: &'a dyn ImageRef) -> Result<Self, ConvertError> {
         src.bounds_check()?;
 
@@ -36,9 +37,9 @@ impl<'a, P: Primitive> YUYVReader<'a, P> {
     }
 }
 
-impl<P: Primitive> I422Src for YUYVReader<'_, P> {
+impl<P: Primitive> Yuv422Src for Read1Plane<'_, P> {
     #[inline(always)]
-    unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> I422Block<V> {
+    unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> Yuv422Block<V> {
         let offset0 = y * self.yuyv_stride + x * 2 * P::SIZE;
         let offset1 = (y + 1) * self.yuyv_stride + x * 2 * P::SIZE;
 
@@ -62,7 +63,7 @@ impl<P: Primitive> I422Src for YUYVReader<'_, P> {
         let v0 = v0.vdivf(self.max_value);
         let v1 = v1.vdivf(self.max_value);
 
-        I422Block {
+        Yuv422Block {
             y00,
             y01,
             y10,

@@ -1,6 +1,32 @@
 #![doc = include_str!("../README.md")]
 #![warn(unreachable_pub)]
 #![allow(unsafe_op_in_unsafe_fn)]
+// TODO: actually feature gating every single function and use is impossible right now, so until then warnings
+// for unused items are only enabled when all-formats is activated
+#![cfg_attr(not(feature = "all-formats"), allow(unused))]
+
+#[cfg(not(any(
+    feature = "I420",
+    feature = "I422",
+    feature = "I444",
+    feature = "I010",
+    feature = "I012",
+    feature = "I210",
+    feature = "I212",
+    feature = "I410",
+    feature = "I412",
+    feature = "NV12",
+    feature = "P010",
+    feature = "P012",
+    feature = "YUYV",
+    feature = "RGBA",
+    feature = "BGRA",
+    feature = "ARGB",
+    feature = "ABGR",
+    feature = "RGB",
+    feature = "BGR",
+)))]
+compile_error!("At least one image format feature must be enabled");
 
 use formats::*;
 
@@ -96,76 +122,131 @@ fn read_any_to_rgba<'a>(
     use PixelFormat::*;
 
     match src.format() {
-        I420 => Ok(Box::new(I420ToRgb::new(
+        #[cfg(feature = "I420")]
+        I420 => Ok(Box::new(yuv420::ToRgb::new(
             &src.color(),
-            I420Reader::<u8>::new(src)?,
+            yuv420::Read3Plane::<u8>::new(src)?,
         )?)),
-        I422 => Ok(Box::new(I422ToRgb::new(
+        #[cfg(feature = "I422")]
+        I422 => Ok(Box::new(yuv422::ToRgb::new(
             &src.color(),
-            I422Reader::<u8>::new(src)?,
+            yuv422::Read3Plane::<u8>::new(src)?,
         )?)),
-        I444 => Ok(Box::new(I444ToRgb::new(
+        #[cfg(feature = "I444")]
+        I444 => Ok(Box::new(yuv444::ToRgb::new(
             &src.color(),
-            I444Reader::<u8>::new(src)?,
+            yuv444::Read3Plane::<u8>::new(src)?,
         )?)),
-
-        I010 | I012 => Ok(Box::new(I420ToRgb::new(
+        #[cfg(feature = "I010")]
+        I010 => Ok(Box::new(yuv420::ToRgb::new(
             &src.color(),
-            I420Reader::<u16>::new(src)?,
+            yuv420::Read3Plane::<u16>::new(src)?,
         )?)),
-        I210 | I212 => Ok(Box::new(I422ToRgb::new(
+        #[cfg(feature = "I012")]
+        I012 => Ok(Box::new(yuv420::ToRgb::new(
             &src.color(),
-            I422Reader::<u16>::new(src)?,
+            yuv420::Read3Plane::<u16>::new(src)?,
         )?)),
-        I410 | I412 => Ok(Box::new(I444ToRgb::new(
+        #[cfg(feature = "I210")]
+        I210 => Ok(Box::new(yuv422::ToRgb::new(
             &src.color(),
-            I444Reader::<u16>::new(src)?,
+            yuv422::Read3Plane::<u16>::new(src)?,
         )?)),
-
-        NV12 => Ok(Box::new(I420ToRgb::new(
+        #[cfg(feature = "I212")]
+        I212 => Ok(Box::new(yuv422::ToRgb::new(
             &src.color(),
-            NV12Reader::<u8>::new(src)?,
+            yuv422::Read3Plane::<u16>::new(src)?,
         )?)),
-        P010 | P012 => Ok(Box::new(I420ToRgb::new(
+        #[cfg(feature = "I410")]
+        I410 => Ok(Box::new(yuv444::ToRgb::new(
             &src.color(),
-            NV12Reader::<u16>::new(src)?,
+            yuv444::Read3Plane::<u16>::new(src)?,
         )?)),
-        YUYV => Ok(Box::new(I422ToRgb::new(
+        #[cfg(feature = "I412")]
+        I412 => Ok(Box::new(yuv444::ToRgb::new(
             &src.color(),
-            YUYVReader::<u8>::new(src)?,
+            yuv444::Read3Plane::<u16>::new(src)?,
         )?)),
-
-        RGBA => Ok(Box::new(RgbaReader::<SWIZZLE_RGBA, u8>::new(src)?)),
-        BGRA => Ok(Box::new(RgbaReader::<SWIZZLE_BGRA, u8>::new(src)?)),
-        ARGB => Ok(Box::new(RgbaReader::<SWIZZLE_ARGB, u8>::new(src)?)),
-        ABGR => Ok(Box::new(RgbaReader::<SWIZZLE_ABGR, u8>::new(src)?)),
-        RGB => Ok(Box::new(RgbReader::<SWIZZLE_RGBA, u8>::new(src)?)),
-        BGR => Ok(Box::new(RgbReader::<SWIZZLE_BGRA, u8>::new(src)?)),
+        #[cfg(feature = "NV12")]
+        NV12 => Ok(Box::new(yuv420::ToRgb::new(
+            &src.color(),
+            yuv420::Read2Plane::<u8>::new(src)?,
+        )?)),
+        #[cfg(feature = "P010")]
+        P010 => Ok(Box::new(yuv420::ToRgb::new(
+            &src.color(),
+            yuv420::Read2Plane::<u16>::new(src)?,
+        )?)),
+        #[cfg(feature = "P012")]
+        P012 => Ok(Box::new(yuv420::ToRgb::new(
+            &src.color(),
+            yuv420::Read2Plane::<u16>::new(src)?,
+        )?)),
+        #[cfg(feature = "YUYV")]
+        YUYV => Ok(Box::new(yuv422::ToRgb::new(
+            &src.color(),
+            yuv422::Read1Plane::<u8>::new(src)?,
+        )?)),
+        #[cfg(feature = "RGBA")]
+        RGBA => Ok(Box::new(rgb::ReadRgba::<u8>::new(src)?)),
+        #[cfg(feature = "BGRA")]
+        BGRA => Ok(Box::new(rgb::ReadBgra::<u8>::new(src)?)),
+        #[cfg(feature = "ARGB")]
+        ARGB => Ok(Box::new(rgb::ReadArgb::<u8>::new(src)?)),
+        #[cfg(feature = "ABGR")]
+        ABGR => Ok(Box::new(rgb::ReadAbgr::<u8>::new(src)?)),
+        #[cfg(feature = "RGB")]
+        RGB => Ok(Box::new(rgb::ReadRgb::<u8>::new(src)?)),
+        #[cfg(feature = "BGR")]
+        BGR => Ok(Box::new(rgb::ReadBgr::<u8>::new(src)?)),
     }
 }
 
 #[inline(never)]
-fn rgba_to_any(dst: &mut dyn ImageMut, reader: impl RgbaSrc) -> Result<(), ConvertError> {
+fn rgba_to_any(dst: &mut dyn ImageMut, reader: impl rgb::RgbaSrc) -> Result<(), ConvertError> {
     use PixelFormat::*;
 
-    let dst_color = dst.color();
+    let color = dst.color();
 
     match dst.format() {
-        I420 => I420Writer::<u8, _>::write(dst, RgbToI420::new(&dst_color, reader)?),
-        I422 => I422Writer::<u8, _>::write(dst, RgbToI422::new(&dst_color, reader)?),
-        I444 => I444Writer::<u8, _>::write(dst, RgbToI444::new(&dst_color, reader)?),
-        I010 | I012 => I420Writer::<u16, _>::write(dst, RgbToI420::new(&dst_color, reader)?),
-        I210 | I212 => I422Writer::<u16, _>::write(dst, RgbToI422::new(&dst_color, reader)?),
-        I410 | I412 => I444Writer::<u16, _>::write(dst, RgbToI444::new(&dst_color, reader)?),
-        NV12 => NV12Writer::<u8, _>::write(dst, RgbToI420::new(&dst_color, reader)?),
-        P010 | P012 => NV12Writer::<u16, _>::write(dst, RgbToI420::new(&dst_color, reader)?),
-        YUYV => YUYVWriter::<u8, _>::write(dst, RgbToI422::new(&dst_color, reader)?),
-        RGBA => RgbaWriter::<SWIZZLE_RGBA, u8, _>::write(dst, reader),
-        BGRA => RgbaWriter::<SWIZZLE_BGRA, u8, _>::write(dst, reader),
-        ARGB => RgbaWriter::<SWIZZLE_ARGB, u8, _>::write(dst, reader),
-        ABGR => RgbaWriter::<SWIZZLE_ABGR, u8, _>::write(dst, reader),
-        RGB => RgbWriter::<SWIZZLE_RGBA, u8, _>::write(dst, reader),
-        BGR => RgbWriter::<SWIZZLE_BGRA, u8, _>::write(dst, reader),
+        #[cfg(feature = "I420")]
+        I420 => yuv420::Write3Plane::<u8, _>::write(dst, yuv420::FromRgb::new(&color, reader)?),
+        #[cfg(feature = "I422")]
+        I422 => yuv422::Write3Plane::<u8, _>::write(dst, yuv422::FromRgb::new(&color, reader)?),
+        #[cfg(feature = "I444")]
+        I444 => yuv444::Write3Plane::<u8, _>::write(dst, yuv444::FromRgb::new(&color, reader)?),
+        #[cfg(feature = "I010")]
+        I010 => yuv420::Write3Plane::<u16, _>::write(dst, yuv420::FromRgb::new(&color, reader)?),
+        #[cfg(feature = "I012")]
+        I012 => yuv420::Write3Plane::<u16, _>::write(dst, yuv420::FromRgb::new(&color, reader)?),
+        #[cfg(feature = "I210")]
+        I210 => yuv422::Write3Plane::<u16, _>::write(dst, yuv422::FromRgb::new(&color, reader)?),
+        #[cfg(feature = "I212")]
+        I212 => yuv422::Write3Plane::<u16, _>::write(dst, yuv422::FromRgb::new(&color, reader)?),
+        #[cfg(feature = "I410")]
+        I410 => yuv444::Write3Plane::<u16, _>::write(dst, yuv444::FromRgb::new(&color, reader)?),
+        #[cfg(feature = "I412")]
+        I412 => yuv444::Write3Plane::<u16, _>::write(dst, yuv444::FromRgb::new(&color, reader)?),
+        #[cfg(feature = "NV12")]
+        NV12 => yuv420::Write2Plane::<u8, _>::write(dst, yuv420::FromRgb::new(&color, reader)?),
+        #[cfg(feature = "P010")]
+        P010 => yuv420::Write2Plane::<u16, _>::write(dst, yuv420::FromRgb::new(&color, reader)?),
+        #[cfg(feature = "P012")]
+        P012 => yuv420::Write2Plane::<u16, _>::write(dst, yuv420::FromRgb::new(&color, reader)?),
+        #[cfg(feature = "YUYV")]
+        YUYV => yuv422::Write1Plane::<u8, _>::write(dst, yuv422::FromRgb::new(&color, reader)?),
+        #[cfg(feature = "RGBA")]
+        RGBA => rgb::WriteRgba::<u8, _>::write(dst, reader),
+        #[cfg(feature = "BGRA")]
+        BGRA => rgb::WriteBgra::<u8, _>::write(dst, reader),
+        #[cfg(feature = "ARGB")]
+        ARGB => rgb::WriteArgb::<u8, _>::write(dst, reader),
+        #[cfg(feature = "ABGR")]
+        ABGR => rgb::WriteAbgr::<u8, _>::write(dst, reader),
+        #[cfg(feature = "RGB")]
+        RGB => rgb::WriteRgb::<u8, _>::write(dst, reader),
+        #[cfg(feature = "BGR")]
+        BGR => rgb::WriteBgr::<u8, _>::write(dst, reader),
     }
 }
 

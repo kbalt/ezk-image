@@ -6,7 +6,7 @@ use crate::vector::Vector;
 use crate::{ConvertError, ImageMut, ImageRefExt};
 use std::marker::PhantomData;
 
-pub(crate) struct RgbaWriter<'a, const SWIZZLE: u8, P, S>
+pub(crate) struct WriteRgba<'a, const SWIZZLE: u8, P, S>
 where
     P: Primitive,
     S: RgbaSrc,
@@ -22,7 +22,7 @@ where
     _m: PhantomData<&'a mut [P]>,
 }
 
-impl<'a, const SWIZZLE: u8, P, S> RgbaWriter<'a, SWIZZLE, P, S>
+impl<'a, const SWIZZLE: u8, P, S> WriteRgba<'a, SWIZZLE, P, S>
 where
     P: Primitive,
     S: RgbaSrc,
@@ -52,7 +52,7 @@ where
     }
 }
 
-impl<const SWIZZLE: u8, P, S> Image2x2Visitor for RgbaWriter<'_, SWIZZLE, P, S>
+impl<const SWIZZLE: u8, P, S> Image2x2Visitor for WriteRgba<'_, SWIZZLE, P, S>
 where
     P: Primitive,
     S: RgbaSrc,
