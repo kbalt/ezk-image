@@ -1,4 +1,4 @@
-use crate::{DynRgbaReader, DynRgbaReaderSpec, RgbaBlock};
+use crate::{DynRgbaReader, DynRgbaReaderSpec, formats::rgb::RgbaBlock};
 use std::fmt::Debug;
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]

@@ -59,27 +59,44 @@ pub fn infer<S: AnySlice>(
     strides: Option<&[usize]>,
 ) -> impl Iterator<Item = S> {
     match format {
+        #[cfg(feature = "I420")]
         PixelFormat::I420 => ArrayIter::from(infer_i420(buf, width, height, strides)),
+        #[cfg(feature = "I422")]
         PixelFormat::I422 => ArrayIter::from(infer_i422(buf, width, height, strides)),
+        #[cfg(feature = "I444")]
         PixelFormat::I444 => ArrayIter::from(infer_i444(buf, width, height, strides)),
-        PixelFormat::I010 | PixelFormat::I012 => {
-            ArrayIter::from(infer_i01x(buf, width, height, strides))
-        }
-        PixelFormat::I210 | PixelFormat::I212 => {
-            ArrayIter::from(infer_i21x(buf, width, height, strides))
-        }
-        PixelFormat::I410 | PixelFormat::I412 => {
-            ArrayIter::from(infer_i41x(buf, width, height, strides))
-        }
+        #[cfg(feature = "I010")]
+        PixelFormat::I010 => ArrayIter::from(infer_i01x(buf, width, height, strides)),
+        #[cfg(feature = "I012")]
+        PixelFormat::I012 => ArrayIter::from(infer_i01x(buf, width, height, strides)),
+        #[cfg(feature = "I210")]
+        PixelFormat::I210 => ArrayIter::from(infer_i21x(buf, width, height, strides)),
+        #[cfg(feature = "I212")]
+        PixelFormat::I212 => ArrayIter::from(infer_i21x(buf, width, height, strides)),
+        #[cfg(feature = "I410")]
+        PixelFormat::I410 => ArrayIter::from(infer_i41x(buf, width, height, strides)),
+        #[cfg(feature = "I412")]
+        PixelFormat::I412 => ArrayIter::from(infer_i41x(buf, width, height, strides)),
+        #[cfg(feature = "NV12")]
         PixelFormat::NV12 => ArrayIter::from(infer_nv12(buf, width, height, strides)),
-        PixelFormat::P010 | PixelFormat::P012 => {
-            ArrayIter::from(infer_p01x(buf, width, height, strides))
-        }
+        #[cfg(feature = "P010")]
+        PixelFormat::P010 => ArrayIter::from(infer_p01x(buf, width, height, strides)),
+        #[cfg(feature = "P012")]
+        PixelFormat::P012 => ArrayIter::from(infer_p01x(buf, width, height, strides)),
+        #[cfg(feature = "YUYV")]
         PixelFormat::YUYV => ArrayIter::from([buf]),
-        PixelFormat::RGBA | PixelFormat::BGRA | PixelFormat::ARGB | PixelFormat::ABGR => {
-            ArrayIter::from([buf])
-        }
-        PixelFormat::RGB | PixelFormat::BGR => ArrayIter::from([buf]),
+        #[cfg(feature = "RGBA")]
+        PixelFormat::RGBA => ArrayIter::from([buf]),
+        #[cfg(feature = "BGRA")]
+        PixelFormat::BGRA => ArrayIter::from([buf]),
+        #[cfg(feature = "ARGB")]
+        PixelFormat::ARGB => ArrayIter::from([buf]),
+        #[cfg(feature = "ABGR")]
+        PixelFormat::ABGR => ArrayIter::from([buf]),
+        #[cfg(feature = "RGB")]
+        PixelFormat::RGB => ArrayIter::from([buf]),
+        #[cfg(feature = "BGR")]
+        PixelFormat::BGR => ArrayIter::from([buf]),
     }
 }
 

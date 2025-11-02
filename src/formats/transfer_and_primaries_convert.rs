@@ -1,4 +1,4 @@
-use super::rgba::{RgbaBlock, RgbaSrc};
+use super::rgb::{RgbaBlock, RgbaSrc};
 use crate::ColorTransfer;
 use crate::color::ColorInfo;
 use crate::color::primaries::{rgb_to_xyz, xyz_to_rgb};

@@ -1,10 +1,12 @@
-use super::{I422Block, I422Src};
-use crate::formats::rgba::{RgbaBlock, RgbaPixel, RgbaSrc};
+use super::Yuv422Block;
+use crate::formats::rgb::{RgbaBlock, RgbaPixel, RgbaSrc};
+use crate::formats::yuv422::Yuv422Src;
 use crate::vector::Vector;
 use crate::{ColorInfo, ColorSpace, ColorTransfer, ConvertError};
 
-pub(crate) struct I422ToRgb<S> {
-    i422_src: S,
+/// YUV 422 to RGB converter source
+pub(crate) struct ToRgb<S> {
+    yuv422_src: S,
 
     space: ColorSpace,
     transfer: ColorTransfer,
@@ -12,14 +14,14 @@ pub(crate) struct I422ToRgb<S> {
     full_range: bool,
 }
 
-impl<S: I422Src> I422ToRgb<S> {
-    pub(crate) fn new(color: &ColorInfo, i422_src: S) -> Result<Self, ConvertError> {
+impl<S: Yuv422Src> ToRgb<S> {
+    pub(crate) fn new(color: &ColorInfo, yuv422_src: S) -> Result<Self, ConvertError> {
         let ColorInfo::YUV(yuv) = color else {
             return Err(ConvertError::InvalidColorInfo);
         };
 
         Ok(Self {
-            i422_src,
+            yuv422_src,
             space: yuv.space,
             transfer: yuv.transfer,
             xyz_to_rgb: yuv.primaries.xyz_to_rgb_mat(),
@@ -28,10 +30,10 @@ impl<S: I422Src> I422ToRgb<S> {
     }
 }
 
-impl<S: I422Src> RgbaSrc for I422ToRgb<S> {
+impl<S: Yuv422Src> RgbaSrc for ToRgb<S> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbaBlock<V> {
-        let I422Block {
+        let Yuv422Block {
             mut y00,
             mut y01,
             mut y10,
@@ -40,7 +42,7 @@ impl<S: I422Src> RgbaSrc for I422ToRgb<S> {
             mut u1,
             mut v0,
             mut v1,
-        } = self.i422_src.read::<V>(x, y);
+        } = self.yuv422_src.read::<V>(x, y);
 
         // If the YUV components don't use the full range of u8 scale them to the full range
         // Y  16..=235 -> 0..255 Y  = (1.164 * (Y  - 16))

@@ -1,15 +1,15 @@
-use super::{I444Block, I444Src};
 use crate::formats::visit_2x2::{Image2x2Visitor, visit};
+use crate::formats::yuv444::{Yuv444Block, Yuv444Src};
 use crate::planes::read_planes_mut;
 use crate::primitive::Primitive;
 use crate::vector::Vector;
 use crate::{ConvertError, ImageMut, ImageRefExt};
 use std::marker::PhantomData;
 
-pub(crate) struct I444Writer<'a, P, S>
+pub(crate) struct Write3Plane<'a, P, S>
 where
     P: Primitive,
-    S: I444Src,
+    S: Yuv444Src,
 {
     y: &'a mut [u8],
     u: &'a mut [u8],
@@ -21,15 +21,15 @@ where
 
     max_value: f32,
 
-    i444_src: S,
+    yuv444_src: S,
 
     _m: PhantomData<&'a mut [P]>,
 }
 
-impl<'a, P, S> I444Writer<'a, P, S>
+impl<'a, P, S> Write3Plane<'a, P, S>
 where
     P: Primitive,
-    S: I444Src,
+    S: Yuv444Src,
 {
     pub(crate) fn write(dst: &'a mut dyn ImageMut, i444_src: S) -> Result<(), ConvertError> {
         dst.bounds_check()?;
@@ -51,7 +51,7 @@ where
                 u_stride,
                 v_stride,
                 max_value: crate::formats::max_value_for_bits(dst_format.bits_per_component()),
-                i444_src,
+                yuv444_src: i444_src,
                 _m: PhantomData,
             },
         );
@@ -60,16 +60,16 @@ where
     }
 }
 
-impl<P, S> Image2x2Visitor for I444Writer<'_, P, S>
+impl<P, S> Image2x2Visitor for Write3Plane<'_, P, S>
 where
     P: Primitive,
-    S: I444Src,
+    S: Yuv444Src,
 {
     #[inline(always)]
     unsafe fn visit<V: Vector>(&mut self, x: usize, y: usize) {
-        let block = self.i444_src.read::<V>(x, y);
+        let block = self.yuv444_src.read::<V>(x, y);
 
-        let I444Block {
+        let Yuv444Block {
             px00,
             px01,
             px10,

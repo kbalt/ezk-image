@@ -1,12 +1,12 @@
+use crate::formats::rgb::{RgbaPixel, RgbaSrc, SWIZZLE_BGRA, SWIZZLE_RGBA};
 use crate::formats::visit_2x2::{Image2x2Visitor, visit};
-use crate::formats::{SWIZZLE_BGRA, SWIZZLE_RGBA};
 use crate::planes::read_planes_mut;
 use crate::primitive::Primitive;
 use crate::vector::Vector;
-use crate::{ConvertError, ImageMut, ImageRefExt, RgbaPixel, RgbaSrc};
+use crate::{ConvertError, ImageMut, ImageRefExt};
 use std::marker::PhantomData;
 
-pub(crate) struct RgbWriter<'a, const SWIZZLE: u8, P, S>
+pub(crate) struct WriteRgb<'a, const SWIZZLE: u8, P, S>
 where
     P: Primitive,
     S: RgbaSrc,
@@ -22,7 +22,7 @@ where
     _m: PhantomData<&'a mut [P]>,
 }
 
-impl<'a, const SWIZZLE: u8, P, S> RgbWriter<'a, SWIZZLE, P, S>
+impl<'a, const SWIZZLE: u8, P, S> WriteRgb<'a, SWIZZLE, P, S>
 where
     P: Primitive,
     S: RgbaSrc,
@@ -52,7 +52,7 @@ where
     }
 }
 
-impl<const SWIZZLE: u8, P, S> Image2x2Visitor for RgbWriter<'_, SWIZZLE, P, S>
+impl<const SWIZZLE: u8, P, S> Image2x2Visitor for WriteRgb<'_, SWIZZLE, P, S>
 where
     P: Primitive,
     S: RgbaSrc,

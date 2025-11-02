@@ -1,11 +1,11 @@
-use super::{I444Block, I444Src};
+use crate::formats::yuv444::{Yuv444Block, Yuv444Pixel, Yuv444Src};
 use crate::planes::read_planes;
 use crate::primitive::Primitive;
 use crate::vector::Vector;
-use crate::{ConvertError, I444Pixel, ImageRef, ImageRefExt};
+use crate::{ConvertError, ImageRef, ImageRefExt};
 use std::marker::PhantomData;
 
-pub(crate) struct I444Reader<'a, P: Primitive> {
+pub(crate) struct Read3Plane<'a, P: Primitive> {
     y: &'a [u8],
     u: &'a [u8],
     v: &'a [u8],
@@ -19,7 +19,7 @@ pub(crate) struct I444Reader<'a, P: Primitive> {
     _m: PhantomData<&'a [P]>,
 }
 
-impl<'a, P: Primitive> I444Reader<'a, P> {
+impl<'a, P: Primitive> Read3Plane<'a, P> {
     pub(crate) fn new(src: &'a dyn ImageRef) -> Result<Self, ConvertError> {
         src.bounds_check()?;
 
@@ -38,9 +38,9 @@ impl<'a, P: Primitive> I444Reader<'a, P> {
     }
 }
 
-impl<P: Primitive> I444Src for I444Reader<'_, P> {
+impl<P: Primitive> Yuv444Src for Read3Plane<'_, P> {
     #[inline(always)]
-    unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> I444Block<V> {
+    unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> Yuv444Block<V> {
         let y00_offset = (y * self.y_stride) + x * P::SIZE;
         let y10_offset = ((y + 1) * self.y_stride) + x * P::SIZE;
 
@@ -84,23 +84,23 @@ impl<P: Primitive> I444Src for I444Reader<'_, P> {
         let v10 = v10.vdivf(self.max_value);
         let v11 = v11.vdivf(self.max_value);
 
-        I444Block {
-            px00: I444Pixel {
+        Yuv444Block {
+            px00: Yuv444Pixel {
                 y: y00,
                 u: u00,
                 v: v00,
             },
-            px01: I444Pixel {
+            px01: Yuv444Pixel {
                 y: y01,
                 u: u01,
                 v: v01,
             },
-            px10: I444Pixel {
+            px10: Yuv444Pixel {
                 y: y10,
                 u: u10,
                 v: v10,
             },
-            px11: I444Pixel {
+            px11: Yuv444Pixel {
                 y: y11,
                 u: u11,
                 v: v11,

@@ -1,11 +1,11 @@
-use crate::formats::rgba::{RgbaBlock, RgbaPixel, RgbaSrc};
+use crate::formats::rgb::{RgbaBlock, RgbaPixel, RgbaSrc};
 use crate::planes::read_planes;
 use crate::primitive::Primitive;
 use crate::vector::Vector;
 use crate::{ConvertError, ImageRef, ImageRefExt};
 use std::marker::PhantomData;
 
-pub(crate) struct RgbReader<'a, const SWIZZLE: u8, P: Primitive> {
+pub(crate) struct ReadRgb<'a, const SWIZZLE: u8, P: Primitive> {
     rgb: &'a [u8],
 
     rgb_stride: usize,
@@ -15,7 +15,7 @@ pub(crate) struct RgbReader<'a, const SWIZZLE: u8, P: Primitive> {
     _m: PhantomData<&'a [P]>,
 }
 
-impl<'a, const SWIZZLE: u8, P: Primitive> RgbReader<'a, SWIZZLE, P> {
+impl<'a, const SWIZZLE: u8, P: Primitive> ReadRgb<'a, SWIZZLE, P> {
     pub(crate) fn new(src: &'a dyn ImageRef) -> Result<Self, ConvertError> {
         src.bounds_check()?;
 
@@ -30,7 +30,7 @@ impl<'a, const SWIZZLE: u8, P: Primitive> RgbReader<'a, SWIZZLE, P> {
     }
 }
 
-impl<const SWIZZLE: u8, P: Primitive> RgbaSrc for RgbReader<'_, SWIZZLE, P> {
+impl<const SWIZZLE: u8, P: Primitive> RgbaSrc for ReadRgb<'_, SWIZZLE, P> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbaBlock<V> {
         let rgb00offset = y * self.rgb_stride + x * 3 * P::SIZE;
