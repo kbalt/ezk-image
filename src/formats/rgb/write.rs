@@ -1,11 +1,12 @@
 use crate::formats::visit_2x2::{Image2x2Visitor, visit};
+use crate::formats::{SWIZZLE_BGRA, SWIZZLE_RGBA};
 use crate::planes::read_planes_mut;
 use crate::primitive::Primitive;
 use crate::vector::Vector;
 use crate::{ConvertError, ImageMut, ImageRefExt, RgbaPixel, RgbaSrc};
 use std::marker::PhantomData;
 
-pub(crate) struct RgbWriter<'a, const REVERSE: bool, P, S>
+pub(crate) struct RgbWriter<'a, const SWIZZLE: u8, P, S>
 where
     P: Primitive,
     S: RgbaSrc,
@@ -21,7 +22,7 @@ where
     _m: PhantomData<&'a mut [P]>,
 }
 
-impl<'a, const REVERSE: bool, P, S> RgbWriter<'a, REVERSE, P, S>
+impl<'a, const SWIZZLE: u8, P, S> RgbWriter<'a, SWIZZLE, P, S>
 where
     P: Primitive,
     S: RgbaSrc,
@@ -51,7 +52,7 @@ where
     }
 }
 
-impl<const REVERSE: bool, P, S> Image2x2Visitor for RgbWriter<'_, REVERSE, P, S>
+impl<const SWIZZLE: u8, P, S> Image2x2Visitor for RgbWriter<'_, SWIZZLE, P, S>
 where
     P: Primitive,
     S: RgbaSrc,
@@ -66,23 +67,23 @@ where
         P::write_interleaved_3x_2x(
             &mut self.rgb[offset00..],
             [
-                multiply_and_reverse::<REVERSE, V>(block.px00, self.max_value),
-                multiply_and_reverse::<REVERSE, V>(block.px01, self.max_value),
+                multiply_and_reverse::<SWIZZLE, V>(block.px00, self.max_value),
+                multiply_and_reverse::<SWIZZLE, V>(block.px01, self.max_value),
             ],
         );
 
         P::write_interleaved_3x_2x(
             &mut self.rgb[offset10..],
             [
-                multiply_and_reverse::<REVERSE, V>(block.px10, self.max_value),
-                multiply_and_reverse::<REVERSE, V>(block.px11, self.max_value),
+                multiply_and_reverse::<SWIZZLE, V>(block.px10, self.max_value),
+                multiply_and_reverse::<SWIZZLE, V>(block.px11, self.max_value),
             ],
         );
     }
 }
 
 #[inline(always)]
-unsafe fn multiply_and_reverse<const REVERSE: bool, V: Vector>(
+unsafe fn multiply_and_reverse<const SWIZZLE: u8, V: Vector>(
     px: RgbaPixel<V>,
     max_value: f32,
 ) -> [V; 3] {
@@ -90,5 +91,9 @@ unsafe fn multiply_and_reverse<const REVERSE: bool, V: Vector>(
     let g = px.g.vmulf(max_value);
     let b = px.b.vmulf(max_value);
 
-    if REVERSE { [b, g, r] } else { [r, g, b] }
+    match SWIZZLE {
+        SWIZZLE_RGBA => [r, g, b],
+        SWIZZLE_BGRA => [b, g, r],
+        _ => unreachable!("unknown swizzle {SWIZZLE}"),
+    }
 }

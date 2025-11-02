@@ -76,7 +76,9 @@ pub fn infer<S: AnySlice>(
             ArrayIter::from(infer_p01x(buf, width, height, strides))
         }
         PixelFormat::YUYV => ArrayIter::from([buf]),
-        PixelFormat::RGBA | PixelFormat::BGRA => ArrayIter::from([buf]),
+        PixelFormat::RGBA | PixelFormat::BGRA | PixelFormat::ARGB | PixelFormat::ABGR => {
+            ArrayIter::from([buf])
+        }
         PixelFormat::RGB | PixelFormat::BGR => ArrayIter::from([buf]),
     }
 }

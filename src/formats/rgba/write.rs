@@ -6,7 +6,7 @@ use crate::vector::Vector;
 use crate::{ConvertError, ImageMut, ImageRefExt};
 use std::marker::PhantomData;
 
-pub(crate) struct RgbaWriter<'a, const REVERSE: bool, P, S>
+pub(crate) struct RgbaWriter<'a, const SWIZZLE: u8, P, S>
 where
     P: Primitive,
     S: RgbaSrc,
@@ -22,7 +22,7 @@ where
     _m: PhantomData<&'a mut [P]>,
 }
 
-impl<'a, const REVERSE: bool, P, S> RgbaWriter<'a, REVERSE, P, S>
+impl<'a, const SWIZZLE: u8, P, S> RgbaWriter<'a, SWIZZLE, P, S>
 where
     P: Primitive,
     S: RgbaSrc,
@@ -52,7 +52,7 @@ where
     }
 }
 
-impl<const REVERSE: bool, P, S> Image2x2Visitor for RgbaWriter<'_, REVERSE, P, S>
+impl<const SWIZZLE: u8, P, S> Image2x2Visitor for RgbaWriter<'_, SWIZZLE, P, S>
 where
     P: Primitive,
     S: RgbaSrc,
@@ -67,23 +67,23 @@ where
         P::write_interleaved_4x_2x(
             &mut self.rgba[offset00..],
             [
-                multiply_and_reverse::<REVERSE, V>(block.px00, self.max_value),
-                multiply_and_reverse::<REVERSE, V>(block.px01, self.max_value),
+                multiply_and_reverse::<SWIZZLE, V>(block.px00, self.max_value),
+                multiply_and_reverse::<SWIZZLE, V>(block.px01, self.max_value),
             ],
         );
 
         P::write_interleaved_4x_2x(
             &mut self.rgba[offset10..],
             [
-                multiply_and_reverse::<REVERSE, V>(block.px10, self.max_value),
-                multiply_and_reverse::<REVERSE, V>(block.px11, self.max_value),
+                multiply_and_reverse::<SWIZZLE, V>(block.px10, self.max_value),
+                multiply_and_reverse::<SWIZZLE, V>(block.px11, self.max_value),
             ],
         );
     }
 }
 
 #[inline(always)]
-unsafe fn multiply_and_reverse<const REVERSE: bool, V: Vector>(
+unsafe fn multiply_and_reverse<const SWIZZLE: u8, V: Vector>(
     px: RgbaPixel<V>,
     max_value: f32,
 ) -> [V; 4] {
@@ -92,5 +92,11 @@ unsafe fn multiply_and_reverse<const REVERSE: bool, V: Vector>(
     let b = px.b.vmulf(max_value);
     let a = px.a.vmulf(max_value);
 
-    if REVERSE { [b, g, r, a] } else { [r, g, b, a] }
+    match SWIZZLE {
+        super::SWIZZLE_RGBA => [r, g, b, a],
+        super::SWIZZLE_BGRA => [b, g, r, a],
+        super::SWIZZLE_ARGB => [a, r, g, b],
+        super::SWIZZLE_ABGR => [a, b, g, r],
+        _ => unreachable!("unknown swizzle {SWIZZLE}"),
+    }
 }

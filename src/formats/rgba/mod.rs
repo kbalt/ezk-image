@@ -6,6 +6,11 @@ mod write;
 pub(crate) use read::RgbaReader;
 pub(crate) use write::RgbaWriter;
 
+pub(crate) const SWIZZLE_RGBA: u8 = 0;
+pub(crate) const SWIZZLE_BGRA: u8 = 1;
+pub(crate) const SWIZZLE_ARGB: u8 = 2;
+pub(crate) const SWIZZLE_ABGR: u8 = 3;
+
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct RgbaPixel<V> {
     pub(crate) r: V,
@@ -15,11 +20,19 @@ pub(crate) struct RgbaPixel<V> {
 }
 
 impl<V: Vector> RgbaPixel<V> {
-    pub(crate) unsafe fn from_loaded<const REVERSE: bool>(r: V, g: V, b: V, a: V) -> Self {
-        if REVERSE {
-            Self { r: b, g, b: r, a }
-        } else {
-            Self { r, g, b, a }
+    #[inline(always)]
+    fn new(r: V, g: V, b: V, a: V) -> Self {
+        Self { r, g, b, a }
+    }
+
+    #[inline(always)]
+    pub(crate) unsafe fn from_components<const SWIZZLE: u8>(c0: V, c1: V, c2: V, c3: V) -> Self {
+        match SWIZZLE {
+            SWIZZLE_RGBA => Self::new(c0, c1, c2, c3),
+            SWIZZLE_BGRA => Self::new(c2, c1, c0, c3),
+            SWIZZLE_ARGB => Self::new(c1, c2, c3, c0),
+            SWIZZLE_ABGR => Self::new(c3, c2, c1, c0),
+            _ => unreachable!("unknown swizzle {SWIZZLE}"),
         }
     }
 }

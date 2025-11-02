@@ -48,6 +48,12 @@ pub enum PixelFormat {
     /// Single BGRA interleaved plane
     BGRA,
 
+    /// Single ARGB interleaved plane
+    ARGB,
+
+    /// Single ABGR interleaved plane
+    ABGR,
+
     /// Single RGB interleaved plane
     RGB,
 
@@ -143,7 +149,9 @@ impl PixelFormat {
             NV12 => bounds_check(NV12_PLANES, read_planes(planes)?, width, height),
             P010 | P012 => bounds_check(P01X_PLANES, read_planes(planes)?, width, height),
             YUYV => bounds_check(YUYV_PLANES, read_planes(planes)?, width, height),
-            RGBA | BGRA => bounds_check(RGBA_PLANES, read_planes(planes)?, width, height),
+            RGBA | BGRA | ARGB | ABGR => {
+                bounds_check(RGBA_PLANES, read_planes(planes)?, width, height)
+            }
             RGB | BGR => bounds_check(RGB_PLANES, read_planes(planes)?, width, height),
         }
     }
@@ -165,6 +173,8 @@ impl PixelFormat {
             PixelFormat::YUYV => 8,
             PixelFormat::RGBA => 8,
             PixelFormat::BGRA => 8,
+            PixelFormat::ARGB => 8,
+            PixelFormat::ABGR => 8,
             PixelFormat::RGB => 8,
             PixelFormat::BGR => 8,
         }
@@ -183,7 +193,7 @@ impl PixelFormat {
             NV12 => &NV12_PLANES,
             P010 | P012 => &P01X_PLANES,
             YUYV => &YUYV_PLANES,
-            RGBA | BGRA => &RGBA_PLANES,
+            RGBA | BGRA | ARGB | ABGR => &RGBA_PLANES,
             RGB | BGR => &RGB_PLANES,
         }
     }
@@ -193,7 +203,7 @@ impl PixelFormat {
 
         [
             I420, I422, I444, I010, I012, I210, I212, I410, I412, NV12, P010, P012, YUYV, RGBA,
-            BGRA, RGB, BGR,
+            BGRA, ARGB, ABGR, RGB, BGR,
         ]
     }
 }

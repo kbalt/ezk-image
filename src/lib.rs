@@ -135,10 +135,12 @@ fn read_any_to_rgba<'a>(
             YUYVReader::<u8>::new(src)?,
         )?)),
 
-        RGBA => Ok(Box::new(RgbaReader::<false, u8>::new(src)?)),
-        BGRA => Ok(Box::new(RgbaReader::<true, u8>::new(src)?)),
-        RGB => Ok(Box::new(RgbReader::<false, u8>::new(src)?)),
-        BGR => Ok(Box::new(RgbReader::<true, u8>::new(src)?)),
+        RGBA => Ok(Box::new(RgbaReader::<SWIZZLE_RGBA, u8>::new(src)?)),
+        BGRA => Ok(Box::new(RgbaReader::<SWIZZLE_BGRA, u8>::new(src)?)),
+        ARGB => Ok(Box::new(RgbaReader::<SWIZZLE_ARGB, u8>::new(src)?)),
+        ABGR => Ok(Box::new(RgbaReader::<SWIZZLE_ABGR, u8>::new(src)?)),
+        RGB => Ok(Box::new(RgbReader::<SWIZZLE_RGBA, u8>::new(src)?)),
+        BGR => Ok(Box::new(RgbReader::<SWIZZLE_BGRA, u8>::new(src)?)),
     }
 }
 
@@ -158,10 +160,12 @@ fn rgba_to_any(dst: &mut dyn ImageMut, reader: impl RgbaSrc) -> Result<(), Conve
         NV12 => NV12Writer::<u8, _>::write(dst, RgbToI420::new(&dst_color, reader)?),
         P010 | P012 => NV12Writer::<u16, _>::write(dst, RgbToI420::new(&dst_color, reader)?),
         YUYV => YUYVWriter::<u8, _>::write(dst, RgbToI422::new(&dst_color, reader)?),
-        RGBA => RgbaWriter::<false, u8, _>::write(dst, reader),
-        BGRA => RgbaWriter::<true, u8, _>::write(dst, reader),
-        RGB => RgbWriter::<false, u8, _>::write(dst, reader),
-        BGR => RgbWriter::<true, u8, _>::write(dst, reader),
+        RGBA => RgbaWriter::<SWIZZLE_RGBA, u8, _>::write(dst, reader),
+        BGRA => RgbaWriter::<SWIZZLE_BGRA, u8, _>::write(dst, reader),
+        ARGB => RgbaWriter::<SWIZZLE_ARGB, u8, _>::write(dst, reader),
+        ABGR => RgbaWriter::<SWIZZLE_ABGR, u8, _>::write(dst, reader),
+        RGB => RgbWriter::<SWIZZLE_RGBA, u8, _>::write(dst, reader),
+        BGR => RgbWriter::<SWIZZLE_BGRA, u8, _>::write(dst, reader),
     }
 }
 

@@ -5,7 +5,7 @@ use crate::vector::Vector;
 use crate::{ConvertError, ImageRef, ImageRefExt};
 use std::marker::PhantomData;
 
-pub(crate) struct RgbaReader<'a, const REVERSE: bool, P: Primitive> {
+pub(crate) struct RgbaReader<'a, const SWIZZLE: u8, P: Primitive> {
     rgba: &'a [u8],
 
     rgba_stride: usize,
@@ -15,7 +15,7 @@ pub(crate) struct RgbaReader<'a, const REVERSE: bool, P: Primitive> {
     _m: PhantomData<&'a [P]>,
 }
 
-impl<'a, const REVERSE: bool, P: Primitive> RgbaReader<'a, REVERSE, P> {
+impl<'a, const SWIZZLE: u8, P: Primitive> RgbaReader<'a, SWIZZLE, P> {
     pub(crate) fn new(src: &'a dyn ImageRef) -> Result<Self, ConvertError> {
         src.bounds_check()?;
 
@@ -30,7 +30,7 @@ impl<'a, const REVERSE: bool, P: Primitive> RgbaReader<'a, REVERSE, P> {
     }
 }
 
-impl<const REVERSE: bool, P: Primitive> RgbaSrc for RgbaReader<'_, REVERSE, P> {
+impl<const SWIZZLE: u8, P: Primitive> RgbaSrc for RgbaReader<'_, SWIZZLE, P> {
     #[inline(always)]
     unsafe fn read<V: Vector>(&mut self, x: usize, y: usize) -> RgbaBlock<V> {
         let rgba00offset = y * self.rgba_stride + x * 4 * P::SIZE;
@@ -61,10 +61,10 @@ impl<const REVERSE: bool, P: Primitive> RgbaSrc for RgbaReader<'_, REVERSE, P> {
         let b11 = b11.vdivf(self.max_value);
         let a11 = a11.vdivf(self.max_value);
 
-        let px00 = RgbaPixel::from_loaded::<REVERSE>(r00, g00, b00, a00);
-        let px01 = RgbaPixel::from_loaded::<REVERSE>(r01, g01, b01, a01);
-        let px10 = RgbaPixel::from_loaded::<REVERSE>(r10, g10, b10, a10);
-        let px11 = RgbaPixel::from_loaded::<REVERSE>(r11, g11, b11, a11);
+        let px00 = RgbaPixel::from_components::<SWIZZLE>(r00, g00, b00, a00);
+        let px01 = RgbaPixel::from_components::<SWIZZLE>(r01, g01, b01, a01);
+        let px10 = RgbaPixel::from_components::<SWIZZLE>(r10, g10, b10, a10);
+        let px11 = RgbaPixel::from_components::<SWIZZLE>(r11, g11, b11, a11);
 
         RgbaBlock {
             px00,
