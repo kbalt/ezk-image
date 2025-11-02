@@ -2,6 +2,7 @@ use crate::{InvalidNumberOfPlanesError, StrictApi as _, plane_decs::*, planes::r
 
 /// Supported pixel formats
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[non_exhaustive]
 pub enum PixelFormat {
     /// Y, U and V planes, 4:2:0 sub sampling, 8 bits per sample
     #[cfg(feature = "I420")]
