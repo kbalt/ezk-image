@@ -107,3 +107,75 @@ unsafe impl<T: ImageMut> ImageMut for &mut T {
         <T as ImageMut>::planes_mut(self)
     }
 }
+
+unsafe impl ImageRef for &dyn ImageRef {
+    fn format(&self) -> PixelFormat {
+        (**self).format()
+    }
+
+    fn width(&self) -> usize {
+        (**self).width()
+    }
+
+    fn height(&self) -> usize {
+        (**self).height()
+    }
+
+    fn planes(&self) -> Box<dyn Iterator<Item = (&[u8], usize)> + '_> {
+        (**self).planes()
+    }
+
+    fn color(&self) -> ColorInfo {
+        (**self).color()
+    }
+}
+
+unsafe impl ImageRef for &mut dyn ImageRef {
+    fn format(&self) -> PixelFormat {
+        (**self).format()
+    }
+
+    fn width(&self) -> usize {
+        (**self).width()
+    }
+
+    fn height(&self) -> usize {
+        (**self).height()
+    }
+
+    fn planes(&self) -> Box<dyn Iterator<Item = (&[u8], usize)> + '_> {
+        (**self).planes()
+    }
+
+    fn color(&self) -> ColorInfo {
+        (**self).color()
+    }
+}
+
+unsafe impl ImageRef for &mut dyn ImageMut {
+    fn format(&self) -> PixelFormat {
+        (**self).format()
+    }
+
+    fn width(&self) -> usize {
+        (**self).width()
+    }
+
+    fn height(&self) -> usize {
+        (**self).height()
+    }
+
+    fn planes(&self) -> Box<dyn Iterator<Item = (&[u8], usize)> + '_> {
+        (**self).planes()
+    }
+
+    fn color(&self) -> ColorInfo {
+        (**self).color()
+    }
+}
+
+unsafe impl ImageMut for &mut dyn ImageMut {
+    fn planes_mut(&mut self) -> Box<dyn Iterator<Item = (&mut [u8], usize)> + '_> {
+        (**self).planes_mut()
+    }
+}
