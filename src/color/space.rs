@@ -337,8 +337,8 @@ unsafe fn bt2100_rgbx4_to_yx4_uv<V: Vector>(
     let yuv10 = f(transfer, rgb_to_xyz, r[2], g[2], b[2]);
     let yuv11 = f(transfer, rgb_to_xyz, r[3], g[3], b[3]);
 
-    let u = yuv00.1.vadd(yuv01.1).vadd(yuv00.1).vadd(yuv00.1);
-    let v = yuv00.2.vadd(yuv01.2).vadd(yuv00.2).vadd(yuv00.2);
+    let u = yuv00.1.vadd(yuv01.1).vadd(yuv10.1).vadd(yuv11.1);
+    let v = yuv00.2.vadd(yuv01.2).vadd(yuv10.2).vadd(yuv11.2);
 
     let u = u.vdivf(4.0);
     let v = v.vdivf(4.0);

@@ -1,6 +1,5 @@
 use super::Vector;
-use crate::arch::*;
-use crate::{DynRgbaReader, DynRgbaReaderSpec, RgbaBlock};
+use crate::{DynRgbaReader, DynRgbaReaderSpec, arch::*, formats::rgb::RgbaBlock};
 use std::mem::transmute;
 
 unsafe impl Vector for float32x4_t {
